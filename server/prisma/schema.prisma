@@ -12,10 +12,23 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
   username     String   @unique
   passwordHash String
   createdAt    DateTime @default(now())
+  transactions Transaction[]
+}
+
+model Transaction {
+  id        String   @id @default(cuid())
+  amount    Float
+  type      String
+  category  String
+  note      String?
+  date      DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
 }
