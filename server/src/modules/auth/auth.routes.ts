@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { signupUser, loginUser } from "./auth.service";
+import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
+import prisma from "../../db/prisma";
 
 const router = Router();
 
@@ -33,4 +35,20 @@ router.post("/login", async (req, res) => {
   }
 });
 
+router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: req.userId },
+    select: { id: true, email: true, username: true, createdAt: true },
+  });
+
+  if (!user) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  res.status(200).json({ user });
+});
 export default router;
