@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { Wallet, LogOut, TrendingUp, TrendingDown, Wallet2, Pencil, Trash2, Plus } from "lucide-react";
+import { Wallet, LogOut, TrendingUp, TrendingDown, Wallet2, Pencil, Trash2, Plus, Receipt } from "lucide-react";
 
 interface Transaction {
   id: string;
@@ -13,11 +13,36 @@ interface Transaction {
   date: string;
 }
 
-const COLORS = ["#4f46e5", "#f97316", "#10b981", "#ec4899", "#eab308", "#06b6d4"];
+const COLORS = [1, 2, 3, 4, 5, 6].map((n) => `var(--color-chart-${n})`);
+
+const formatINR = (n: number) =>
+  "₹" + n.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+
+const inputClass =
+  "border border-line bg-surface rounded-xl px-4 py-2.5 text-ink-900 placeholder:text-ink-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition";
+
+const greeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+};
+
+const dayLabel = (iso: string) => {
+  const d = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return "Today";
+  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+};
 
 function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0 });
+  const [username, setUsername] = useState("");
+  const [loading, setLoading] = useState(true);
   const [amount, setAmount] = useState("");
   const [type, setType] = useState("expense");
   const [category, setCategory] = useState("");
@@ -25,6 +50,7 @@ function Dashboard() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
+  const formRef = useRef<HTMLFormElement>(null);
   const navigate = useNavigate();
 
   const loadData = async () => {
@@ -37,11 +63,14 @@ function Dashboard() {
       setSummary(summaryRes.data.summary);
     } catch (err) {
       navigate("/login");
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
+    api.get("/auth/me").then((res) => setUsername(res.data.user.username)).catch(() => {});
   }, []);
 
   const resetForm = () => {
@@ -69,6 +98,7 @@ function Dashboard() {
     setType(t.type);
     setCategory(t.category);
     setNote(t.note || "");
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
   const handleDelete = async (id: string) => {
@@ -83,11 +113,30 @@ function Dashboard() {
 
   const categories = Array.from(new Set(transactions.map((t) => t.category)));
 
+  // Most-used categories for the selected type, offered as quick picks
+  const categoryCounts = transactions
+    .filter((t) => t.type === type)
+    .reduce((acc: Record<string, number>, t) => {
+      acc[t.category] = (acc[t.category] || 0) + 1;
+      return acc;
+    }, {});
+  const quickCategories = Object.keys(categoryCounts)
+    .sort((a, b) => categoryCounts[b] - categoryCounts[a])
+    .slice(0, 6);
+
   const filtered = transactions.filter((t) => {
     if (filterType !== "all" && t.type !== filterType) return false;
     if (filterCategory !== "all" && t.category !== filterCategory) return false;
     return true;
   });
+
+  const grouped = filtered.reduce((acc: { label: string; items: Transaction[] }[], t) => {
+    const label = dayLabel(t.date);
+    const last = acc[acc.length - 1];
+    if (last && last.label === label) last.items.push(t);
+    else acc.push({ label, items: [t] });
+    return acc;
+  }, []);
 
   const chartData = Object.values(
     transactions
@@ -97,141 +146,298 @@ function Dashboard() {
         acc[t.category].value += t.amount;
         return acc;
       }, {})
-  );
+  ).sort((a, b) => b.value - a.value);
+  const totalSpent = chartData.reduce((sum, d) => sum + d.value, 0);
+
+  // Same color for a category in the chart, legend and transaction list
+  const colorOf: Record<string, string> = {};
+  [...chartData.map((d) => d.name), ...categories].forEach((c) => {
+    if (!(c in colorOf)) colorOf[c] = COLORS[Object.keys(colorOf).length % COLORS.length];
+  });
+
+  const savingsRate = summary.income > 0 ? Math.round((summary.balance / summary.income) * 100) : null;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-canvas">
+        <div className="h-16 bg-surface border-b border-line" />
+        <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6 animate-pulse">
+          <div className="h-6 w-56 bg-ink-200 rounded" />
+          <div className="h-52 bg-ink-200 rounded-2xl" />
+          <div className="grid gap-6 md:grid-cols-5">
+            <div className="md:col-span-3 h-72 bg-ink-100 rounded-2xl" />
+            <div className="md:col-span-2 h-72 bg-ink-100 rounded-2xl" />
+          </div>
+          <div className="h-64 bg-ink-100 rounded-2xl" />
+        </main>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-indigo-50">
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-2">
-            <div className="bg-indigo-600 p-2 rounded-xl">
-              <Wallet className="text-white" size={20} />
+    <div className="min-h-screen bg-canvas">
+      <header className="bg-surface border-b border-line">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex justify-between items-center">
+          <div className="flex items-center gap-2.5">
+            <div className="bg-ink-900 p-2 rounded-lg">
+              <Wallet className="text-brand-300" size={18} />
             </div>
-            <h1 className="text-xl font-bold text-gray-800">Money Mitra</h1>
+            <span className="text-lg font-semibold tracking-tight text-ink-900">Money Mitra</span>
           </div>
-          <button onClick={handleLogout} className="flex items-center gap-1 text-sm text-gray-400 hover:text-red-500 transition">
+          <button onClick={handleLogout} className="flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink-900 transition">
             <LogOut size={16} /> Log out
           </button>
         </div>
+      </header>
 
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex items-center gap-2 text-gray-400 text-xs font-medium mb-1">
-              <TrendingUp size={14} /> INCOME
-            </div>
-            <p className="text-2xl font-bold text-emerald-600">₹{summary.income}</p>
-          </div>
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex items-center gap-2 text-gray-400 text-xs font-medium mb-1">
-              <TrendingDown size={14} /> EXPENSE
-            </div>
-            <p className="text-2xl font-bold text-rose-500">₹{summary.expense}</p>
-          </div>
-          <div className="bg-indigo-600 p-5 rounded-2xl shadow-md shadow-indigo-200">
-            <div className="flex items-center gap-2 text-indigo-200 text-xs font-medium mb-1">
-              <Wallet2 size={14} /> BALANCE
-            </div>
-            <p className="text-2xl font-bold text-white">₹{summary.balance}</p>
-          </div>
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink-900">
+            {greeting()}{username && `, ${username}`}
+          </h1>
+          <p className="mt-1 text-sm text-ink-500">
+            {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </p>
         </div>
 
-        {chartData.length > 0 && (
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-6">
-            <h2 className="font-semibold text-gray-700 mb-2">Spending by Category</h2>
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                  {chartData.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+        <section className="bg-ink-900 rounded-2xl p-6 sm:p-8 text-white">
+          <div className="flex items-center gap-2 text-ink-300 text-xs font-medium uppercase tracking-wider">
+            <Wallet2 size={14} /> Balance
+          </div>
+          <p className="mt-2 text-4xl sm:text-5xl font-semibold tracking-tight tabular-nums">{formatINR(summary.balance)}</p>
+          {savingsRate !== null && (
+            <div className="mt-4 max-w-sm">
+              <p className="text-sm text-ink-300">
+                {savingsRate >= 0
+                  ? `You've saved ${savingsRate}% of your income`
+                  : `You've spent ${Math.abs(savingsRate)}% more than your income`}
+              </p>
+              <div className="mt-2 h-1.5 rounded-full bg-ink-800 overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${savingsRate >= 0 ? "bg-brand-300" : "bg-loss"}`}
+                  style={{ width: `${Math.min(Math.abs(savingsRate), 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+          <div className="mt-6 grid grid-cols-2 gap-4 border-t border-ink-800 pt-5">
+            <div>
+              <div className="flex items-center gap-1.5 text-ink-300 text-xs font-medium uppercase tracking-wider">
+                <TrendingUp size={14} className="text-brand-300" /> Income
+              </div>
+              <p className="mt-1 text-xl font-semibold tabular-nums">{formatINR(summary.income)}</p>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 text-ink-300 text-xs font-medium uppercase tracking-wider">
+                <TrendingDown size={14} className="text-ink-400" /> Expense
+              </div>
+              <p className="mt-1 text-xl font-semibold tabular-nums">{formatINR(summary.expense)}</p>
+            </div>
+          </div>
+        </section>
+
+        <div className="grid gap-6 md:grid-cols-5">
+          <form
+            ref={formRef}
+            onSubmit={handleSubmit}
+            className={`md:col-span-3 bg-surface p-6 rounded-2xl border space-y-4 transition ${
+              editingId ? "border-brand-500 ring-2 ring-brand-100" : "border-line"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-ink-900">{editingId ? "Edit transaction" : "Add transaction"}</h2>
+              {editingId && (
+                <span className="text-xs font-medium uppercase tracking-wider text-brand-700 bg-brand-50 px-2 py-1 rounded-md">
+                  Editing
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 p-1 bg-ink-100 rounded-xl text-sm font-medium">
+              {(["expense", "income"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setType(t)}
+                  className={`py-2 rounded-lg capitalize transition ${
+                    type === t ? "bg-surface text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-700"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-500 font-medium">₹</span>
+              <input
+                type="number"
+                placeholder="0"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className={`${inputClass} w-full pl-9 text-lg font-semibold tabular-nums`}
+                required
+              />
+            </div>
+
+            <div>
+              <input
+                type="text"
+                placeholder="Category (e.g. Food, Rent, Salary)"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className={`${inputClass} w-full`}
+                required
+              />
+              {quickCategories.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {quickCategories.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCategory(c)}
+                      className={`px-3 py-1 rounded-full text-sm border transition ${
+                        category === c
+                          ? "border-brand-500 bg-brand-50 text-brand-700"
+                          : "border-line text-ink-700 hover:border-ink-300"
+                      }`}
+                    >
+                      {c}
+                    </button>
                   ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-6 space-y-3">
-          <h2 className="font-semibold text-gray-700">{editingId ? "Edit Transaction" : "Add Transaction"}</h2>
-          <div className="flex gap-3">
-            <input
-              type="number"
-              placeholder="Amount"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="border border-gray-200 rounded-xl px-4 py-2.5 flex-1 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition"
-              required
-            />
-            <select value={type} onChange={(e) => setType(e.target.value)} className="border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-400">
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
-            </select>
-          </div>
-          <input
-            type="text"
-            placeholder="Category (e.g. Food, Rent, Salary)"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition"
-            required
-          />
-          <input
-            type="text"
-            placeholder="Note (optional)"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition"
-          />
-          <div className="flex gap-2 pt-1">
-            <button type="submit" className="flex items-center gap-1 bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-indigo-700 transition shadow-md shadow-indigo-200">
-              <Plus size={16} /> {editingId ? "Save Changes" : "Add"}
-            </button>
-            {editingId && (
-              <button type="button" onClick={resetForm} className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition">
-                Cancel
-              </button>
-            )}
-          </div>
-        </form>
-
-        <div className="flex gap-3 mb-3">
-          <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-400">
-            <option value="all">All types</option>
-            <option value="income">Income</option>
-            <option value="expense">Expense</option>
-          </select>
-          <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-400">
-            <option value="all">All categories</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <h2 className="font-semibold text-gray-700 p-5 border-b border-gray-100">Transactions</h2>
-          {filtered.length === 0 && <p className="p-5 text-gray-400 text-sm">No transactions found.</p>}
-          {filtered.map((t) => (
-            <div key={t.id} className="flex justify-between items-center px-5 py-4 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition">
-              <div>
-                <p className="font-medium text-gray-700">{t.category}</p>
-                {t.note && <p className="text-sm text-gray-400">{t.note}</p>}
-              </div>
-              <div className="flex items-center gap-4">
-                <p className={t.type === "income" ? "text-emerald-600 font-semibold" : "text-rose-500 font-semibold"}>
-                  {t.type === "income" ? "+" : "-"}₹{t.amount}
-                </p>
-                <button onClick={() => handleEdit(t)} className="text-gray-300 hover:text-indigo-600 transition">
-                  <Pencil size={16} />
-                </button>
-                <button onClick={() => handleDelete(t.id)} className="text-gray-300 hover:text-rose-500 transition">
-                  <Trash2 size={16} />
-                </button>
-              </div>
+                </div>
+              )}
             </div>
-          ))}
+
+            <input
+              type="text"
+              placeholder="Note (optional)"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className={`${inputClass} w-full`}
+            />
+
+            <div className="flex gap-2">
+              <button type="submit" className="flex items-center gap-1.5 bg-brand-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-brand-700 transition">
+                <Plus size={16} /> {editingId ? "Save changes" : "Add transaction"}
+              </button>
+              {editingId && (
+                <button type="button" onClick={resetForm} className="px-5 py-2.5 rounded-xl border border-line text-ink-700 hover:bg-ink-100 transition">
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
+
+          <section className="md:col-span-2 bg-surface p-6 rounded-2xl border border-line">
+            <h2 className="font-semibold text-ink-900">Spending by category</h2>
+            {chartData.length > 0 ? (
+              <>
+                <div className="relative">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={62} outerRadius={88} paddingAngle={2} stroke="none">
+                        {chartData.map((d) => (
+                          <Cell key={d.name} fill={colorOf[d.name]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v) => formatINR(Number(v))} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-xs text-ink-500">Total spent</span>
+                    <span className="text-lg font-semibold text-ink-900 tabular-nums">{formatINR(totalSpent)}</span>
+                  </div>
+                </div>
+                <ul className="mt-2 space-y-2">
+                  {chartData.map((d) => (
+                    <li key={d.name} className="flex items-center gap-2 text-sm">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: colorOf[d.name] }} />
+                      <span className="text-ink-700 truncate flex-1">{d.name}</span>
+                      <span className="text-ink-900 font-medium tabular-nums">{formatINR(d.value)}</span>
+                      <span className="text-ink-500 tabular-nums w-10 text-right">
+                        {Math.round((d.value / totalSpent) * 100)}%
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="mt-3 text-sm text-ink-500">Add an expense to see where your money goes.</p>
+            )}
+          </section>
         </div>
-      </div>
+
+        <section className="bg-surface rounded-2xl border border-line overflow-hidden">
+          <div className="flex flex-wrap gap-3 justify-between items-center p-5 border-b border-line">
+            <h2 className="font-semibold text-ink-900">Transactions</h2>
+            <div className="flex gap-2">
+              <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className={`${inputClass} py-1.5 text-sm`}>
+                <option value="all">All types</option>
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+              </select>
+              <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className={`${inputClass} py-1.5 text-sm`}>
+                <option value="all">All categories</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {transactions.length === 0 ? (
+            <div className="px-5 py-14 text-center">
+              <div className="mx-auto w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center">
+                <Receipt size={22} className="text-brand-600" />
+              </div>
+              <p className="mt-4 font-medium text-ink-900">No transactions yet</p>
+              <p className="mt-1 text-sm text-ink-500">Add your first income or expense above to start tracking.</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <p className="p-5 text-ink-500 text-sm">No transactions match these filters.</p>
+          ) : (
+            grouped.map((group) => (
+              <div key={group.label}>
+                <p className="px-5 py-2 bg-canvas text-xs font-medium uppercase tracking-wider text-ink-500 border-b border-line">
+                  {group.label}
+                </p>
+                {group.items.map((t) => (
+                  <div key={t.id} className="flex justify-between items-center gap-4 px-5 py-4 border-b border-line last:border-0 hover:bg-canvas transition">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span
+                        className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-sm font-semibold text-white"
+                        style={{ background: colorOf[t.category] }}
+                      >
+                        {t.category.charAt(0).toUpperCase()}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-medium text-ink-900 truncate">{t.category}</p>
+                        {t.note && <p className="text-sm text-ink-500 truncate">{t.note}</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span
+                        className={`px-2.5 py-1 rounded-lg text-sm font-semibold tabular-nums ${
+                          t.type === "income" ? "text-gain bg-gain-soft" : "text-loss bg-loss-soft"
+                        }`}
+                      >
+                        {t.type === "income" ? "+" : "−"}{formatINR(t.amount)}
+                      </span>
+                      <button onClick={() => handleEdit(t)} aria-label="Edit" className="text-ink-300 hover:text-brand-600 transition">
+                        <Pencil size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(t.id)} aria-label="Delete" className="text-ink-300 hover:text-loss transition">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
+        </section>
+      </main>
     </div>
   );
 }
