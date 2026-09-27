@@ -1,0 +1,12 @@
+{
+  "name": "money-mitra",
+  "private": true,
+  "description": "Runs the Money Mitra client and server together for local development",
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names api,web --prefix-colors cyan,magenta \"npm --prefix server run dev\" \"npm --prefix client run dev -- --host 127.0.0.1 --port 5173\"",
+    "test": "npm --prefix server test && npm --prefix client test"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}

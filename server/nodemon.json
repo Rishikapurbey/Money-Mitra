@@ -1,0 +1,8 @@
+{
+  "//": "Restarts the dev server when source files change, and after `prisma generate` rewrites the database client (nodemon ignores node_modules unless told otherwise)",
+  "watch": ["src", "node_modules/.prisma/client/index.js"],
+  "ignoreRoot": [".git"],
+  "ext": "ts,js,json",
+  "delay": 1000,
+  "exec": "tsx src/index.ts"
+}

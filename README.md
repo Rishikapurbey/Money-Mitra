@@ -61,11 +61,12 @@ money-mitra/
 
 Requirements: Node.js 20+ and a PostgreSQL database.
 
-**Server**
+Install everything once:
 
 ```bash
-cd server
 npm install
+npm --prefix server install
+npm --prefix client install
 ```
 
 Create `server/.env`:
@@ -77,20 +78,26 @@ JWT_SECRET=any-long-random-string
 PORT=5000
 ```
 
-Then:
+Set up the database, then start the API and the website together in one terminal:
 
 ```bash
-npx prisma migrate dev
+npm --prefix server exec prisma migrate dev
 npm run dev
 ```
 
-**Client**
+Open http://127.0.0.1:5173. The API runs on http://localhost:5000 and restarts by itself
+when server code changes, after `prisma migrate dev`, and after a crash once the file is fixed.
+No email setup is needed locally: without `BREVO_API_KEY`, emails (like password reset
+links) are printed in the terminal instead of being sent.
 
-```bash
-cd client
-npm install
-npm run dev
-```
+Useful commands:
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | API and website together, with labelled output |
+| `npm test` | Server and client tests (server tests use a separate `money_mitra_test` database) |
+| `npm --prefix server run typecheck` | Type-check the server |
+| `npm --prefix client run lint` | Lint the client |
 
 The client talks to `http://localhost:5000/api` by default. Set
 `VITE_API_URL` to point it at a different server.
