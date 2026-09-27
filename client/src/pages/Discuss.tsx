@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { isAxiosError } from "axios";
 import { MessageCircle, Plus, AlertCircle, MessagesSquare, X } from "lucide-react";
 import api from "../lib/api";
@@ -7,14 +7,17 @@ import { TOPICS, authorName, timeAgo, discussInputClass } from "../lib/discuss";
 import type { Post } from "../lib/discuss";
 
 function Discuss() {
+  // Links from Learn open the ask form with a topic already chosen: /discuss?ask=1&topic=Tax
+  const [searchParams] = useSearchParams();
+  const presetTopic = TOPICS.includes(searchParams.get("topic") ?? "") ? searchParams.get("topic")! : "";
   const [posts, setPosts] = useState<Post[]>([]);
   const [topic, setTopic] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [asking, setAsking] = useState(false);
+  const [asking, setAsking] = useState(searchParams.get("ask") === "1");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [newTopic, setNewTopic] = useState("");
+  const [newTopic, setNewTopic] = useState(presetTopic);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [formError, setFormError] = useState("");
   const [posting, setPosting] = useState(false);

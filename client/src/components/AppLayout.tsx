@@ -18,7 +18,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/discuss", label: "Discuss", icon: MessagesSquare },
-  { to: "/learn", label: "Learn", icon: BookOpen, soon: true },
+  { to: "/learn", label: "Learn", icon: BookOpen },
 ];
 
 const soonBadge = "text-[10px] font-semibold uppercase tracking-wider text-ink-400 bg-ink-100 px-1.5 py-0.5 rounded";

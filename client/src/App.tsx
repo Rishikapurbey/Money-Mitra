@@ -5,6 +5,8 @@ import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import Discuss from "./pages/Discuss";
 import DiscussPost from "./pages/DiscussPost";
+import Learn from "./pages/Learn";
+import LearnTerm from "./pages/LearnTerm";
 import AppLayout from "./components/AppLayout";
 
 const isSignedIn = () => Boolean(localStorage.getItem("token"));
@@ -30,6 +32,8 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/discuss" element={<Discuss />} />
             <Route path="/discuss/:id" element={<DiscussPost />} />
+            <Route path="/learn" element={<Learn />} />
+            <Route path="/learn/:slug" element={<LearnTerm />} />
           </Route>
         </Route>
         <Route path="/" element={<Navigate to={isSignedIn() ? "/dashboard" : "/login"} replace />} />
