@@ -1,5 +1,6 @@
 import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
+import { computeInsights } from "./insights";
 
 export interface DateRange {
   from?: Date | undefined;
@@ -87,4 +88,29 @@ export async function updateTransaction(
   if (!transaction || transaction.userId !== userId) throw new HttpError(404, "Transaction not found");
   const { date, ...rest } = data;
   return prisma.transaction.update({ where: { id }, data: { ...rest, ...(date && { date }) } });
+}
+
+// Plain-English observations about [from, to), compared with the month before it ([prevFrom, from)).
+// tzOffset is the client's Date.getTimezoneOffset(), used to name the previous month correctly.
+export async function getInsights(userId: string, from: Date, to: Date, prevFrom: Date, tzOffset: number) {
+  const [transactions, budgets] = await Promise.all([
+    prisma.transaction.findMany({
+      where: { userId, date: { gte: prevFrom, lt: to } },
+      select: { amount: true, type: true, category: true, date: true },
+    }),
+    prisma.budget.findMany({ where: { userId }, select: { category: true, amount: true } }),
+  ]);
+  const previousMonthName = new Date(prevFrom.getTime() - tzOffset * 60_000).toLocaleString("en-IN", {
+    month: "long",
+    timeZone: "UTC",
+  });
+  return computeInsights({
+    current: transactions.filter((t) => t.date >= from),
+    previous: transactions.filter((t) => t.date < from),
+    budgets,
+    from,
+    to,
+    now: new Date(),
+    previousMonthName,
+  });
 }

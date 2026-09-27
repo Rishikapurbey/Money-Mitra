@@ -8,6 +8,7 @@ import {
   deleteTransaction,
   updateTransaction,
   DateRange,
+  getInsights,
 } from "./transaction.service";
 
 const router = Router();
@@ -84,6 +85,19 @@ router.get("/trend", authMiddleware, async (req: AuthRequest, res) => {
   }
   const trend = await getTrend(req.userId, from, tzOffset);
   res.status(200).json({ trend });
+});
+
+router.get("/insights", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  const from = parseDate(req.query.from);
+  const to = parseDate(req.query.to);
+  const prevFrom = parseDate(req.query.prevFrom);
+  const tzOffset = Number(req.query.tzOffset ?? 0);
+  if (!from || !to || !prevFrom || !(prevFrom < from && from < to) || !Number.isFinite(tzOffset)) {
+    return res.status(400).json({ error: "from, to and prevFrom (in order) and a numeric tzOffset are required" });
+  }
+  const insights = await getInsights(req.userId, from, to, prevFrom, tzOffset);
+  res.status(200).json({ insights });
 });
 
 router.delete("/:id", authMiddleware, async (req: AuthRequest, res) => {

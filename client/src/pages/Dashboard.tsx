@@ -8,6 +8,9 @@ import { formatINR, inputClass } from "../lib/ui";
 import BudgetsCard from "../components/BudgetsCard";
 import GoalsCard from "../components/GoalsCard";
 import GettingStarted from "../components/GettingStarted";
+import InsightsCard from "../components/InsightsCard";
+import type { Insight } from "../components/InsightsCard";
+import LearnTipCard from "../components/LearnTipCard";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { AlertCircle, TrendingUp, TrendingDown, Wallet2, Pencil, Trash2, Plus, Receipt, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -54,6 +57,7 @@ interface DashboardData {
   transactions: Transaction[];
   summary: { income: number; expense: number; balance: number; totalBalance: number };
   trend: { month: string; income: number; expense: number }[];
+  insights: Insight[];
 }
 
 // Everything the dashboard shows for one month, or null if it couldn't be loaded
@@ -64,12 +68,15 @@ async function fetchDashboard(month: Date): Promise<DashboardData | null> {
       from: addMonths(startOfMonth(new Date()), -5).toISOString(),
       tzOffset: new Date().getTimezoneOffset(),
     };
-    const [txRes, summaryRes, trendRes] = await Promise.all([
+    const insightParams = { ...range, prevFrom: addMonths(month, -1).toISOString(), tzOffset: new Date().getTimezoneOffset() };
+    const [txRes, summaryRes, trendRes, insights] = await Promise.all([
       api.get("/transactions", { params: range }),
       api.get("/transactions/summary", { params: range }),
       api.get("/transactions/trend", { params: trendParams }),
+      // Insights are a bonus: if they fail, the rest of the dashboard still loads
+      api.get("/transactions/insights", { params: insightParams }).then((r) => r.data.insights as Insight[]).catch(() => []),
     ]);
-    return { transactions: txRes.data.transactions, summary: summaryRes.data.summary, trend: trendRes.data.trend };
+    return { transactions: txRes.data.transactions, summary: summaryRes.data.summary, trend: trendRes.data.trend, insights };
   } catch {
     return null;
   }
@@ -79,6 +86,7 @@ function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0, totalBalance: 0 });
   const [trend, setTrend] = useState<{ month: string; income: number; expense: number }[]>([]);
+  const [insights, setInsights] = useState<Insight[]>([]);
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const { username } = useOutletContext<AppContext>();
   const toast = useToast();
@@ -101,6 +109,7 @@ function Dashboard() {
       setTransactions(data.transactions);
       setSummary(data.summary);
       setTrend(data.trend);
+      setInsights(data.insights);
       setError("");
     } else {
       setError("We couldn't load your data. Check your connection and try again.");
@@ -354,6 +363,15 @@ function Dashboard() {
           </div>
         </div>
       </section>
+
+      <div className="flex flex-col md:flex-row gap-6">
+        <div className="md:flex-[2] min-w-0">
+          <InsightsCard insights={insights} monthLabel={monthShort} isCurrentMonth={isCurrentMonth} />
+        </div>
+        <div className="md:flex-1 min-w-0 flex">
+          <LearnTipCard income={summary.income} expense={summary.expense} categories={categories} />
+        </div>
+      </div>
 
       <div className="grid gap-6 md:grid-cols-5">
         <form
