@@ -7,6 +7,8 @@ import Discuss from "./pages/Discuss";
 import DiscussPost from "./pages/DiscussPost";
 import Learn from "./pages/Learn";
 import LearnTerm from "./pages/LearnTerm";
+import Calculators from "./pages/Calculators";
+import CalculatorPage from "./pages/CalculatorPage";
 import AppLayout from "./components/AppLayout";
 import PublicLayout from "./components/PublicLayout";
 import Landing from "./pages/Landing";
@@ -21,8 +23,8 @@ function RedirectIfSignedIn() {
   return isSignedIn() ? <Navigate to="/dashboard" replace /> : <Outlet />;
 }
 
-// Learn is public: signed-in users see it inside the app, visitors inside the public site
-function LearnLayout() {
+// Public pages (Learn, Calculators): signed-in users see them inside the app, visitors inside the public site
+function PublicOrAppLayout() {
   return isSignedIn() ? <AppLayout /> : <PublicLayout />;
 }
 
@@ -44,9 +46,11 @@ function App() {
             <Route path="/discuss/:id" element={<DiscussPost />} />
           </Route>
         </Route>
-        <Route element={<LearnLayout />}>
+        <Route element={<PublicOrAppLayout />}>
           <Route path="/learn" element={<Learn />} />
           <Route path="/learn/:slug" element={<LearnTerm />} />
+          <Route path="/calculators" element={<Calculators />} />
+          <Route path="/calculators/:slug" element={<CalculatorPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

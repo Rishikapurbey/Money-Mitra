@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { termBySlug } from "../lib/learn";
+import { CALCULATORS } from "../lib/calculators";
+import { CALCULATOR_ICONS } from "../lib/calculatorIcons";
 
 // Illustrative figures for the product previews; not real user data
 function MiniBalance() {
@@ -355,6 +357,37 @@ function Landing() {
             ))}
           </ul>
         </div>
+      </section>
+
+      {/* Calculators */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-20">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-semibold tracking-tight text-ink-900">Free money calculators</h2>
+            <p className="mt-2 text-ink-500">Plan a SIP, check a loan EMI, or size your emergency fund in seconds.</p>
+          </div>
+          <Link to="/calculators" className="inline-flex items-center gap-1.5 font-medium text-brand-600 hover:text-brand-700">
+            All calculators <ArrowRight size={16} />
+          </Link>
+        </div>
+        <ul className="mt-10 grid gap-3 grid-cols-2 lg:grid-cols-5">
+          {CALCULATORS.map((c) => {
+            const Icon = CALCULATOR_ICONS[c.slug] ?? TrendingUp;
+            return (
+              <li key={c.slug}>
+                <Link
+                  to={`/calculators/${c.slug}`}
+                  className="h-full flex flex-col items-start gap-3 bg-surface border border-line rounded-2xl p-5 hover:border-ink-300 transition"
+                >
+                  <span className="bg-brand-50 p-2.5 rounded-xl">
+                    <Icon size={20} className="text-brand-600" />
+                  </span>
+                  <span className="font-medium text-ink-900">{c.name.replace(" calculator", "")}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </section>
 
       {/* FAQ */}

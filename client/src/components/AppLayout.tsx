@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Wallet, LayoutDashboard, MessagesSquare, BookOpen, LogOut, ChevronDown } from "lucide-react";
+import { Wallet, LayoutDashboard, MessagesSquare, BookOpen, LogOut, ChevronDown, Calculator } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import api from "../lib/api";
 
@@ -19,6 +19,7 @@ const navItems: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/discuss", label: "Discuss", icon: MessagesSquare },
   { to: "/learn", label: "Learn", icon: BookOpen },
+  { to: "/calculators", label: "Calculators", icon: Calculator },
 ];
 
 const soonBadge = "text-[10px] font-semibold uppercase tracking-wider text-ink-400 bg-ink-100 px-1.5 py-0.5 rounded";
@@ -113,7 +114,7 @@ function AppLayout() {
 
       <Outlet context={{ username } satisfies AppContext} />
 
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-surface border-t border-line grid grid-cols-3">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-surface border-t border-line grid grid-cols-4">
         {navItems.map(({ to, label, icon: Icon, soon }) =>
           soon ? (
             <span key={to} className="flex flex-col items-center gap-1 py-2.5 text-ink-300">

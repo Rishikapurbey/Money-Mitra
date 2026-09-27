@@ -40,6 +40,7 @@ function PublicLayout() {
   const { pathname } = useLocation();
   const activeSection = useActiveSection(pathname === "/");
   const onLearn = pathname.startsWith("/learn");
+  const onCalculators = pathname.startsWith("/calculators");
 
   return (
     <div className="min-h-screen bg-canvas flex flex-col">
@@ -55,6 +56,9 @@ function PublicLayout() {
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
             <a href="/#features" className={navLink(activeSection === "features")}>Features</a>
             <Link to="/learn" className={navLink(onLearn)} aria-current={onLearn ? "page" : undefined}>Learn</Link>
+            <Link to="/calculators" className={navLink(onCalculators)} aria-current={onCalculators ? "page" : undefined}>
+              Calculators
+            </Link>
             <a href="/#privacy" className={navLink(activeSection === "privacy")}>Privacy</a>
             <a href="/#faq" className={navLink(activeSection === "faq")}>FAQ</a>
           </nav>
@@ -95,6 +99,7 @@ function PublicLayout() {
             <ul className="mt-3 space-y-2 text-sm">
               <li><a href="/#features" className="hover:text-white transition">Features</a></li>
               <li><Link to="/learn" className="hover:text-white transition">Learn</Link></li>
+              <li><Link to="/calculators" className="hover:text-white transition">Calculators</Link></li>
               <li><a href="/#faq" className="hover:text-white transition">FAQ</a></li>
             </ul>
           </div>
