@@ -2,23 +2,21 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../lib/api";
 import AuthLayout, { authInputClass } from "../components/AuthLayout";
+import { useSubmit } from "../lib/useSubmit";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const { submitting, slow, error, run } = useSubmit("Login failed");
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    try {
+    run(async () => {
       const res = await api.post("/auth/login", { email, password });
       localStorage.setItem("token", res.data.token);
       navigate("/dashboard");
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Login failed");
-    }
+    });
   };
 
   return (
@@ -47,9 +45,18 @@ function Login() {
             required
           />
         </label>
-        <button type="submit" className="w-full bg-brand-600 text-white py-3 rounded-xl font-medium hover:bg-brand-700 transition">
-          Log in
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full bg-brand-600 text-white py-3 rounded-xl font-medium hover:bg-brand-700 transition disabled:opacity-70 disabled:cursor-wait"
+        >
+          {submitting ? "Logging in…" : "Log in"}
         </button>
+        {slow && (
+          <p className="text-sm text-ink-500 text-center">
+            Waking up the server. The first request can take up to a minute.
+          </p>
+        )}
         <p className="text-sm pt-2 text-center text-ink-500">
           No account? <Link to="/signup" className="text-brand-600 font-medium hover:text-brand-700">Create one</Link>
         </p>
