@@ -2,8 +2,10 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Calculator as CalculatorIcon } from "lucide-react";
 import { CALCULATORS } from "../lib/calculators";
 import { CALCULATOR_ICONS } from "../lib/calculatorIcons";
+import { useTitle } from "../lib/useTitle";
 
 function Calculators() {
+  useTitle("Calculators");
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       <div>

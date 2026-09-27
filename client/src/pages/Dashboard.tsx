@@ -2,9 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import api from "../lib/api";
 import type { AppContext } from "../components/AppLayout";
+import { useToast } from "../lib/toast";
+import { useTitle } from "../lib/useTitle";
 import { formatINR, inputClass } from "../lib/ui";
 import BudgetsCard from "../components/BudgetsCard";
 import GoalsCard from "../components/GoalsCard";
+import GettingStarted from "../components/GettingStarted";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { AlertCircle, TrendingUp, TrendingDown, Wallet2, Pencil, Trash2, Plus, Receipt, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -78,6 +81,8 @@ function Dashboard() {
   const [trend, setTrend] = useState<{ month: string; income: number; expense: number }[]>([]);
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const { username } = useOutletContext<AppContext>();
+  const toast = useToast();
+  useTitle("Dashboard");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [amount, setAmount] = useState("");
@@ -145,10 +150,19 @@ function Dashboard() {
       setError("We couldn't save that transaction. Please try again.");
       return;
     }
+    const wasEditing = Boolean(editingId);
     resetForm();
     const targetMonth = startOfMonth(new Date(when));
-    if (targetMonth.getTime() !== month.getTime()) setMonth(targetMonth);
+    const otherMonth = targetMonth.getTime() !== month.getTime();
+    if (otherMonth) setMonth(targetMonth);
     else loadData();
+    toast({
+      message: wasEditing
+        ? "Changes saved"
+        : otherMonth
+          ? `Transaction added to ${monthName(targetMonth)}`
+          : "Transaction added",
+    });
   };
 
   const handleEdit = (t: Transaction) => {
@@ -162,14 +176,30 @@ function Dashboard() {
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
-  const handleDelete = async (id: string) => {
+  // Deleting is immediate; Undo adds the same transaction back with its original date
+  const handleDelete = async (t: Transaction) => {
     try {
-      await api.delete(`/transactions/${id}`);
+      await api.delete(`/transactions/${t.id}`);
     } catch {
       setError("We couldn't delete that transaction. Please try again.");
       return;
     }
     loadData();
+    toast({
+      message: "Transaction deleted",
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          try {
+            await api.post("/transactions", { amount: t.amount, type: t.type, category: t.category, note: t.note, date: t.date });
+            loadData();
+            toast({ message: "Transaction restored" });
+          } catch {
+            setError("We couldn't restore that transaction. Please add it again.");
+          }
+        },
+      },
+    });
   };
 
   const categories = Array.from(new Set(transactions.map((t) => t.category)));
@@ -280,6 +310,14 @@ function Dashboard() {
           </button>
         </div>
       </div>
+
+      <GettingStarted
+        hasTransactions={transactions.length > 0 || summary.totalBalance !== 0 || trend.some((m) => m.income > 0 || m.expense > 0)}
+        onAddTransaction={() => {
+          formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+          formRef.current?.querySelector<HTMLInputElement>('input[type="number"]')?.focus({ preventScroll: true });
+        }}
+      />
 
       <section className="bg-ink-900 rounded-2xl p-6 sm:p-8 text-white">
         <div className="flex items-center gap-2 text-ink-300 text-xs font-medium uppercase tracking-wider">
@@ -570,7 +608,7 @@ function Dashboard() {
                     <button onClick={() => handleEdit(t)} aria-label="Edit" className="text-ink-300 hover:text-brand-600 transition">
                       <Pencil size={16} />
                     </button>
-                    <button onClick={() => handleDelete(t.id)} aria-label="Delete" className="text-ink-300 hover:text-loss transition">
+                    <button onClick={() => handleDelete(t)} aria-label="Delete" className="text-ink-300 hover:text-loss transition">
                       <Trash2 size={16} />
                     </button>
                   </div>

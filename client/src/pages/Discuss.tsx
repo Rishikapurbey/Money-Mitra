@@ -5,6 +5,8 @@ import { MessageCircle, Plus, AlertCircle, MessagesSquare, X } from "lucide-reac
 import api from "../lib/api";
 import { TOPICS, authorName, timeAgo, discussInputClass } from "../lib/discuss";
 import type { Post } from "../lib/discuss";
+import { useTitle } from "../lib/useTitle";
+import { useToast } from "../lib/toast";
 
 async function fetchPosts(topic: string, unanswered: boolean): Promise<Post[] | null> {
   try {
@@ -16,6 +18,8 @@ async function fetchPosts(topic: string, unanswered: boolean): Promise<Post[] | 
 }
 
 function Discuss() {
+  useTitle("Discuss");
+  const toast = useToast();
   // Links from Learn open the ask form with a topic already chosen: /discuss?ask=1&topic=Tax
   const [searchParams] = useSearchParams();
   const presetTopic = TOPICS.includes(searchParams.get("topic") ?? "") ? searchParams.get("topic")! : "";
@@ -73,6 +77,7 @@ function Discuss() {
       const res = await api.post("/posts", { title, body, topic: newTopic, isAnonymous });
       closeForm();
       if (!topic || topic === res.data.post.topic) setPosts((current) => [res.data.post, ...current]);
+      toast({ message: "Question posted" });
     } catch (err) {
       setFormError(
         (isAxiosError(err) && err.response?.data?.error) || "We couldn't post your question. Please try again."

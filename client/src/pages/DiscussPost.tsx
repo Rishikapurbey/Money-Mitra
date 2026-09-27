@@ -6,6 +6,8 @@ import api from "../lib/api";
 import { authorName, timeAgo, discussInputClass } from "../lib/discuss";
 import type { Post } from "../lib/discuss";
 import ReportButton from "../components/ReportButton";
+import { useToast } from "../lib/toast";
+import { useTitle } from "../lib/useTitle";
 
 type PostResult = Post | "not-found" | "error";
 
@@ -28,6 +30,10 @@ function DiscussPost() {
   const [reply, setReply] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [replying, setReplying] = useState(false);
+  // Which item is waiting for delete confirmation: "post", a reply id, or null
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const toast = useToast();
+  useTitle(post && !post.hidden ? post.title : "Discuss");
 
   const applyPost = useCallback((result: PostResult) => {
     if (result === "not-found") setNotFound(true);
@@ -69,6 +75,7 @@ function DiscussPost() {
   const handleDeletePost = async () => {
     try {
       await api.delete(`/posts/${id}`);
+      toast({ message: "Question deleted" });
       navigate("/discuss");
     } catch {
       setError("We couldn't delete this question. Please try again.");
@@ -102,6 +109,8 @@ function DiscussPost() {
     try {
       await api.delete(`/posts/${id}/replies/${replyId}`);
       setPost((current) => current && { ...current, replies: current.replies?.filter((r) => r.id !== replyId) });
+      setConfirming(null);
+      toast({ message: "Reply deleted" });
     } catch {
       setError("We couldn't delete that reply. Please try again.");
     }
@@ -166,14 +175,21 @@ function DiscussPost() {
           <article className="bg-surface border border-line rounded-2xl p-6">
             <div className="flex items-start justify-between gap-4">
               <span className="text-xs font-medium text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md">{post.topic}</span>
-              {post.isMine && (
-                <button
-                  onClick={handleDeletePost}
-                  className="flex items-center gap-1.5 text-sm text-ink-400 hover:text-loss transition"
-                >
-                  <Trash2 size={15} /> Delete
-                </button>
-              )}
+              {post.isMine &&
+                (confirming === "post" ? (
+                  <span className="flex items-center gap-2 text-sm">
+                    <span className="text-ink-700">Delete this question and its replies?</span>
+                    <button onClick={handleDeletePost} className="font-medium text-loss hover:underline">Delete</button>
+                    <button onClick={() => setConfirming(null)} className="text-ink-500 hover:text-ink-900">Cancel</button>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setConfirming("post")}
+                    className="flex items-center gap-1.5 text-sm text-ink-400 hover:text-loss transition"
+                  >
+                    <Trash2 size={15} /> Delete
+                  </button>
+                ))}
             </div>
             <h1 className="mt-3 text-xl font-semibold tracking-tight text-ink-900">{post.title}</h1>
             <p className="mt-1.5 text-xs text-ink-500">
@@ -211,15 +227,26 @@ function DiscussPost() {
                         <p className="text-xs text-ink-500">
                           <span className="font-medium text-ink-700">{authorName(r)}</span> · {timeAgo(r.createdAt)}
                         </p>
-                        {r.isMine && (
-                          <button
-                            onClick={() => handleDeleteReply(r.id)}
-                            aria-label="Delete reply"
-                            className="text-ink-300 hover:text-loss transition"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        )}
+                        {r.isMine &&
+                          (confirming === r.id ? (
+                            <span className="flex items-center gap-2 text-xs">
+                              <span className="text-ink-700">Delete reply?</span>
+                              <button onClick={() => handleDeleteReply(r.id)} className="font-medium text-loss hover:underline">
+                                Delete
+                              </button>
+                              <button onClick={() => setConfirming(null)} className="text-ink-500 hover:text-ink-900">
+                                Cancel
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => setConfirming(r.id)}
+                              aria-label="Delete reply"
+                              className="text-ink-300 hover:text-loss transition"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          ))}
                       </div>
                       <p className="mt-2 text-ink-700 leading-relaxed whitespace-pre-line">{r.body}</p>
                       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">

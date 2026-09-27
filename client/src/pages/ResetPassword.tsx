@@ -4,8 +4,10 @@ import { CheckCircle2 } from "lucide-react";
 import api from "../lib/api";
 import AuthLayout, { authInputClass } from "../components/AuthLayout";
 import { useSubmit } from "../lib/useSubmit";
+import { useTitle } from "../lib/useTitle";
 
 function ResetPassword() {
+  useTitle("Reset password");
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const [password, setPassword] = useState("");

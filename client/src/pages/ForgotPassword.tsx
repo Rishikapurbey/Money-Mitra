@@ -4,8 +4,10 @@ import { MailCheck } from "lucide-react";
 import api from "../lib/api";
 import AuthLayout, { authInputClass } from "../components/AuthLayout";
 import { useSubmit } from "../lib/useSubmit";
+import { useTitle } from "../lib/useTitle";
 
 function ForgotPassword() {
+  useTitle("Forgot password");
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const { submitting, slow, error, run } = useSubmit("We couldn't send the reset link");

@@ -20,6 +20,7 @@ import { termBySlug } from "../lib/learn";
 import { useInstallPrompt } from "../lib/installPrompt";
 import { CALCULATORS } from "../lib/calculators";
 import { CALCULATOR_ICONS } from "../lib/calculatorIcons";
+import { useTitle } from "../lib/useTitle";
 
 // Illustrative figures for the product previews; not real user data
 function MiniBalance() {
@@ -219,6 +220,7 @@ const faqs = [
 ];
 
 function Landing() {
+  useTitle();
   const install = useInstallPrompt();
 
   return (

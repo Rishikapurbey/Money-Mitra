@@ -5,6 +5,8 @@ import { Pencil, Trash2, Plus, Flag, X, BookOpen, CheckCircle2 } from "lucide-re
 import api from "../lib/api";
 import { formatINR, inputClass } from "../lib/ui";
 import { termBySlug } from "../lib/learn";
+import { useToast } from "../lib/toast";
+import { announceDataChange } from "../lib/dataEvents";
 
 interface Goal {
   id: string;
@@ -42,6 +44,7 @@ function GoalsCard() {
   const [contributingId, setContributingId] = useState<string | null>(null);
   const [contribution, setContribution] = useState("");
   const [error, setError] = useState("");
+  const toast = useToast();
 
   useEffect(() => {
     api.get("/goals").then((res) => setGoals(res.data.goals)).catch(() => {
@@ -74,6 +77,8 @@ function GoalsCard() {
       const res = editingId ? await api.put(`/goals/${editingId}`, body) : await api.post("/goals", body);
       replaceGoal(res.data.goal);
       setFormOpen(false);
+      announceDataChange();
+      toast({ message: editingId ? "Goal updated" : `Goal "${res.data.goal.name}" created` });
     } catch (err) {
       setError((isAxiosError(err) && err.response?.data?.error) || "We couldn't save that goal. Please try again.");
     }
@@ -88,25 +93,48 @@ function GoalsCard() {
       replaceGoal(res.data.goal);
       setContributingId(null);
       setContribution("");
+      toast({ message: direction === 1 ? `${formatINR(value)} added to ${res.data.goal.name}` : `${formatINR(value)} withdrawn from ${res.data.goal.name}` });
     } catch {
       setError("We couldn't update that goal. Please try again.");
     }
   };
 
-  const handleDelete = async (id: string) => {
+  // Deleting is immediate; Undo creates the goal again with the same target, date and saved amount
+  const handleDelete = async (goal: Goal) => {
     try {
-      await api.delete(`/goals/${id}`);
-      setGoals((current) => current.filter((g) => g.id !== id));
+      await api.delete(`/goals/${goal.id}`);
+      setGoals((current) => current.filter((g) => g.id !== goal.id));
+      announceDataChange();
     } catch {
       setError("We couldn't delete that goal. Please try again.");
+      return;
     }
+    toast({
+      message: `Goal "${goal.name}" deleted`,
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          try {
+            const res = await api.post("/goals", { name: goal.name, targetAmount: goal.targetAmount, targetDate: goal.targetDate });
+            let restored: Goal = res.data.goal;
+            if (goal.savedAmount > 0) {
+              restored = (await api.post(`/goals/${restored.id}/contributions`, { amount: goal.savedAmount })).data.goal;
+            }
+            replaceGoal(restored);
+            announceDataChange();
+          } catch {
+            setError("We couldn't restore that goal. Please add it again.");
+          }
+        },
+      },
+    });
   };
 
   const today = new Date();
   const minDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
   return (
-    <section className="bg-surface p-6 rounded-2xl border border-line">
+    <section id="goals" className="bg-surface p-6 rounded-2xl border border-line scroll-mt-24">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="font-semibold text-ink-900">Savings goals</h2>
@@ -206,7 +234,7 @@ function GoalsCard() {
                     <button onClick={() => openForm(g)} aria-label={`Edit ${g.name}`} className="text-ink-300 hover:text-brand-600 transition">
                       <Pencil size={14} />
                     </button>
-                    <button onClick={() => handleDelete(g.id)} aria-label={`Delete ${g.name}`} className="text-ink-300 hover:text-loss transition">
+                    <button onClick={() => handleDelete(g)} aria-label={`Delete ${g.name}`} className="text-ink-300 hover:text-loss transition">
                       <Trash2 size={14} />
                     </button>
                   </div>

@@ -15,6 +15,7 @@ import ResetPassword from "./pages/ResetPassword";
 import AppLayout from "./components/AppLayout";
 import PublicLayout from "./components/PublicLayout";
 import ScrollManager from "./components/ScrollManager";
+import ToastProvider from "./components/ToastProvider";
 import Landing from "./pages/Landing";
 
 const isSignedIn = () => Boolean(localStorage.getItem("token"));
@@ -35,34 +36,36 @@ function PublicOrAppLayout() {
 function App() {
   return (
     <BrowserRouter>
-      <ScrollManager />
-      <Routes>
-        <Route element={<RedirectIfSignedIn />}>
-          <Route element={<PublicLayout />}>
-            <Route path="/" element={<Landing />} />
+      <ToastProvider>
+        <ScrollManager />
+        <Routes>
+          <Route element={<RedirectIfSignedIn />}>
+            <Route element={<PublicLayout />}>
+              <Route path="/" element={<Landing />} />
+            </Route>
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/login" element={<Login />} />
           </Route>
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/login" element={<Login />} />
-        </Route>
-        {/* Open to everyone: a reset link may be opened on a browser that's still logged in */}
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route element={<RequireAuth />}>
-          <Route element={<AppLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/discuss" element={<Discuss />} />
-            <Route path="/discuss/:id" element={<DiscussPost />} />
-            <Route path="/settings" element={<Settings />} />
+          {/* Open to everyone: a reset link may be opened on a browser that's still logged in */}
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route element={<RequireAuth />}>
+            <Route element={<AppLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/discuss" element={<Discuss />} />
+              <Route path="/discuss/:id" element={<DiscussPost />} />
+              <Route path="/settings" element={<Settings />} />
+            </Route>
           </Route>
-        </Route>
-        <Route element={<PublicOrAppLayout />}>
-          <Route path="/learn" element={<Learn />} />
-          <Route path="/learn/:slug" element={<LearnTerm />} />
-          <Route path="/calculators" element={<Calculators />} />
-          <Route path="/calculators/:slug" element={<CalculatorPage />} />
-        </Route>
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+          <Route element={<PublicOrAppLayout />}>
+            <Route path="/learn" element={<Learn />} />
+            <Route path="/learn/:slug" element={<LearnTerm />} />
+            <Route path="/calculators" element={<Calculators />} />
+            <Route path="/calculators/:slug" element={<CalculatorPage />} />
+          </Route>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </ToastProvider>
     </BrowserRouter>
   );
 }

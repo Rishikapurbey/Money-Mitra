@@ -7,6 +7,7 @@ import api from "../lib/api";
 import { calculatorBySlug, emergencyFund, emi, fd, inflation, sip } from "../lib/calculators";
 import { termBySlug } from "../lib/learn";
 import { formatINR } from "../lib/ui";
+import { useTitle } from "../lib/useTitle";
 
 const rupees = (n: number) => formatINR(Math.round(n));
 const compactRupees = (n: number) => "₹" + Number(n).toLocaleString("en-IN", { notation: "compact" });
@@ -355,6 +356,7 @@ function CalculatorBody({ useCalculator }: { useCalculator: () => Layout }) {
 function CalculatorPage() {
   const { slug } = useParams();
   const info = slug ? calculatorBySlug(slug) : undefined;
+  useTitle(info?.name ?? "Calculators");
   const useCalculator = slug ? CALCULATORS_BY_SLUG[slug] : undefined;
 
   const backLink = (

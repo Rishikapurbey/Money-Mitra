@@ -7,6 +7,7 @@ import api from "../lib/api";
 import { inputClass } from "../lib/ui";
 import { csvField } from "../lib/csv";
 import type { AppContext } from "../components/AppLayout";
+import { useTitle } from "../lib/useTitle";
 
 const errorMessage = (err: unknown, fallback: string) =>
   (isAxiosError(err) && err.response?.data?.error) || fallback;
@@ -47,6 +48,7 @@ const button =
   "bg-brand-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-brand-700 transition disabled:opacity-60 disabled:cursor-not-allowed";
 
 function Settings() {
+  useTitle("Settings");
   const { username, setUsername } = useOutletContext<AppContext>();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");

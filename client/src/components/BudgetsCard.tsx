@@ -3,6 +3,8 @@ import { isAxiosError } from "axios";
 import { Pencil, Trash2, Plus, Target, X } from "lucide-react";
 import api from "../lib/api";
 import { formatINR, inputClass } from "../lib/ui";
+import { useToast } from "../lib/toast";
+import { announceDataChange } from "../lib/dataEvents";
 
 interface Budget {
   id: string;
@@ -26,6 +28,7 @@ function BudgetsCard({ expenses, monthLabel, categories }: BudgetsCardProps) {
   const [amount, setAmount] = useState("");
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState("");
+  const toast = useToast();
 
   useEffect(() => {
     api.get("/budgets").then((res) => setBudgets(res.data.budgets)).catch(() => {
@@ -51,26 +54,49 @@ function BudgetsCard({ expenses, monthLabel, categories }: BudgetsCardProps) {
     try {
       const res = await api.put("/budgets", { category, amount: parseFloat(amount) });
       const saved: Budget = res.data.budget;
-      setBudgets((current) =>
-        [...current.filter((b) => b.id !== saved.id), saved].sort((a, b) => a.category.localeCompare(b.category))
-      );
+      addBudget(saved);
       setFormOpen(false);
+      announceDataChange();
+      toast({ message: `${saved.category} budget saved` });
     } catch (err) {
       setError((isAxiosError(err) && err.response?.data?.error) || "We couldn't save that budget. Please try again.");
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const addBudget = (budget: Budget) =>
+    setBudgets((current) =>
+      [...current.filter((b) => b.id !== budget.id), budget].sort((a, b) => a.category.localeCompare(b.category))
+    );
+
+  // Deleting is immediate; Undo sets the same budget again
+  const handleDelete = async (budget: Budget) => {
     try {
-      await api.delete(`/budgets/${id}`);
-      setBudgets((current) => current.filter((b) => b.id !== id));
+      await api.delete(`/budgets/${budget.id}`);
+      setBudgets((current) => current.filter((b) => b.id !== budget.id));
+      announceDataChange();
     } catch {
       setError("We couldn't delete that budget. Please try again.");
+      return;
     }
+    toast({
+      message: `${budget.category} budget deleted`,
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          try {
+            const res = await api.put("/budgets", { category: budget.category, amount: budget.amount });
+            addBudget(res.data.budget);
+            announceDataChange();
+          } catch {
+            setError("We couldn't restore that budget. Please add it again.");
+          }
+        },
+      },
+    });
   };
 
   return (
-    <section className="bg-surface p-6 rounded-2xl border border-line">
+    <section id="budgets" className="bg-surface p-6 rounded-2xl border border-line scroll-mt-24">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="font-semibold text-ink-900">Budgets</h2>
@@ -155,7 +181,7 @@ function BudgetsCard({ expenses, monthLabel, categories }: BudgetsCardProps) {
                     <button onClick={() => openForm(b)} aria-label={`Edit ${b.category} budget`} className="text-ink-300 hover:text-brand-600 transition">
                       <Pencil size={14} />
                     </button>
-                    <button onClick={() => handleDelete(b.id)} aria-label={`Delete ${b.category} budget`} className="text-ink-300 hover:text-loss transition">
+                    <button onClick={() => handleDelete(b)} aria-label={`Delete ${b.category} budget`} className="text-ink-300 hover:text-loss transition">
                       <Trash2 size={14} />
                     </button>
                   </div>

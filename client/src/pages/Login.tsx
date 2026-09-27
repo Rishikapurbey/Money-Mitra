@@ -3,8 +3,10 @@ import { useNavigate, Link } from "react-router-dom";
 import api from "../lib/api";
 import AuthLayout, { authInputClass } from "../components/AuthLayout";
 import { useSubmit } from "../lib/useSubmit";
+import { useTitle } from "../lib/useTitle";
 
 function Login() {
+  useTitle("Log in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { submitting, slow, error, run } = useSubmit("Login failed");

@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
+import { useTitle } from "../lib/useTitle";
 
 function NotFound() {
+  useTitle("Page not found");
   const signedIn = Boolean(localStorage.getItem("token"));
 
   return (

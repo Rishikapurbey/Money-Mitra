@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Search, BookOpen, ChevronRight } from "lucide-react";
 import { TERMS, LEVELS, LEARN_TOPICS } from "../lib/learn";
 import type { Level } from "../lib/learn";
+import { useTitle } from "../lib/useTitle";
 
 const levelStyle: Record<Level, string> = {
   Basics: "text-brand-700 bg-brand-50",
@@ -16,6 +17,7 @@ const chip = (active: boolean) =>
   }`;
 
 function Learn() {
+  useTitle("Learn");
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState("");
   const [topic, setTopic] = useState("");

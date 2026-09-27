@@ -3,8 +3,10 @@ import { useNavigate, Link } from "react-router-dom";
 import api from "../lib/api";
 import AuthLayout, { authInputClass } from "../components/AuthLayout";
 import { useSubmit } from "../lib/useSubmit";
+import { useTitle } from "../lib/useTitle";
 
 function Signup() {
+  useTitle("Create account");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -15,7 +17,10 @@ function Signup() {
     e.preventDefault();
     run(async () => {
       await api.post("/auth/signup", { email, username, password });
-      navigate("/login");
+      // Log straight in with the details just entered, instead of asking for them again
+      const res = await api.post("/auth/login", { email, password });
+      localStorage.setItem("token", res.data.token);
+      navigate("/dashboard");
     });
   };
 

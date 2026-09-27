@@ -1,10 +1,24 @@
+import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Calculator, Lightbulb, MessageCircle, Info } from "lucide-react";
 import { termBySlug, TAX_LAST_REVIEWED } from "../lib/learn";
+import { useTitle } from "../lib/useTitle";
+import { LEARN_READ_KEY } from "../lib/checklist";
 
 function LearnTerm() {
   const { slug } = useParams();
   const term = slug ? termBySlug(slug) : undefined;
+  useTitle(term ? `${term.term}` : "Learn");
+
+  // Ticks off "Read a Learn term" in the dashboard's welcome checklist
+  useEffect(() => {
+    if (!term) return;
+    try {
+      localStorage.setItem(LEARN_READ_KEY, "1");
+    } catch {
+      // Storage can be unavailable (e.g. private browsing); the checklist just won't tick this step
+    }
+  }, [term]);
 
   const backLink = (
     <Link to="/learn" className="inline-flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink-900 transition">
