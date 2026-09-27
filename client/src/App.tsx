@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
+import Tracker from "./pages/Tracker";
+import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import Discuss from "./pages/Discuss";
 import DiscussPost from "./pages/DiscussPost";
@@ -25,7 +26,7 @@ function RequireAuth() {
 }
 
 function RedirectIfSignedIn() {
-  return isSignedIn() ? <Navigate to="/dashboard" replace /> : <Outlet />;
+  return isSignedIn() ? <Navigate to="/home" replace /> : <Outlet />;
 }
 
 // Public pages (Learn, Calculators): signed-in users see them inside the app, visitors inside the public site
@@ -51,7 +52,10 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route element={<RequireAuth />}>
             <Route element={<AppLayout />}>
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/home" element={<Home />} />
+              <Route path="/tracker" element={<Tracker />} />
+              {/* Old address, kept so bookmarks and installed apps still work */}
+              <Route path="/dashboard" element={<Navigate to="/home" replace />} />
               <Route path="/discuss" element={<Discuss />} />
               <Route path="/discuss/:id" element={<DiscussPost />} />
               <Route path="/settings" element={<Settings />} />

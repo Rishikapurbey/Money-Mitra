@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, MessagesSquare, BookOpen, LogOut, ChevronDown, Calculator, Settings, Download } from "lucide-react";
+import { House, PieChart, MessagesSquare, BookOpen, LogOut, ChevronDown, Calculator, Settings, Download } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import api from "../lib/api";
 import { Logo } from "./Logo";
@@ -20,7 +20,8 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/home", label: "Home", icon: House },
+  { to: "/tracker", label: "Tracker", icon: PieChart },
   { to: "/discuss", label: "Discuss", icon: MessagesSquare },
   { to: "/learn", label: "Learn", icon: BookOpen },
   { to: "/calculators", label: "Calculators", icon: Calculator },
@@ -58,7 +59,7 @@ function AppLayout() {
     <div className="min-h-screen bg-canvas pb-20 md:pb-0">
       <header className="bg-surface border-b border-line sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-8">
-          <NavLink to="/dashboard" aria-label="Money Mitra dashboard" className="shrink-0">
+          <NavLink to="/home" aria-label="Money Mitra home" className="shrink-0">
             <Logo />
           </NavLink>
 
@@ -137,7 +138,7 @@ function AppLayout() {
 
       <Outlet context={{ username, setUsername } satisfies AppContext} />
 
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-surface border-t border-line grid grid-cols-4">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-surface border-t border-line grid grid-cols-5">
         {navItems.map(({ to, label, icon: Icon, soon }) =>
           soon ? (
             <span key={to} className="flex flex-col items-center gap-1 py-2.5 text-ink-300">

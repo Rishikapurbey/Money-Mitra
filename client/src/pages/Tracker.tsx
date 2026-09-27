@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useOutletContext } from "react-router-dom";
 import api from "../lib/api";
-import type { AppContext } from "../components/AppLayout";
 import { useToast } from "../lib/toast";
 import { useTitle } from "../lib/useTitle";
 import { formatINR, inputClass } from "../lib/ui";
+import { addMonths, startOfMonth, toInputDate, transactionTimestamp } from "../lib/dates";
 import BudgetsCard from "../components/BudgetsCard";
 import GoalsCard from "../components/GoalsCard";
-import GettingStarted from "../components/GettingStarted";
-import InsightsCard from "../components/InsightsCard";
-import type { Insight } from "../components/InsightsCard";
-import LearnTipCard from "../components/LearnTipCard";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { AlertCircle, TrendingUp, TrendingDown, Wallet2, Pencil, Trash2, Plus, Receipt, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -25,21 +20,6 @@ interface Transaction {
 
 const COLORS = [1, 2, 3, 4, 5, 6].map((n) => `var(--color-chart-${n})`);
 
-
-const greeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-};
-
-// Local-time YYYY-MM-DD, the format <input type="date"> uses
-const toInputDate = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
-
-const addMonths = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth() + n, 1);
 
 const monthName = (d: Date) => d.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 
@@ -57,7 +37,6 @@ interface DashboardData {
   transactions: Transaction[];
   summary: { income: number; expense: number; balance: number; totalBalance: number };
   trend: { month: string; income: number; expense: number }[];
-  insights: Insight[];
 }
 
 // Everything the dashboard shows for one month, or null if it couldn't be loaded
@@ -68,29 +47,24 @@ async function fetchDashboard(month: Date): Promise<DashboardData | null> {
       from: addMonths(startOfMonth(new Date()), -5).toISOString(),
       tzOffset: new Date().getTimezoneOffset(),
     };
-    const insightParams = { ...range, prevFrom: addMonths(month, -1).toISOString(), tzOffset: new Date().getTimezoneOffset() };
-    const [txRes, summaryRes, trendRes, insights] = await Promise.all([
+    const [txRes, summaryRes, trendRes] = await Promise.all([
       api.get("/transactions", { params: range }),
       api.get("/transactions/summary", { params: range }),
       api.get("/transactions/trend", { params: trendParams }),
-      // Insights are a bonus: if they fail, the rest of the dashboard still loads
-      api.get("/transactions/insights", { params: insightParams }).then((r) => r.data.insights as Insight[]).catch(() => []),
     ]);
-    return { transactions: txRes.data.transactions, summary: summaryRes.data.summary, trend: trendRes.data.trend, insights };
+    return { transactions: txRes.data.transactions, summary: summaryRes.data.summary, trend: trendRes.data.trend };
   } catch {
     return null;
   }
 }
 
-function Dashboard() {
+function Tracker() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0, totalBalance: 0 });
   const [trend, setTrend] = useState<{ month: string; income: number; expense: number }[]>([]);
-  const [insights, setInsights] = useState<Insight[]>([]);
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
-  const { username } = useOutletContext<AppContext>();
   const toast = useToast();
-  useTitle("Dashboard");
+  useTitle("Tracker");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [amount, setAmount] = useState("");
@@ -109,7 +83,6 @@ function Dashboard() {
       setTransactions(data.transactions);
       setSummary(data.summary);
       setTrend(data.trend);
-      setInsights(data.insights);
       setError("");
     } else {
       setError("We couldn't load your data. Check your connection and try again.");
@@ -145,8 +118,7 @@ function Dashboard() {
     // time for today, and midday for other days so timezone shifts can't change the date
     let when: string;
     if (editingOriginalDate && toInputDate(new Date(editingOriginalDate)) === date) when = editingOriginalDate;
-    else if (date === toInputDate(new Date())) when = new Date().toISOString();
-    else when = new Date(`${date}T12:00:00`).toISOString();
+    else when = transactionTimestamp(date);
 
     const body = { amount: parseFloat(amount), type, category, note, date: when };
     try {
@@ -293,12 +265,8 @@ function Dashboard() {
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink-900">
-            {greeting()}{username && `, ${username}`}
-          </h1>
-          <p className="mt-1 text-sm text-ink-500">
-            {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Tracker</h1>
+          <p className="mt-1 text-sm text-ink-500">Every rupee in and out, month by month.</p>
         </div>
         <div className="flex items-center bg-surface border border-line rounded-xl">
           <button
@@ -319,14 +287,6 @@ function Dashboard() {
           </button>
         </div>
       </div>
-
-      <GettingStarted
-        hasTransactions={transactions.length > 0 || summary.totalBalance !== 0 || trend.some((m) => m.income > 0 || m.expense > 0)}
-        onAddTransaction={() => {
-          formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-          formRef.current?.querySelector<HTMLInputElement>('input[type="number"]')?.focus({ preventScroll: true });
-        }}
-      />
 
       <section className="bg-ink-900 rounded-2xl p-6 sm:p-8 text-white">
         <div className="flex items-center gap-2 text-ink-300 text-xs font-medium uppercase tracking-wider">
@@ -363,15 +323,6 @@ function Dashboard() {
           </div>
         </div>
       </section>
-
-      <div className="flex flex-col md:flex-row gap-6">
-        <div className="md:flex-[2] min-w-0">
-          <InsightsCard insights={insights} monthLabel={monthShort} isCurrentMonth={isCurrentMonth} />
-        </div>
-        <div className="md:flex-1 min-w-0 flex">
-          <LearnTipCard income={summary.income} expense={summary.expense} categories={categories} />
-        </div>
-      </div>
 
       <div className="grid gap-6 md:grid-cols-5">
         <form
@@ -640,4 +591,4 @@ function Dashboard() {
   );
 }
 
-export default Dashboard;
+export default Tracker;

@@ -10,11 +10,14 @@ function ScrollManager() {
   useEffect(() => {
     if (navigationType === "POP") return;
     if (hash) {
-      // Wait a frame so the section exists when arriving from another page
-      const frame = requestAnimationFrame(() =>
-        document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: "smooth" })
-      );
-      return () => cancelAnimationFrame(frame);
+      // The section may not exist yet (e.g. still loading), so keep looking for up to 3 seconds
+      let tries = 0;
+      const timer = setInterval(() => {
+        const target = document.getElementById(hash.slice(1));
+        if (target || ++tries > 30) clearInterval(timer);
+        target?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+      return () => clearInterval(timer);
     }
     window.scrollTo(0, 0);
   }, [pathname, hash, navigationType]);

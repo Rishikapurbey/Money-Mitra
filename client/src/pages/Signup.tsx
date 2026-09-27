@@ -20,7 +20,7 @@ function Signup() {
       // Log straight in with the details just entered, instead of asking for them again
       const res = await api.post("/auth/login", { email, password });
       localStorage.setItem("token", res.data.token);
-      navigate("/dashboard");
+      navigate("/home");
     });
   };
 

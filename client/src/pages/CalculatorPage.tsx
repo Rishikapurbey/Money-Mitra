@@ -298,8 +298,8 @@ function useEmergencyFundCalculator(): Layout {
             goalState === "done" ? (
               <p className="flex items-center gap-2 text-sm text-gain font-medium">
                 <CheckCircle2 size={16} /> Goal created.{" "}
-                <Link to="/dashboard" className="underline underline-offset-2">
-                  See it on your dashboard
+                <Link to="/tracker#goals" className="underline underline-offset-2">
+                  See it in your tracker
                 </Link>
               </p>
             ) : (

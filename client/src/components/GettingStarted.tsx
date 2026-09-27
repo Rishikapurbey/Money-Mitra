@@ -10,8 +10,6 @@ interface GettingStartedProps {
   onAddTransaction: () => void;
 }
 
-const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-
 // A short welcome checklist for new users; it disappears once everything is done or it's hidden
 function GettingStarted({ hasTransactions, onAddTransaction }: GettingStartedProps) {
   const [hidden, setHidden] = useState(() => readFlag(CHECKLIST_HIDDEN_KEY));
@@ -38,8 +36,8 @@ function GettingStarted({ hasTransactions, onAddTransaction }: GettingStartedPro
 
   const steps = [
     { label: "Add your first transaction", done: hasTransactions, action: onAddTransaction },
-    { label: "Set a monthly budget", done: counts.budgets > 0, action: () => scrollTo("budgets") },
-    { label: "Create a savings goal", done: counts.goals > 0, action: () => scrollTo("goals") },
+    { label: "Set a monthly budget", done: counts.budgets > 0, to: "/tracker#budgets" },
+    { label: "Create a savings goal", done: counts.goals > 0, to: "/tracker#goals" },
     { label: "Read a money term in Learn", done: readLearn, to: "/learn" },
   ];
   const doneCount = steps.filter((s) => s.done).length;

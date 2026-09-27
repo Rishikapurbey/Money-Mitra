@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@theme {
+@theme static {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   /* Used for the "Money Mitra" wordmark */
   --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
