@@ -20,6 +20,8 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
   transactions Transaction[]
+  posts        Post[]
+  replies      Reply[]
 }
 
 model Transaction {
@@ -31,4 +33,33 @@ model Transaction {
   date      DateTime @default(now())
   userId    String
   user      User     @relation(fields: [userId], references: [id])
+}
+
+// Anonymous posts and replies still store the real author for moderation;
+// the API hides the author's identity from other users.
+model Post {
+  id          String   @id @default(cuid())
+  title       String
+  body        String
+  topic       String
+  isAnonymous Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+  replies     Reply[]
+
+  @@index([createdAt])
+}
+
+model Reply {
+  id          String   @id @default(cuid())
+  body        String
+  isAnonymous Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  postId      String
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+
+  @@index([postId])
 }

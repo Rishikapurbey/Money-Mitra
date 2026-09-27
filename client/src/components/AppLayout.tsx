@@ -17,7 +17,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/discuss", label: "Discuss", icon: MessagesSquare, soon: true },
+  { to: "/discuss", label: "Discuss", icon: MessagesSquare },
   { to: "/learn", label: "Learn", icon: BookOpen, soon: true },
 ];
 
