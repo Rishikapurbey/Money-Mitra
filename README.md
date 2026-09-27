@@ -7,11 +7,12 @@ funds, LIC, and where to actually start.
 It combines three things most finance apps keep separate:
 
 - **Tracking** — log your transactions and see where your money actually goes
-- **Learn** — plain-language articles explaining SIPs, mutual funds, FDs, LIC
-  and other investment basics, surfaced based on what you're tracking or
-  asking about
+- **Learn** — plain-language explanations of SIPs, mutual funds, FDs, tax
+  terms and other money basics, with worked examples in rupees
 - **Discuss** — a space to ask questions about money without judgment,
   post under your username or choose to post anonymously
+
+**Live app:** https://money-mitra-three.vercel.app
 
 ## Why
 
@@ -22,44 +23,128 @@ Mitra is meant to close that specific gap: not a budgeting app, and not
 generic financial advice — just a friend that tracks with you and teaches
 you along the way.
 
+## Features
+
+- [x] User authentication (signup, login, JWT)
+- [x] Transaction tracking with categories, dates, notes, editing and filters
+- [x] Monthly view: income, expense and savings rate for any month
+- [x] Spending-by-category chart and a 6-month income vs expense trend
+- [x] Learn: 28 money terms from basics to advanced, each with a rupee example
+- [x] Discuss: questions and replies organised by topic
+- [x] Per-post and per-reply choice to post anonymously
+- [x] Links from Learn terms into Discuss with the topic preselected
+- [x] Responsive layout with a mobile bottom navigation bar
+
 ## Tech stack
 
-**Frontend:** React, TypeScript, Vite
+**Frontend:** React, TypeScript, Vite, Tailwind CSS, Recharts, React Router
 **Backend:** Node.js, Express, TypeScript
 **Database:** PostgreSQL with Prisma ORM
-**Auth:** JWT with refresh tokens
-**Caching / rate limiting:** Redis
-**Deployment:** Vercel (client), Railway/Render (server), Neon/Railway (Postgres)
+**Auth:** JWT (7-day tokens), passwords hashed with bcrypt
+**Deployment:** Vercel (client), Render (server), Neon (Postgres)
 
 ## Project structure
 
+```
 money-mitra/
-├── client/ # React + TypeScript frontend
-├── server/ # Node + Express backend
+├── client/                 # React + TypeScript frontend
+│   └── src/
+│       ├── components/     # App and auth layouts
+│       ├── lib/            # API client, Learn content, helpers
+│       └── pages/          # Dashboard, Discuss, Learn, auth pages
+└── server/                 # Node + Express backend
+    ├── prisma/             # Schema and migrations
+    └── src/modules/        # auth, transactions, posts
+```
 
-## Features (MVP)
+## Running locally
 
-- [ ] User authentication (signup, login, JWT)
-- [ ] Manual transaction tracking with categories
-- [ ] Dashboard with spending/savings insights
-- [ ] Blog section with investment-basics articles
-- [ ] Discussion threads with pseudonymous or anonymous posting
-- [ ] Per-post choice to hide username
+Requirements: Node.js 20+ and a PostgreSQL database.
 
-## Roadmap (post-MVP)
+**Server**
+
+```bash
+cd server
+npm install
+```
+
+Create `server/.env`:
+
+```
+DATABASE_URL=postgresql://user:password@localhost:5432/money_mitra
+DIRECT_URL=postgresql://user:password@localhost:5432/money_mitra
+JWT_SECRET=any-long-random-string
+PORT=5000
+```
+
+Then:
+
+```bash
+npx prisma migrate dev
+npm run dev
+```
+
+**Client**
+
+```bash
+cd client
+npm install
+npm run dev
+```
+
+The client talks to `http://localhost:5000/api` by default. Set
+`VITE_API_URL` to point it at a different server.
+
+## API overview
+
+All routes except signup and login need an `Authorization: Bearer <token>` header.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| POST | `/api/auth/signup` | Create an account |
+| POST | `/api/auth/login` | Log in and get a token |
+| GET | `/api/auth/me` | Current user |
+| GET, POST | `/api/transactions` | List (optional `from`/`to` range) or add |
+| PUT, DELETE | `/api/transactions/:id` | Edit or delete |
+| GET | `/api/transactions/summary` | Income, expense and balance for a range |
+| GET | `/api/transactions/trend` | Monthly income and expense |
+| GET, POST | `/api/posts` | List (optional `topic`) or ask a question |
+| GET, DELETE | `/api/posts/:id` | View with replies, or delete your own |
+| POST | `/api/posts/:id/replies` | Reply |
+| DELETE | `/api/posts/:id/replies/:replyId` | Delete your own reply |
+
+## Deployment notes
+
+- The server build runs `prisma generate`, then `tsc`, then
+  `prisma migrate deploy`, so new migrations reach production on each deploy.
+- On Neon, `DATABASE_URL` is the pooled connection (host contains `-pooler`)
+  and `DIRECT_URL` is the same string without `-pooler`. Prisma needs the
+  direct connection to run migrations.
+- `client/vercel.json` rewrites all paths to `index.html` so routes like
+  `/dashboard` work when opened directly.
+- The Render free tier sleeps when idle, so the first request after a quiet
+  period can take up to a minute.
+
+## Roadmap
 
 - Bank SMS/statement parsing for automatic transaction entry
-- Personalized article recommendations based on tracked data
+- Personalized Learn suggestions based on tracked spending and questions asked
+- Budgets and savings goals per category
+- Reporting and moderation tools for Discuss
 
 ## Design notes
 
 - Anonymous posts still store the real author internally — the username is
-  just hidden in the UI. This allows moderation while still protecting
-  user privacy.
+  just hidden in the UI and never sent to other users by the API. This
+  allows moderation while still protecting user privacy.
 - PostgreSQL was chosen over MongoDB deliberately, since the data
   (users, transactions, posts, replies) is genuinely relational.
+- Learn content lives in the client as a typed data file, so terms can be
+  added or corrected without a database change.
+- Learn is for education only and is not financial advice. Tax terms carry a
+  last-reviewed date because rules change with each Budget.
 
 ## Status
 
-🚧 In active development — this project is being built incrementally with
+In active development — this project is being built incrementally with
 commits reflecting real day-to-day progress.
