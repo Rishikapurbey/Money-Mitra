@@ -10,6 +10,15 @@
     <title>Money Mitra: track, learn and ask about money</title>
     <meta name="description" content="Track where your money goes, learn terms like SIP and CIBIL in plain English, and ask money questions anonymously. Free and built for India." />
     <meta name="theme-color" content="#0f1b2d" />
+    <script>
+      // Apply the saved theme (or the device setting) before the page draws, to avoid a white flash
+      (function () {
+        var choice = "system";
+        try { choice = localStorage.getItem("money-mitra:theme") || "system"; } catch (e) {}
+        var dark = choice === "dark" || (choice === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script>
     <meta name="apple-mobile-web-app-title" content="Money Mitra" />
     <meta property="og:title" content="Money Mitra: your friend for money" />
     <meta property="og:description" content="Track your money, learn finance in plain English, and ask anything without judgment." />

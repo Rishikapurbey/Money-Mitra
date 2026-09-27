@@ -6,6 +6,7 @@ import api from "../lib/api";
 import { Logo } from "./Logo";
 import BackToTop from "./BackToTop";
 import NotificationBell from "./NotificationBell";
+import ThemeToggle from "./ThemeToggle";
 import { useInstallPrompt } from "../lib/installPrompt";
 
 export interface AppContext {
@@ -87,6 +88,7 @@ function AppLayout() {
           </nav>
 
           <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
             <NotificationBell />
             <div ref={menuRef} className="relative">
               <button

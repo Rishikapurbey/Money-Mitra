@@ -99,7 +99,7 @@ function LearnTerm() {
         </section>
       )}
 
-      <div className="bg-ink-900 text-white rounded-2xl p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="dark-panel bg-ink-900 text-white rounded-2xl p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="font-semibold">Still have a question about {term.term}?</p>
           <p className="mt-1 text-sm text-ink-300">

@@ -25,7 +25,7 @@ import { useTitle } from "../lib/useTitle";
 // Illustrative figures for the product previews; not real user data
 function MiniBalance() {
   return (
-    <div className="bg-ink-900 rounded-2xl p-5 text-white shadow-xl shadow-ink-900/10">
+    <div className="dark-panel bg-ink-900 rounded-2xl p-5 text-white shadow-xl shadow-ink-900/10">
       <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-ink-300">
         <Wallet2 size={12} /> Balance
       </p>
@@ -311,7 +311,7 @@ function Landing() {
       </section>
 
       {/* Why */}
-      <section id="privacy" className="scroll-mt-20 bg-ink-900 text-white">
+      <section id="privacy" className="dark-panel scroll-mt-20 bg-ink-900 text-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-20 sm:py-24">
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight">Why Money Mitra?</h2>
           <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -422,7 +422,7 @@ function Landing() {
 
       {/* Final call to action */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-20 sm:pb-28">
-        <div className="bg-ink-900 rounded-3xl px-6 py-14 sm:px-14 text-center text-white">
+        <div className="dark-panel bg-ink-900 rounded-3xl px-6 py-14 sm:px-14 text-center text-white">
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight">Start understanding your money today</h2>
           <p className="mt-4 text-ink-300 text-lg">Free, private, and made for people who were never taught this.</p>
           <Link

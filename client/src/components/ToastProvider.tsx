@@ -28,7 +28,7 @@ function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={toast.id}
             role="status"
-            className="pointer-events-auto flex items-center gap-4 bg-ink-900 text-white text-sm rounded-xl shadow-lg pl-4 pr-2 py-2.5 max-w-md"
+            className="dark-panel pointer-events-auto flex items-center gap-4 bg-ink-900 text-white text-sm rounded-xl shadow-lg pl-4 pr-2 py-2.5 max-w-md"
           >
             <span>{toast.message}</span>
             {toast.action && (

@@ -50,7 +50,7 @@ function QuickAddSheet({ type: initialType, recentCategories, onClose, onSaved }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-ink-950/40" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
       <form
         onSubmit={save}
         role="dialog"

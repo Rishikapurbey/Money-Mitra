@@ -288,7 +288,7 @@ function Tracker() {
         </div>
       </div>
 
-      <section className="bg-ink-900 rounded-2xl p-6 sm:p-8 text-white">
+      <section className="dark-panel bg-ink-900 rounded-2xl p-6 sm:p-8 text-white">
         <div className="flex items-center gap-2 text-ink-300 text-xs font-medium uppercase tracking-wider">
           <Wallet2 size={14} /> Balance
         </div>

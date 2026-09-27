@@ -7,6 +7,7 @@ import { formatINR } from "../lib/ui";
 import { addMonths, startOfMonth } from "../lib/dates";
 import { onDataChange } from "../lib/dataEvents";
 import { timeAgo } from "../lib/discuss";
+import { greeting } from "../lib/greeting";
 import type { Post } from "../lib/discuss";
 import type { AppNotification } from "../lib/notifications";
 import type { AppContext } from "../components/AppLayout";
@@ -34,13 +35,6 @@ interface HomeData {
   posts: Post[];
   notifications: AppNotification[];
 }
-
-const greeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-};
 
 // Everything Home shows for the current month, or null if the essentials couldn't be loaded
 async function fetchHome(): Promise<HomeData | null> {
@@ -168,7 +162,7 @@ function Home() {
     <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink-900">
-          {greeting()}{username && `, ${username}`}
+          {greeting(new Date().getHours())}{username && `, ${username}`}
         </h1>
         <p className="mt-1 text-sm text-ink-500">{today}</p>
       </div>
@@ -176,7 +170,7 @@ function Home() {
       <GettingStarted hasTransactions={hasTransactions} onAddTransaction={() => setQuickAdd("expense")} />
 
       {/* This month at a glance */}
-      <section className="bg-ink-900 rounded-2xl p-6 sm:p-7 text-white" aria-labelledby="glance-title">
+      <section className="dark-panel bg-ink-900 rounded-2xl p-6 sm:p-7 text-white" aria-labelledby="glance-title">
         <div className="flex items-center justify-between gap-4">
           <h2 id="glance-title" className="text-xs font-medium uppercase tracking-wider text-ink-300">
             {monthLabel} at a glance

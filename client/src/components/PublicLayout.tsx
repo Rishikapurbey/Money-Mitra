@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { Logo } from "./Logo";
 import BackToTop from "./BackToTop";
+import ThemeToggle from "./ThemeToggle";
 
 const SECTIONS = ["features", "privacy", "faq"];
 
@@ -97,6 +98,7 @@ function PublicLayout() {
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
             <Link
               to="/login"
               className="hidden sm:block px-4 py-2 text-sm font-medium text-ink-700 hover:text-ink-900 transition"
@@ -156,7 +158,7 @@ function PublicLayout() {
         <Outlet />
       </div>
 
-      <footer className="bg-ink-950 text-ink-300">
+      <footer className="dark-panel bg-ink-950 text-ink-300">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 grid gap-10 md:grid-cols-4">
           <div className="md:col-span-2">
             <Logo tone="dark" />

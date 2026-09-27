@@ -104,7 +104,7 @@ function Discuss() {
         )}
       </div>
 
-      <div className="bg-ink-900 text-white rounded-2xl p-5 sm:p-6 flex gap-4 items-start">
+      <div className="dark-panel bg-ink-900 text-white rounded-2xl p-5 sm:p-6 flex gap-4 items-start">
         <span className="bg-ink-800 p-2.5 rounded-xl shrink-0">
           <MessagesSquare size={20} className="text-brand-300" />
         </span>
@@ -182,13 +182,13 @@ function Discuss() {
         </form>
       )}
 
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
         {["", ...TOPICS].map((t) => (
           <button
             key={t || "all"}
             onClick={() => setTopic(t)}
             className={`px-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition ${
-              topic === t ? "bg-ink-900 text-white" : "bg-surface border border-line text-ink-700 hover:border-ink-300"
+              topic === t ? "bg-ink-900 text-surface" : "bg-surface border border-line text-ink-700 hover:border-ink-300"
             }`}
           >
             {t || "All topics"}

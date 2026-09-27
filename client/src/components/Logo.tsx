@@ -3,8 +3,10 @@
 
 type Tone = "light" | "dark";
 
+// "light" is for the page's own background, so it follows the theme (navy on light pages,
+// white on dark ones); "dark" is for the always-navy panels such as the footer
 const COLORS: Record<Tone, { main: string; accent: string }> = {
-  light: { main: "#0f1b2d", accent: "#0f6f67" },
+  light: { main: "var(--color-ink-900)", accent: "var(--logo-accent)" },
   dark: { main: "#ffffff", accent: "#5cc0ad" },
 };
 
@@ -42,7 +44,7 @@ export function Logo({ tone = "light", size = 30 }: LogoProps) {
       <span
         className={`font-display text-lg font-bold tracking-tight ${tone === "dark" ? "text-white" : "text-ink-900"}`}
       >
-        Money <span className={tone === "dark" ? "text-[#5cc0ad]" : "text-brand-600"}>Mitra</span>
+        Money <span className={tone === "dark" ? "text-[#5cc0ad]" : "text-[var(--logo-accent)]"}>Mitra</span>
       </span>
     </span>
   );

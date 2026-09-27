@@ -13,7 +13,7 @@ const levelStyle: Record<Level, string> = {
 
 const chip = (active: boolean) =>
   `px-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition ${
-    active ? "bg-ink-900 text-white" : "bg-surface border border-line text-ink-700 hover:border-ink-300"
+    active ? "bg-ink-900 text-surface" : "bg-surface border border-line text-ink-700 hover:border-ink-300"
   }`;
 
 function Learn() {
@@ -49,14 +49,14 @@ function Learn() {
       </div>
 
       <div className="space-y-3">
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
           {["", ...LEVELS].map((l) => (
             <button key={l || "all"} onClick={() => setLevel(l)} className={chip(level === l)}>
               {l || "All levels"}
             </button>
           ))}
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
           {["", ...LEARN_TOPICS].map((t) => (
             <button key={t || "all"} onClick={() => setTopic(t)} className={chip(topic === t)}>
               {t || "All topics"}

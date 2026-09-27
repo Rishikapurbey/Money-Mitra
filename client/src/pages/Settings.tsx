@@ -7,6 +7,8 @@ import api from "../lib/api";
 import { inputClass } from "../lib/ui";
 import { csvField } from "../lib/csv";
 import type { AppContext } from "../components/AppLayout";
+import { setTheme, useTheme } from "../lib/theme";
+import type { ThemeChoice } from "../lib/theme";
 import { useTitle } from "../lib/useTitle";
 
 const errorMessage = (err: unknown, fallback: string) =>
@@ -51,6 +53,7 @@ function Settings() {
   useTitle("Settings");
   const { username, setUsername } = useOutletContext<AppContext>();
   const navigate = useNavigate();
+  const { choice: themeChoice } = useTheme();
   const [email, setEmail] = useState("");
 
   const [newUsername, setNewUsername] = useState("");
@@ -215,6 +218,24 @@ function Settings() {
             {passwordState.busy ? "Changing…" : "Change password"}
           </button>
         </form>
+      </Card>
+
+      <Card title="Appearance" description="Choose light or dark, or follow your device's setting.">
+        <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 p-1 bg-ink-100 rounded-xl text-sm font-medium">
+          {(["system", "light", "dark"] as ThemeChoice[]).map((option) => (
+            <button
+              key={option}
+              role="radio"
+              aria-checked={themeChoice === option}
+              onClick={() => setTheme(option)}
+              className={`py-2 rounded-lg capitalize transition ${
+                themeChoice === option ? "bg-surface text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-700"
+              }`}
+            >
+              {option === "system" ? "Device" : option}
+            </button>
+          ))}
+        </div>
       </Card>
 
       <Card title="Email notifications" description="Notifications always appear under the bell in the app. Choose whether you also get emails.">

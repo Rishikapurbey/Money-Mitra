@@ -21,7 +21,7 @@ interface AuthLayoutProps {
 function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-canvas">
-      <aside className="bg-ink-900 text-white px-6 py-8 sm:px-10 lg:p-14 flex flex-col justify-between">
+      <aside className="dark-panel bg-ink-900 text-white px-6 py-8 sm:px-10 lg:p-14 flex flex-col justify-between">
         <Link to="/" className="w-fit" aria-label="Money Mitra home">
           <Logo tone="dark" />
         </Link>
