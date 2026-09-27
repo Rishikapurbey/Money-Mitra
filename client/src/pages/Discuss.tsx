@@ -6,9 +6,9 @@ import api from "../lib/api";
 import { TOPICS, authorName, timeAgo, discussInputClass } from "../lib/discuss";
 import type { Post } from "../lib/discuss";
 
-async function fetchPosts(topic: string): Promise<Post[] | null> {
+async function fetchPosts(topic: string, unanswered: boolean): Promise<Post[] | null> {
   try {
-    const res = await api.get("/posts", { params: topic ? { topic } : {} });
+    const res = await api.get("/posts", { params: { ...(topic && { topic }), ...(unanswered && { unanswered: "1" }) } });
     return res.data.posts;
   } catch {
     return null;
@@ -21,6 +21,7 @@ function Discuss() {
   const presetTopic = TOPICS.includes(searchParams.get("topic") ?? "") ? searchParams.get("topic")! : "";
   const [posts, setPosts] = useState<Post[]>([]);
   const [topic, setTopic] = useState("");
+  const [unanswered, setUnanswered] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [asking, setAsking] = useState(searchParams.get("ask") === "1");
@@ -41,16 +42,19 @@ function Discuss() {
     setLoading(false);
   }, []);
 
-  const loadPosts = useCallback(async () => applyPosts(await fetchPosts(topic)), [topic, applyPosts]);
+  const loadPosts = useCallback(
+    async () => applyPosts(await fetchPosts(topic, unanswered)),
+    [topic, unanswered, applyPosts]
+  );
 
-  // Ignore a response that arrives after the user has already picked another topic
+  // Ignore a response that arrives after the user has already changed the filters
   useEffect(() => {
     let current = true;
-    fetchPosts(topic).then((result) => current && applyPosts(result));
+    fetchPosts(topic, unanswered).then((result) => current && applyPosts(result));
     return () => {
       current = false;
     };
-  }, [topic, applyPosts]);
+  }, [topic, unanswered, applyPosts]);
 
   const closeForm = () => {
     setAsking(false);
@@ -185,6 +189,16 @@ function Discuss() {
             {t || "All topics"}
           </button>
         ))}
+        <span className="w-px shrink-0 bg-line mx-1" aria-hidden="true" />
+        <button
+          onClick={() => setUnanswered((u) => !u)}
+          aria-pressed={unanswered}
+          className={`px-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition ${
+            unanswered ? "bg-brand-600 text-white" : "bg-surface border border-line text-ink-700 hover:border-ink-300"
+          }`}
+        >
+          Unanswered
+        </button>
       </div>
 
       {error && (
@@ -208,8 +222,18 @@ function Discuss() {
           <div className="mx-auto w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center">
             <MessageCircle size={22} className="text-brand-600" />
           </div>
-          <p className="mt-4 font-medium text-ink-900">{topic ? `No questions in ${topic} yet` : "No questions yet"}</p>
-          <p className="mt-1 text-sm text-ink-500">Be the first to ask. Someone else is probably wondering the same thing.</p>
+          <p className="mt-4 font-medium text-ink-900">
+            {unanswered
+              ? "Every question has an answer"
+              : topic
+                ? `No questions in ${topic} yet`
+                : "No questions yet"}
+          </p>
+          <p className="mt-1 text-sm text-ink-500">
+            {unanswered
+              ? "Nice work, community. Check back later to help someone new."
+              : "Be the first to ask. Someone else is probably wondering the same thing."}
+          </p>
         </div>
       ) : (
         <ul className="space-y-3">

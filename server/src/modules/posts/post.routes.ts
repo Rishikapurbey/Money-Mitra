@@ -1,7 +1,18 @@
 import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
-import { postLimiter } from "../../middleware/rateLimit";
-import { TOPICS, listPosts, getPost, createPost, deletePost, createReply, deleteReply } from "./post.service";
+import { postLimiter, reportLimiter } from "../../middleware/rateLimit";
+import {
+  REPORT_REASONS,
+  TOPICS,
+  createPost,
+  createReply,
+  deletePost,
+  deleteReply,
+  getPost,
+  listPosts,
+  report,
+  toggleHelpful,
+} from "./post.service";
 
 const router = Router();
 
@@ -11,7 +22,7 @@ router.get("/", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   const topic = text(req.query.topic);
   if (topic && !TOPICS.includes(topic)) return res.status(400).json({ error: "Unknown topic" });
-  const posts = await listPosts(req.userId, topic || undefined);
+  const posts = await listPosts(req.userId, { topic: topic || undefined, unanswered: req.query.unanswered === "1" });
   res.status(200).json({ posts });
 });
 
@@ -61,6 +72,33 @@ router.delete("/:id/replies/:replyId", authMiddleware, async (req: AuthRequest, 
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   await deleteReply(req.userId, req.params.id as string, req.params.replyId as string);
   res.status(200).json({ success: true });
+});
+
+router.post("/:id/replies/:replyId/helpful", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  const result = await toggleHelpful(req.userId, req.params.id as string, req.params.replyId as string);
+  res.status(200).json(result);
+});
+
+const reasonKey = (value: unknown) => {
+  const key = text(value);
+  return key in REPORT_REASONS ? key : null;
+};
+
+router.post("/:id/report", authMiddleware, reportLimiter, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  const reason = reasonKey(req.body.reason);
+  if (!reason) return res.status(400).json({ error: "Please choose a reason" });
+  const result = await report(req.userId, req.params.id as string, null, reason);
+  res.status(201).json(result);
+});
+
+router.post("/:id/replies/:replyId/report", authMiddleware, reportLimiter, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  const reason = reasonKey(req.body.reason);
+  if (!reason) return res.status(400).json({ error: "Please choose a reason" });
+  const result = await report(req.userId, req.params.id as string, req.params.replyId as string, reason);
+  res.status(201).json(result);
 });
 
 export default router;

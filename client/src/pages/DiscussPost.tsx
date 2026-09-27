@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { isAxiosError } from "axios";
-import { ArrowLeft, Trash2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Trash2, AlertCircle, ThumbsUp, Award, EyeOff } from "lucide-react";
 import api from "../lib/api";
 import { authorName, timeAgo, discussInputClass } from "../lib/discuss";
 import type { Post } from "../lib/discuss";
+import ReportButton from "../components/ReportButton";
 
 type PostResult = Post | "not-found" | "error";
 
@@ -74,6 +75,29 @@ function DiscussPost() {
     }
   };
 
+  const handleHelpful = async (replyId: string) => {
+    try {
+      const res = await api.post(`/posts/${id}/replies/${replyId}/helpful`);
+      // Update in place; replies are re-sorted by helpfulness on the next visit, not while reading
+      setPost((current) =>
+        current && {
+          ...current,
+          replies: current.replies?.map((r) => (r.id === replyId ? { ...r, ...res.data } : r)),
+        }
+      );
+    } catch (err) {
+      setError((isAxiosError(err) && err.response?.data?.error) || "We couldn't save your vote. Please try again.");
+    }
+  };
+
+  const hideReply = (replyId: string) =>
+    setPost((current) =>
+      current && {
+        ...current,
+        replies: current.replies?.map((r) => (r.id === replyId ? { ...r, hidden: true, body: "", author: null } : r)),
+      }
+    );
+
   const handleDeleteReply = async (replyId: string) => {
     try {
       await api.delete(`/posts/${id}/replies/${replyId}`);
@@ -129,7 +153,15 @@ function DiscussPost() {
         </div>
       )}
 
-      {post && (
+      {post?.hidden && (
+        <div className="bg-surface border border-line rounded-2xl px-5 py-14 text-center">
+          <EyeOff size={22} className="mx-auto text-ink-400" />
+          <p className="mt-3 font-medium text-ink-900">This question has been hidden</p>
+          <p className="mt-1 text-sm text-ink-500">It was reported by several members of the community.</p>
+        </div>
+      )}
+
+      {post && !post.hidden && (
         <>
           <article className="bg-surface border border-line rounded-2xl p-6">
             <div className="flex items-start justify-between gap-4">
@@ -148,6 +180,11 @@ function DiscussPost() {
               <span className="font-medium text-ink-700">{authorName(post)}</span> · {timeAgo(post.createdAt)}
             </p>
             {post.body && <p className="mt-4 text-ink-700 leading-relaxed whitespace-pre-line">{post.body}</p>}
+            {!post.isMine && (
+              <div className="mt-4 flex flex-wrap">
+                <ReportButton path={`/posts/${post.id}`} onHidden={() => setPost({ ...post, hidden: true })} />
+              </div>
+            )}
           </article>
 
           <section>
@@ -158,25 +195,60 @@ function DiscussPost() {
               <p className="text-sm text-ink-500">No replies yet. Share what you know.</p>
             ) : (
               <ul className="bg-surface border border-line rounded-2xl divide-y divide-line">
-                {replies.map((r) => (
-                  <li key={r.id} className="p-5">
-                    <div className="flex items-center justify-between gap-4">
-                      <p className="text-xs text-ink-500">
-                        <span className="font-medium text-ink-700">{authorName(r)}</span> · {timeAgo(r.createdAt)}
-                      </p>
-                      {r.isMine && (
-                        <button
-                          onClick={() => handleDeleteReply(r.id)}
-                          aria-label="Delete reply"
-                          className="text-ink-300 hover:text-loss transition"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                {replies.map((r, index) =>
+                  r.hidden ? (
+                    <li key={r.id} className="p-5 flex items-center gap-2 text-sm text-ink-400">
+                      <EyeOff size={15} /> This reply has been hidden after reports from the community.
+                    </li>
+                  ) : (
+                    <li key={r.id} className="p-5">
+                      {index === 0 && r.helpfulCount > 0 && replies.length > 1 && (
+                        <p className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md">
+                          <Award size={13} /> Most helpful
+                        </p>
                       )}
-                    </div>
-                    <p className="mt-2 text-ink-700 leading-relaxed whitespace-pre-line">{r.body}</p>
-                  </li>
-                ))}
+                      <div className="flex items-center justify-between gap-4">
+                        <p className="text-xs text-ink-500">
+                          <span className="font-medium text-ink-700">{authorName(r)}</span> · {timeAgo(r.createdAt)}
+                        </p>
+                        {r.isMine && (
+                          <button
+                            onClick={() => handleDeleteReply(r.id)}
+                            aria-label="Delete reply"
+                            className="text-ink-300 hover:text-loss transition"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
+                      </div>
+                      <p className="mt-2 text-ink-700 leading-relaxed whitespace-pre-line">{r.body}</p>
+                      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+                        {r.isMine ? (
+                          r.helpfulCount > 0 && (
+                            <span className="inline-flex items-center gap-1.5 text-xs text-ink-500">
+                              <ThumbsUp size={13} /> {r.helpfulCount} found this helpful
+                            </span>
+                          )
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleHelpful(r.id)}
+                              aria-pressed={r.votedByMe}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition ${
+                                r.votedByMe
+                                  ? "border-brand-500 bg-brand-50 text-brand-700"
+                                  : "border-line text-ink-500 hover:border-ink-300 hover:text-ink-900"
+                              }`}
+                            >
+                              <ThumbsUp size={13} /> Helpful{r.helpfulCount > 0 && ` · ${r.helpfulCount}`}
+                            </button>
+                            <ReportButton path={`/posts/${post.id}/replies/${r.id}`} onHidden={() => hideReply(r.id)} />
+                          </>
+                        )}
+                      </div>
+                    </li>
+                  )
+                )}
               </ul>
             )}
           </section>

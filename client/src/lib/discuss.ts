@@ -7,6 +7,9 @@ export interface Reply {
   createdAt: string;
   author: string | null;
   isMine: boolean;
+  hidden: boolean;
+  helpfulCount: number;
+  votedByMe: boolean;
 }
 
 export interface Post {
@@ -20,7 +23,15 @@ export interface Post {
   isMine: boolean;
   replyCount?: number;
   replies?: Reply[];
+  hidden: boolean;
 }
+
+export const REPORT_REASONS = [
+  { key: "spam", label: "Spam" },
+  { key: "abusive", label: "Abusive or hateful" },
+  { key: "misleading", label: "Misleading money advice" },
+  { key: "other", label: "Other" },
+];
 
 export const authorName = (item: { author: string | null; isMine: boolean }) => {
   if (item.author) return item.isMine ? `${item.author} (you)` : item.author;

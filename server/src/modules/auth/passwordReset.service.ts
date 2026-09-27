@@ -3,13 +3,11 @@ import { createHash, randomBytes } from "crypto";
 import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
 import { sendEmail } from "../../lib/email";
+// Usernames created before signup validation existed could contain HTML characters
+import { escapeHtml } from "../../lib/html";
 import { DELETED_USERNAME } from "../../lib/validation";
 
 const LINK_LIFETIME_MINUTES = 30;
-
-// Usernames created before signup validation existed could contain HTML characters
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 

@@ -30,6 +30,8 @@ model User {
   budgets        Budget[]
   goals          Goal[]
   passwordResets PasswordReset[]
+  replyVotes     ReplyVote[]
+  reports        Report[]
 }
 
 model Transaction {
@@ -55,19 +57,22 @@ model Post {
   authorId    String
   author      User     @relation(fields: [authorId], references: [id])
   replies     Reply[]
+  reports     Report[]
 
   @@index([createdAt])
 }
 
 model Reply {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   body        String
-  isAnonymous Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  isAnonymous Boolean     @default(false)
+  createdAt   DateTime    @default(now())
   postId      String
-  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post        Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
   authorId    String
-  author      User     @relation(fields: [authorId], references: [id])
+  author      User        @relation(fields: [authorId], references: [id])
+  votes       ReplyVote[]
+  reports     Report[]
 
   @@index([postId])
 }
@@ -107,4 +112,32 @@ model PasswordReset {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// One "helpful" vote per user per reply
+model ReplyVote {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replyId   String
+  reply     Reply    @relation(fields: [replyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, replyId])
+}
+
+// A community report on a question (postId) or a reply (replyId); one per user per item
+model Report {
+  id         String   @id @default(cuid())
+  reason     String
+  createdAt  DateTime @default(now())
+  reporterId String
+  reporter   User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  postId     String?
+  post       Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  replyId    String?
+  reply      Reply?   @relation(fields: [replyId], references: [id], onDelete: Cascade)
+
+  @@unique([reporterId, postId])
+  @@unique([reporterId, replyId])
 }
