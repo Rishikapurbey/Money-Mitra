@@ -24,6 +24,7 @@ function LearnTerm() {
     );
   }
 
+  const signedIn = Boolean(localStorage.getItem("token"));
   const related = term.related.map(termBySlug).filter((t) => t !== undefined);
 
   return (
@@ -86,13 +87,17 @@ function LearnTerm() {
       <div className="bg-ink-900 text-white rounded-2xl p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="font-semibold">Still have a question about {term.term}?</p>
-          <p className="mt-1 text-sm text-ink-300">Ask the community. You can post anonymously.</p>
+          <p className="mt-1 text-sm text-ink-300">
+            {signedIn
+              ? "Ask the community. You can post anonymously."
+              : "Create a free account to ask the community. You can post anonymously."}
+          </p>
         </div>
         <Link
-          to={`/discuss?ask=1&topic=${encodeURIComponent(term.topic)}`}
+          to={signedIn ? `/discuss?ask=1&topic=${encodeURIComponent(term.topic)}` : "/signup"}
           className="flex items-center gap-1.5 bg-brand-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-brand-700 transition"
         >
-          <MessageCircle size={16} /> Ask in Discuss
+          <MessageCircle size={16} /> {signedIn ? "Ask in Discuss" : "Get started free"}
         </Link>
       </div>
 

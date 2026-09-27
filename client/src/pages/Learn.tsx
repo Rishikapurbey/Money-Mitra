@@ -71,7 +71,10 @@ function Learn() {
           <p className="mt-4 font-medium text-ink-900">No terms match your search</p>
           <p className="mt-1 text-sm text-ink-500">
             Can't find what you need?{" "}
-            <Link to="/discuss?ask=1" className="text-brand-600 font-medium hover:text-brand-700">
+            <Link
+              to={localStorage.getItem("token") ? "/discuss?ask=1" : "/signup"}
+              className="text-brand-600 font-medium hover:text-brand-700"
+            >
               Ask in Discuss
             </Link>
           </p>

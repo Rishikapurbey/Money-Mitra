@@ -8,6 +8,8 @@ import DiscussPost from "./pages/DiscussPost";
 import Learn from "./pages/Learn";
 import LearnTerm from "./pages/LearnTerm";
 import AppLayout from "./components/AppLayout";
+import PublicLayout from "./components/PublicLayout";
+import Landing from "./pages/Landing";
 
 const isSignedIn = () => Boolean(localStorage.getItem("token"));
 
@@ -19,11 +21,19 @@ function RedirectIfSignedIn() {
   return isSignedIn() ? <Navigate to="/dashboard" replace /> : <Outlet />;
 }
 
+// Learn is public: signed-in users see it inside the app, visitors inside the public site
+function LearnLayout() {
+  return isSignedIn() ? <AppLayout /> : <PublicLayout />;
+}
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route element={<RedirectIfSignedIn />}>
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<Landing />} />
+          </Route>
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
         </Route>
@@ -32,11 +42,12 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/discuss" element={<Discuss />} />
             <Route path="/discuss/:id" element={<DiscussPost />} />
-            <Route path="/learn" element={<Learn />} />
-            <Route path="/learn/:slug" element={<LearnTerm />} />
           </Route>
         </Route>
-        <Route path="/" element={<Navigate to={isSignedIn() ? "/dashboard" : "/login"} replace />} />
+        <Route element={<LearnLayout />}>
+          <Route path="/learn" element={<Learn />} />
+          <Route path="/learn/:slug" element={<LearnTerm />} />
+        </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
