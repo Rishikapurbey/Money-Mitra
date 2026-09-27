@@ -8,3 +8,13 @@ export function onDataChange(listener: () => void) {
   window.addEventListener(EVENT, listener);
   return () => window.removeEventListener(EVENT, listener);
 }
+
+// Notifications were read or changed, so the bell's count should refresh
+const NOTIFICATIONS_EVENT = "money-mitra:notifications-changed";
+
+export const announceNotificationsChange = () => window.dispatchEvent(new Event(NOTIFICATIONS_EVENT));
+
+export function onNotificationsChange(listener: () => void) {
+  window.addEventListener(NOTIFICATIONS_EVENT, listener);
+  return () => window.removeEventListener(NOTIFICATIONS_EVENT, listener);
+}

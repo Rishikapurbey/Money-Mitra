@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
-import { ArrowRight, Calculator, MessageCircle, MessagesSquare, Minus, Plus, Target } from "lucide-react";
+import { ArrowRight, Bell, Calculator, MessageCircle, MessagesSquare, Minus, Plus, Target } from "lucide-react";
 import api from "../lib/api";
 import { useTitle } from "../lib/useTitle";
 import { formatINR } from "../lib/ui";
@@ -8,6 +8,7 @@ import { addMonths, startOfMonth } from "../lib/dates";
 import { onDataChange } from "../lib/dataEvents";
 import { timeAgo } from "../lib/discuss";
 import type { Post } from "../lib/discuss";
+import type { AppNotification } from "../lib/notifications";
 import type { AppContext } from "../components/AppLayout";
 import GettingStarted from "../components/GettingStarted";
 import InsightsCard from "../components/InsightsCard";
@@ -31,6 +32,7 @@ interface HomeData {
   goals: Goal[];
   insights: Insight[];
   posts: Post[];
+  notifications: AppNotification[];
 }
 
 const greeting = () => {
@@ -45,7 +47,7 @@ async function fetchHome(): Promise<HomeData | null> {
   const month = startOfMonth(new Date());
   const range = { from: month.toISOString(), to: addMonths(month, 1).toISOString() };
   try {
-    const [txRes, summaryRes, budgetsRes, goalsRes, insights, posts] = await Promise.all([
+    const [txRes, summaryRes, budgetsRes, goalsRes, insights, posts, notifications] = await Promise.all([
       api.get("/transactions", { params: range }),
       api.get("/transactions/summary", { params: range }),
       api.get("/budgets"),
@@ -58,6 +60,7 @@ async function fetchHome(): Promise<HomeData | null> {
         .then((r) => r.data.insights as Insight[])
         .catch(() => []),
       api.get("/posts").then((r) => r.data.posts as Post[]).catch(() => []),
+      api.get("/notifications").then((r) => r.data.notifications as AppNotification[]).catch(() => []),
     ]);
 
     const expenseByCategory: HomeData["expenseByCategory"] = {};
@@ -76,6 +79,7 @@ async function fetchHome(): Promise<HomeData | null> {
       goals: goalsRes.data.goals,
       insights,
       posts,
+      notifications,
     };
   } catch {
     return null;
@@ -150,6 +154,7 @@ function Home() {
     .sort((a, b) => Number((a.replyCount ?? 0) > 0) - Number((b.replyCount ?? 0) > 0))
     .slice(0, 3);
   const categories = Object.values(data.expenseByCategory).map((c) => c.name);
+  const unreadNotifications = data.notifications.filter((n) => !n.read).slice(0, 3);
   const hasTransactions = data.income > 0 || data.expense > 0 || data.totalBalance !== 0;
 
   const quickActions = [
@@ -242,6 +247,27 @@ function Home() {
           );
         })}
       </nav>
+
+      {unreadNotifications.length > 0 && (
+        <section className="bg-surface border border-brand-100 rounded-2xl p-6" aria-labelledby="home-new">
+          <h2 id="home-new" className="flex items-center gap-2 font-semibold text-ink-900">
+            <Bell size={18} className="text-brand-600" /> New in Discuss
+          </h2>
+          <ul className="mt-3 divide-y divide-line">
+            {unreadNotifications.map((n) => (
+              <li key={n.id}>
+                <Link to={`/discuss/${n.postId}`} className="flex items-center justify-between gap-3 py-3 group">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-ink-900 group-hover:text-brand-700 transition">{n.message}</span>
+                    <span className="block text-xs text-ink-500 truncate">{n.title}</span>
+                  </span>
+                  <ArrowRight size={16} className="shrink-0 text-ink-300 group-hover:text-brand-600 transition" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="flex flex-col md:flex-row gap-6">
         <div className="md:flex-[2] min-w-0">

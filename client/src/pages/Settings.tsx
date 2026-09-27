@@ -62,6 +62,10 @@ function Settings() {
 
   const [exportState, setExportState] = useState({ busy: false, error: "", success: "" });
 
+  // null until loaded, so the switch doesn't flash the wrong position
+  const [emailReplies, setEmailReplies] = useState<boolean | null>(null);
+  const [emailState, setEmailState] = useState({ busy: false, error: "", success: "" });
+
   const [deletePassword, setDeletePassword] = useState("");
   const [understood, setUnderstood] = useState(false);
   const [deleteState, setDeleteState] = useState({ busy: false, error: "", success: "" });
@@ -70,6 +74,7 @@ function Settings() {
     api.get("/auth/me").then((res) => {
       setEmail(res.data.user.email);
       setNewUsername(res.data.user.username);
+      setEmailReplies(res.data.user.emailReplies ?? true);
     }).catch(() => {});
   }, []);
 
@@ -97,6 +102,18 @@ function Settings() {
       setPasswordState({ busy: false, error: "", success: "Password changed. You've been logged out on your other devices." });
     } catch (err) {
       setPasswordState({ busy: false, error: errorMessage(err, "We couldn't change your password."), success: "" });
+    }
+  };
+
+  const saveEmailReplies = async (value: boolean) => {
+    setEmailReplies(value);
+    setEmailState({ busy: true, error: "", success: "" });
+    try {
+      await api.put("/account/email-preferences", { emailReplies: value });
+      setEmailState({ busy: false, error: "", success: value ? "Reply emails turned on" : "Reply emails turned off" });
+    } catch (err) {
+      setEmailReplies(!value);
+      setEmailState({ busy: false, error: errorMessage(err, "We couldn't save that setting."), success: "" });
     }
   };
 
@@ -198,6 +215,32 @@ function Settings() {
             {passwordState.busy ? "Changing…" : "Change password"}
           </button>
         </form>
+      </Card>
+
+      <Card title="Email notifications" description="Notifications always appear under the bell in the app. Choose whether you also get emails.">
+        <label className="flex items-start justify-between gap-4 cursor-pointer">
+          <span>
+            <span className="block text-sm font-medium text-ink-900">Replies to my questions</span>
+            <span className="block text-sm text-ink-500">
+              An email when someone answers a question you asked, at most once an hour per question.
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            checked={emailReplies ?? false}
+            disabled={emailReplies === null || emailState.busy}
+            onChange={(e) => saveEmailReplies(e.target.checked)}
+            className="peer sr-only"
+          />
+          <span
+            aria-hidden="true"
+            className="relative shrink-0 w-11 h-6 rounded-full bg-ink-200 transition peer-checked:bg-brand-600 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-300 after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-5"
+          />
+        </label>
+        <div className="mt-3">
+          <Status {...emailState} />
+        </div>
       </Card>
 
       <Card title="Your data" description="Download a copy of everything you've stored in Money Mitra.">

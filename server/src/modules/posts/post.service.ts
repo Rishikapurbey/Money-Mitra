@@ -3,6 +3,16 @@ import { HttpError } from "../../lib/httpError";
 import { DELETED_USERNAME } from "../../lib/validation";
 import { sendEmail } from "../../lib/email";
 import { escapeHtml } from "../../lib/html";
+import { notifyHelpful, notifyHidden, notifyReply } from "../notifications/notification.service";
+
+// Notifications are secondary: a problem sending one must never undo the action that caused it
+async function safely(task: () => Promise<unknown>) {
+  try {
+    await task();
+  } catch (err) {
+    console.error("Notification failed:", err);
+  }
+}
 
 export const TOPICS = ["Budgeting", "Saving", "Investing", "Loans & Credit", "Tax", "Other"];
 
@@ -105,6 +115,7 @@ export async function createReply(authorId: string, postId: string, data: { body
   const post = await prisma.post.findUnique({ where: { id: postId } });
   if (!post) throw new HttpError(404, "Post not found");
   const reply = await prisma.reply.create({ data: { ...data, postId, authorId }, include: authorSelect });
+  await safely(() => notifyReply(postId, authorId));
   return { ...present(reply, authorId), hidden: false, helpfulCount: 0, votedByMe: false };
 }
 
@@ -127,7 +138,10 @@ export async function toggleHelpful(userId: string, postId: string, replyId: str
 
   const existing = await prisma.replyVote.findUnique({ where: { userId_replyId: { userId, replyId } } });
   if (existing) await prisma.replyVote.delete({ where: { id: existing.id } });
-  else await prisma.replyVote.create({ data: { userId, replyId } });
+  else {
+    await prisma.replyVote.create({ data: { userId, replyId } });
+    await safely(() => notifyHelpful(replyId));
+  }
 
   const helpfulCount = await prisma.replyVote.count({ where: { replyId } });
   return { helpfulCount, votedByMe: !existing };
@@ -180,6 +194,9 @@ export async function report(reporterId: string, postId: string, replyId: string
       console.error("Report email failed:", err)
     );
   }
+
+  // Tell the author once, at the moment it becomes hidden
+  if (count === HIDE_AFTER_REPORTS) await safely(() => notifyHidden(postId, reply?.id ?? null));
 
   return { hidden: count >= HIDE_AFTER_REPORTS };
 }

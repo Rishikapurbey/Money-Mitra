@@ -8,6 +8,7 @@ import type { Post } from "../lib/discuss";
 import ReportButton from "../components/ReportButton";
 import { useToast } from "../lib/toast";
 import { useTitle } from "../lib/useTitle";
+import { announceNotificationsChange } from "../lib/dataEvents";
 
 type PostResult = Post | "not-found" | "error";
 
@@ -51,6 +52,8 @@ function DiscussPost() {
   useEffect(() => {
     let current = true;
     fetchPost(id).then((result) => current && applyPost(result));
+    // Opening a discussion counts as reading its notifications
+    if (id) api.post(`/notifications/posts/${id}/read`).then(announceNotificationsChange).catch(() => {});
     return () => {
       current = false;
     };

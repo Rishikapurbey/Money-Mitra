@@ -23,6 +23,8 @@ model User {
   passwordHash   String
   // Bumped on password change or reset; logins issued before it stop working
   tokenVersion   Int             @default(0)
+  // Email me when someone replies to my question
+  emailReplies   Boolean         @default(true)
   createdAt      DateTime        @default(now())
   transactions   Transaction[]
   posts          Post[]
@@ -32,6 +34,7 @@ model User {
   passwordResets PasswordReset[]
   replyVotes     ReplyVote[]
   reports        Report[]
+  notifications  Notification[]
 }
 
 model Transaction {
@@ -48,31 +51,33 @@ model Transaction {
 // Anonymous posts and replies still store the real author for moderation;
 // the API hides the author's identity from other users.
 model Post {
-  id          String   @id @default(cuid())
-  title       String
-  body        String
-  topic       String
-  isAnonymous Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  authorId    String
-  author      User     @relation(fields: [authorId], references: [id])
-  replies     Reply[]
-  reports     Report[]
+  id            String         @id @default(cuid())
+  title         String
+  body          String
+  topic         String
+  isAnonymous   Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  authorId      String
+  author        User           @relation(fields: [authorId], references: [id])
+  replies       Reply[]
+  reports       Report[]
+  notifications Notification[]
 
   @@index([createdAt])
 }
 
 model Reply {
-  id          String      @id @default(cuid())
-  body        String
-  isAnonymous Boolean     @default(false)
-  createdAt   DateTime    @default(now())
-  postId      String
-  post        Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
-  authorId    String
-  author      User        @relation(fields: [authorId], references: [id])
-  votes       ReplyVote[]
-  reports     Report[]
+  id            String         @id @default(cuid())
+  body          String
+  isAnonymous   Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  postId        String
+  post          Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        User           @relation(fields: [authorId], references: [id])
+  votes         ReplyVote[]
+  reports       Report[]
+  notifications Notification[]
 
   @@index([postId])
 }
@@ -140,4 +145,28 @@ model Report {
 
   @@unique([reporterId, postId])
   @@unique([reporterId, replyId])
+}
+
+// Something the user should know about in Discuss. Repeats of the same unread event are
+// grouped into one row by raising `count` (e.g. "3 new replies to your question").
+model Notification {
+  id        String    @id @default(cuid())
+  // reply_to_question | reply_in_thread | helpful | post_hidden | reply_hidden
+  kind      String
+  count     Int       @default(1)
+  // Question title at the time, so the notification still reads well if the title changes
+  title     String
+  readAt    DateTime?
+  // When an email went out for this notification, used to send at most one per hour per question
+  emailedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  replyId   String?
+  reply     Reply?    @relation(fields: [replyId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
 }

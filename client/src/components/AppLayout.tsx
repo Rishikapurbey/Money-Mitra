@@ -5,6 +5,7 @@ import type { LucideIcon } from "lucide-react";
 import api from "../lib/api";
 import { Logo } from "./Logo";
 import BackToTop from "./BackToTop";
+import NotificationBell from "./NotificationBell";
 import { useInstallPrompt } from "../lib/installPrompt";
 
 export interface AppContext {
@@ -85,53 +86,56 @@ function AppLayout() {
             )}
           </nav>
 
-          <div ref={menuRef} className="relative ml-auto">
-            <button
-              onClick={() => setMenuOpen((open) => !open)}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              className="flex items-center gap-2 rounded-xl p-1 pr-2 hover:bg-ink-100 transition"
-            >
-              <span className="w-8 h-8 rounded-full bg-brand-600 text-white text-sm font-semibold flex items-center justify-center">
-                {username ? username.charAt(0).toUpperCase() : ""}
-              </span>
-              <span className="hidden sm:block text-sm font-medium text-ink-700">{username}</span>
-              <ChevronDown size={16} className="text-ink-400" />
-            </button>
-            {menuOpen && (
-              <div role="menu" className="absolute right-0 mt-2 w-52 bg-surface border border-line rounded-xl shadow-lg py-1">
-                <p className="px-4 py-2 text-xs text-ink-500 border-b border-line">
-                  Signed in as <span className="font-medium text-ink-900">{username}</span>
-                </p>
-                <Link
-                  to="/settings"
-                  role="menuitem"
-                  onClick={() => setMenuOpen(false)}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-100 transition"
-                >
-                  <Settings size={16} /> Settings
-                </Link>
-                {install && (
-                  <button
+          <div className="ml-auto flex items-center gap-1">
+            <NotificationBell />
+            <div ref={menuRef} className="relative">
+              <button
+                onClick={() => setMenuOpen((open) => !open)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                className="flex items-center gap-2 rounded-xl p-1 pr-2 hover:bg-ink-100 transition"
+              >
+                <span className="w-8 h-8 rounded-full bg-brand-600 text-white text-sm font-semibold flex items-center justify-center">
+                  {username ? username.charAt(0).toUpperCase() : ""}
+                </span>
+                <span className="hidden sm:block text-sm font-medium text-ink-700">{username}</span>
+                <ChevronDown size={16} className="text-ink-400" />
+              </button>
+              {menuOpen && (
+                <div role="menu" className="absolute right-0 mt-2 w-52 bg-surface border border-line rounded-xl shadow-lg py-1">
+                  <p className="px-4 py-2 text-xs text-ink-500 border-b border-line">
+                    Signed in as <span className="font-medium text-ink-900">{username}</span>
+                  </p>
+                  <Link
+                    to="/settings"
                     role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      install();
-                    }}
+                    onClick={() => setMenuOpen(false)}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-100 transition"
                   >
-                    <Download size={16} /> Install app
+                    <Settings size={16} /> Settings
+                  </Link>
+                  {install && (
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        install();
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-100 transition"
+                    >
+                      <Download size={16} /> Install app
+                    </button>
+                  )}
+                  <button
+                    role="menuitem"
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-100 transition"
+                  >
+                    <LogOut size={16} /> Log out
                   </button>
-                )}
-                <button
-                  role="menuitem"
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-100 transition"
-                >
-                  <LogOut size={16} /> Log out
-                </button>
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>

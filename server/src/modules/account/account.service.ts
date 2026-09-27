@@ -35,6 +35,11 @@ export async function changeUsername(userId: string, username: string) {
   return { id: user.id, email: user.email, username: user.username };
 }
 
+export async function setEmailPreferences(userId: string, emailReplies: boolean) {
+  const user = await prisma.user.update({ where: { id: userId }, data: { emailReplies }, select: { emailReplies: true } });
+  return user;
+}
+
 // Everything stored for this user, without the password hash
 export async function exportData(userId: string) {
   const user = await prisma.user.findUnique({

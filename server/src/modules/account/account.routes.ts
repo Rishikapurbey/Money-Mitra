@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
 import { accountLimiter } from "../../middleware/rateLimit";
 import { passwordProblem, text, usernameProblem } from "../../lib/validation";
-import { changePassword, changeUsername, deleteAccount, exportData } from "./account.service";
+import { changePassword, changeUsername, deleteAccount, exportData, setEmailPreferences } from "./account.service";
 
 const router = Router();
 
@@ -27,6 +27,15 @@ router.put("/username", authMiddleware, async (req: AuthRequest, res) => {
   if (problem) return res.status(400).json({ error: problem });
   const user = await changeUsername(req.userId, username);
   res.status(200).json({ user });
+});
+
+router.put("/email-preferences", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  if (typeof req.body.emailReplies !== "boolean") {
+    return res.status(400).json({ error: "emailReplies must be true or false" });
+  }
+  const preferences = await setEmailPreferences(req.userId, req.body.emailReplies);
+  res.status(200).json(preferences);
 });
 
 router.get("/export", authMiddleware, async (req: AuthRequest, res) => {
