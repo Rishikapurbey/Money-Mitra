@@ -17,15 +17,15 @@ datasource db {
 }
 
 model User {
-  id             String          @id @default(cuid())
-  email          String          @unique
-  username       String          @unique
+  id             String                 @id @default(cuid())
+  email          String                 @unique
+  username       String                 @unique
   passwordHash   String
   // Bumped on password change or reset; logins issued before it stop working
-  tokenVersion   Int             @default(0)
+  tokenVersion   Int                    @default(0)
   // Email me when someone replies to my question
-  emailReplies   Boolean         @default(true)
-  createdAt      DateTime        @default(now())
+  emailReplies   Boolean                @default(true)
+  createdAt      DateTime               @default(now())
   transactions   Transaction[]
   posts          Post[]
   replies        Reply[]
@@ -35,17 +35,21 @@ model User {
   replyVotes     ReplyVote[]
   reports        Report[]
   notifications  Notification[]
+  recurring      RecurringTransaction[]
 }
 
 model Transaction {
-  id       String   @id @default(cuid())
-  amount   Float
-  type     String
-  category String
-  note     String?
-  date     DateTime @default(now())
-  userId   String
-  user     User     @relation(fields: [userId], references: [id])
+  id          String                @id @default(cuid())
+  amount      Float
+  type        String
+  category    String
+  note        String?
+  date        DateTime              @default(now())
+  userId      String
+  user        User                  @relation(fields: [userId], references: [id])
+  // Set when a recurring rule added this entry; cleared (not deleted) if the rule is stopped
+  recurringId String?
+  recurring   RecurringTransaction? @relation(fields: [recurringId], references: [id], onDelete: SetNull)
 }
 
 // Anonymous posts and replies still store the real author for moderation;
@@ -169,4 +173,27 @@ model Notification {
   reply     Reply?    @relation(fields: [replyId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
+}
+
+// A monthly repeating transaction (salary, rent, SIP, EMI). Entries are added when due by a
+// catch-up that runs as the user opens the app; nextDue marks the next entry not yet added.
+model RecurringTransaction {
+  id         String        @id @default(cuid())
+  amount     Float
+  type       String
+  category   String
+  note       String?
+  // 1-31; in shorter months the entry lands on the month's last day
+  dayOfMonth Int
+  // The user's Date.getTimezoneOffset(), so "the 1st" means the 1st where they live
+  tzOffset   Int
+  nextDue    DateTime
+  endDate    DateTime?
+  paused     Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries    Transaction[]
+
+  @@index([userId])
 }

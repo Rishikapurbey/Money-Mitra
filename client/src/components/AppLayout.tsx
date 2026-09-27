@@ -8,6 +8,8 @@ import BackToTop from "./BackToTop";
 import NotificationBell from "./NotificationBell";
 import ThemeToggle from "./ThemeToggle";
 import { useInstallPrompt } from "../lib/installPrompt";
+import { useToast } from "../lib/toast";
+import { announceDataChange } from "../lib/dataEvents";
 
 export interface AppContext {
   username: string;
@@ -37,9 +39,27 @@ function AppLayout() {
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
+  const toast = useToast();
+
   useEffect(() => {
     api.get("/auth/me").then((res) => setUsername(res.data.user.username)).catch(() => {});
   }, []);
+
+  // Add any recurring transactions that became due since the last visit, then let pages refresh
+  useEffect(() => {
+    api
+      .post("/recurring/run")
+      .then((res) => {
+        const added: { category: string; count: number }[] = res.data.added;
+        if (added.length === 0) return;
+        const total = added.reduce((sum, a) => sum + a.count, 0);
+        toast({
+          message: `${total} recurring transaction${total === 1 ? " was" : "s were"} added: ${added.map((a) => a.category).join(", ")}`,
+        });
+        announceDataChange();
+      })
+      .catch(() => {});
+  }, [toast]);
 
   useEffect(() => {
     if (!menuOpen) return;

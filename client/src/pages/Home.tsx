@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
-import { ArrowRight, Bell, Calculator, MessageCircle, MessagesSquare, Minus, Plus, Target } from "lucide-react";
+import { ArrowRight, Bell, Calculator, CalendarClock, MessageCircle, MessagesSquare, Minus, Plus, Target } from "lucide-react";
 import api from "../lib/api";
 import { useTitle } from "../lib/useTitle";
 import { formatINR } from "../lib/ui";
@@ -10,6 +10,8 @@ import { timeAgo } from "../lib/discuss";
 import { greeting } from "../lib/greeting";
 import type { Post } from "../lib/discuss";
 import type { AppNotification } from "../lib/notifications";
+import { shortDate } from "../lib/recurring";
+import type { RecurringRule } from "../lib/recurring";
 import type { AppContext } from "../components/AppLayout";
 import GettingStarted from "../components/GettingStarted";
 import InsightsCard from "../components/InsightsCard";
@@ -34,6 +36,8 @@ interface HomeData {
   insights: Insight[];
   posts: Post[];
   notifications: AppNotification[];
+  // Recurring entries due in the next 7 days
+  comingUp: RecurringRule[];
 }
 
 // Everything Home shows for the current month, or null if the essentials couldn't be loaded
@@ -41,7 +45,7 @@ async function fetchHome(): Promise<HomeData | null> {
   const month = startOfMonth(new Date());
   const range = { from: month.toISOString(), to: addMonths(month, 1).toISOString() };
   try {
-    const [txRes, summaryRes, budgetsRes, goalsRes, insights, posts, notifications] = await Promise.all([
+    const [txRes, summaryRes, budgetsRes, goalsRes, insights, posts, notifications, recurring] = await Promise.all([
       api.get("/transactions", { params: range }),
       api.get("/transactions/summary", { params: range }),
       api.get("/budgets"),
@@ -55,6 +59,7 @@ async function fetchHome(): Promise<HomeData | null> {
         .catch(() => []),
       api.get("/posts").then((r) => r.data.posts as Post[]).catch(() => []),
       api.get("/notifications").then((r) => r.data.notifications as AppNotification[]).catch(() => []),
+      api.get("/recurring").then((r) => r.data.recurring as RecurringRule[]).catch(() => []),
     ]);
 
     const expenseByCategory: HomeData["expenseByCategory"] = {};
@@ -74,6 +79,10 @@ async function fetchHome(): Promise<HomeData | null> {
       insights,
       posts,
       notifications,
+      comingUp: recurring
+        .filter((r) => !r.paused && new Date(r.nextDue).getTime() <= Date.now() + 7 * 24 * 60 * 60 * 1000)
+        .filter((r) => !r.endDate || r.nextDue <= r.endDate)
+        .slice(0, 4),
     };
   } catch {
     return null;
@@ -149,6 +158,7 @@ function Home() {
     .slice(0, 3);
   const categories = Object.values(data.expenseByCategory).map((c) => c.name);
   const unreadNotifications = data.notifications.filter((n) => !n.read).slice(0, 3);
+  const comingUp = data.comingUp;
   const hasTransactions = data.income > 0 || data.expense > 0 || data.totalBalance !== 0;
 
   const quickActions = [
@@ -241,6 +251,31 @@ function Home() {
           );
         })}
       </nav>
+
+      {comingUp.length > 0 && (
+        <section className="bg-surface border border-line rounded-2xl p-6" aria-labelledby="home-coming-up">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="home-coming-up" className="flex items-center gap-2 font-semibold text-ink-900">
+              <CalendarClock size={18} className="text-brand-600" /> Coming up this week
+            </h2>
+            <Link to="/tracker#recurring" className="text-sm font-medium text-brand-600 hover:text-brand-700">Recurring</Link>
+          </div>
+          <ul className="mt-3 divide-y divide-line">
+            {comingUp.map((r) => (
+              <li key={r.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                <span className="text-ink-900 font-medium truncate">{r.category}</span>
+                <span className="flex items-center gap-3 shrink-0">
+                  <span className="text-ink-500">{shortDate(r.nextDue)}</span>
+                  <span className={`tabular-nums font-medium ${r.type === "income" ? "text-gain" : "text-ink-900"}`}>
+                    {r.type === "income" ? "+" : "−"}
+                    {formatINR(r.amount)}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {unreadNotifications.length > 0 && (
         <section className="bg-surface border border-brand-100 rounded-2xl p-6" aria-labelledby="home-new">

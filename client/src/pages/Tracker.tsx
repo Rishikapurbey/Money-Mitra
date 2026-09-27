@@ -6,8 +6,11 @@ import { formatINR, inputClass } from "../lib/ui";
 import { addMonths, startOfMonth, toInputDate, transactionTimestamp } from "../lib/dates";
 import BudgetsCard from "../components/BudgetsCard";
 import GoalsCard from "../components/GoalsCard";
+import RecurringCard from "../components/RecurringCard";
+import { announceDataChange, onDataChange } from "../lib/dataEvents";
+import { ordinal } from "../lib/recurring";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { AlertCircle, TrendingUp, TrendingDown, Wallet2, Pencil, Trash2, Plus, Receipt, ChevronLeft, ChevronRight } from "lucide-react";
+import { AlertCircle, TrendingUp, TrendingDown, Wallet2, Pencil, Trash2, Plus, Receipt, ChevronLeft, ChevronRight, Repeat } from "lucide-react";
 
 interface Transaction {
   id: string;
@@ -16,6 +19,7 @@ interface Transaction {
   category: string;
   note?: string;
   date: string;
+  recurringId?: string | null;
 }
 
 const COLORS = [1, 2, 3, 4, 5, 6].map((n) => `var(--color-chart-${n})`);
@@ -73,6 +77,8 @@ function Tracker() {
   const [note, setNote] = useState("");
   const [date, setDate] = useState(() => toInputDate(new Date()));
   const [editingOriginalDate, setEditingOriginalDate] = useState<string | null>(null);
+  const [repeat, setRepeat] = useState(false);
+  const [repeatEnd, setRepeatEnd] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
@@ -96,9 +102,13 @@ function Tracker() {
   // Ignore a response that arrives after the user has already moved to another month
   useEffect(() => {
     let current = true;
-    fetchDashboard(month).then((data) => current && applyData(data));
+    const load = () => fetchDashboard(month).then((data) => current && applyData(data));
+    load();
+    // e.g. recurring entries were just added, or a rule was stopped
+    const stop = onDataChange(load);
     return () => {
       current = false;
+      stop();
     };
   }, [month, applyData]);
 
@@ -109,6 +119,8 @@ function Tracker() {
     setType("expense");
     setDate(toInputDate(new Date()));
     setEditingOriginalDate(null);
+    setRepeat(false);
+    setRepeatEnd("");
     setEditingId(null);
   };
 
@@ -121,16 +133,40 @@ function Tracker() {
     else when = transactionTimestamp(date);
 
     const body = { amount: parseFloat(amount), type, category, note, date: when };
+    let createdId: string | null = null;
     try {
       if (editingId) {
         await api.put(`/transactions/${editingId}`, body);
       } else {
-        await api.post("/transactions", body);
+        createdId = (await api.post("/transactions", body)).data.transaction.id;
       }
     } catch {
       setError("We couldn't save that transaction. Please try again.");
       return;
     }
+
+    // "Repeat every month": this entry becomes the first one, and the next is added next month
+    const repeatDay = Number(date.slice(8, 10));
+    let repeating = false;
+    if (createdId && repeat) {
+      try {
+        await api.post("/recurring", {
+          amount: body.amount,
+          type,
+          category,
+          note,
+          dayOfMonth: repeatDay,
+          tzOffset: new Date().getTimezoneOffset(),
+          firstEntryId: createdId,
+          endDate: repeatEnd ? new Date(`${repeatEnd}T23:59:59`).toISOString() : null,
+        });
+        repeating = true;
+        announceDataChange();
+      } catch {
+        setError("The transaction was added, but we couldn't set it to repeat. Try again from the Recurring card.");
+      }
+    }
+    const savedCategory = category;
     const wasEditing = Boolean(editingId);
     resetForm();
     const targetMonth = startOfMonth(new Date(when));
@@ -140,9 +176,11 @@ function Tracker() {
     toast({
       message: wasEditing
         ? "Changes saved"
-        : otherMonth
-          ? `Transaction added to ${monthName(targetMonth)}`
-          : "Transaction added",
+        : repeating
+          ? `${savedCategory} added. It will repeat on the ${ordinal(repeatDay)} of every month.`
+          : otherMonth
+            ? `Transaction added to ${monthName(targetMonth)}`
+            : "Transaction added",
     });
   };
 
@@ -420,6 +458,30 @@ function Tracker() {
             className={`${inputClass} w-full`}
           />
 
+          {!editingId && (
+            <div className="rounded-xl border border-line p-3 space-y-3">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={repeat} onChange={(e) => setRepeat(e.target.checked)} className="w-4 h-4 accent-brand-600" />
+                <span className="text-sm text-ink-900">
+                  Repeat every month
+                  <span className="text-ink-500"> on the {ordinal(Number(date.slice(8, 10)) || 1)}</span>
+                </span>
+              </label>
+              {repeat && (
+                <label className="flex flex-wrap items-center gap-3 text-sm text-ink-500">
+                  Ends (optional)
+                  <input
+                    type="date"
+                    value={repeatEnd}
+                    min={date}
+                    onChange={(e) => setRepeatEnd(e.target.value)}
+                    className={`${inputClass} py-1.5`}
+                  />
+                </label>
+              )}
+            </div>
+          )}
+
           <div className="flex gap-2">
             <button type="submit" className="flex items-center gap-1.5 bg-brand-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-brand-700 transition">
               <Plus size={16} /> {editingId ? "Save changes" : "Add transaction"}
@@ -479,6 +541,8 @@ function Tracker() {
         />
         <GoalsCard />
       </div>
+
+      <RecurringCard />
 
       <section className="bg-surface p-6 rounded-2xl border border-line">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -562,7 +626,10 @@ function Tracker() {
                       {t.category.charAt(0).toUpperCase()}
                     </span>
                     <div className="min-w-0">
-                      <p className="font-medium text-ink-900 truncate">{t.category}</p>
+                      <p className="font-medium text-ink-900 truncate flex items-center gap-1.5">
+                        {t.category}
+                        {t.recurringId && <Repeat size={13} className="shrink-0 text-ink-400" aria-label="Added automatically every month" />}
+                      </p>
                       {t.note && <p className="text-sm text-ink-500 truncate">{t.note}</p>}
                     </div>
                   </div>
