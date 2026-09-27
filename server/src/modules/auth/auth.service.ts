@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
-import jwt from "jsonwebtoken";
+import { signToken } from "../../lib/tokens";
 
 export async function signupUser(email: string, username: string, password: string) {
   // Emails and usernames are unique regardless of capitalisation
@@ -49,11 +49,7 @@ export async function loginUser(email: string, password: string) {
     throw new HttpError(401, "Invalid email or password");
   }
 
-  const token = jwt.sign(
-    { userId: user.id },
-    process.env.JWT_SECRET as string,
-    { expiresIn: "7d" }
-  );
+  const token = signToken(user);
 
   return {
     token,

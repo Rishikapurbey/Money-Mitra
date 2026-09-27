@@ -16,8 +16,8 @@ router.put("/password", authMiddleware, accountLimiter, async (req: AuthRequest,
   const problem = passwordProblem(next);
   if (problem) return res.status(400).json({ error: problem });
   if (current === next) return res.status(400).json({ error: "Your new password must be different" });
-  await changePassword(req.userId, current, next);
-  res.status(200).json({ success: true });
+  const token = await changePassword(req.userId, current, next);
+  res.status(200).json({ token });
 });
 
 router.put("/username", authMiddleware, async (req: AuthRequest, res) => {

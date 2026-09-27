@@ -18,4 +18,9 @@ export const signupLimiter = limiter(60, 5, "Too many accounts created from this
 // Password checks for changing the password or deleting the account; only failures count
 export const accountLimiter = limiter(15, 10, "Too many attempts. Please try again in 15 minutes.", true);
 
+// Reset emails: every request counts, to stop the form being used to spam someone's inbox
+export const forgotPasswordLimiter = limiter(15, 5, "Too many reset requests. Please try again in 15 minutes.");
+
+export const resetPasswordLimiter = limiter(15, 10, "Too many attempts. Please try again in 15 minutes.", true);
+
 export const postLimiter = limiter(10, 30, "You're posting very quickly. Please wait a few minutes and try again.");

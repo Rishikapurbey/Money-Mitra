@@ -17,27 +17,30 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  username     String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  transactions Transaction[]
-  posts        Post[]
-  replies      Reply[]
-  budgets      Budget[]
-  goals        Goal[]
+  id             String          @id @default(cuid())
+  email          String          @unique
+  username       String          @unique
+  passwordHash   String
+  // Bumped on password change or reset; logins issued before it stop working
+  tokenVersion   Int             @default(0)
+  createdAt      DateTime        @default(now())
+  transactions   Transaction[]
+  posts          Post[]
+  replies        Reply[]
+  budgets        Budget[]
+  goals          Goal[]
+  passwordResets PasswordReset[]
 }
 
 model Transaction {
-  id        String   @id @default(cuid())
-  amount    Float
-  type      String
-  category  String
-  note      String?
-  date      DateTime @default(now())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  id       String   @id @default(cuid())
+  amount   Float
+  type     String
+  category String
+  note     String?
+  date     DateTime @default(now())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id])
 }
 
 // Anonymous posts and replies still store the real author for moderation;
@@ -90,4 +93,18 @@ model Goal {
   createdAt    DateTime  @default(now())
   userId       String
   user         User      @relation(fields: [userId], references: [id])
+}
+
+// A one-time password reset link. Only a SHA-256 hash of the token is stored,
+// so a database leak can't be used to reset anyone's password.
+model PasswordReset {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

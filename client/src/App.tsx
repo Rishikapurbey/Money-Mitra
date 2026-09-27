@@ -10,6 +10,8 @@ import LearnTerm from "./pages/LearnTerm";
 import Calculators from "./pages/Calculators";
 import CalculatorPage from "./pages/CalculatorPage";
 import Settings from "./pages/Settings";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import AppLayout from "./components/AppLayout";
 import PublicLayout from "./components/PublicLayout";
 import Landing from "./pages/Landing";
@@ -40,6 +42,9 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
         </Route>
+        {/* Open to everyone: a reset link may be opened on a browser that's still logged in */}
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />

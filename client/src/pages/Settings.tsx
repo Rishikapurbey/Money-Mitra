@@ -92,10 +92,12 @@ function Settings() {
     e.preventDefault();
     setPasswordState({ busy: true, error: "", success: "" });
     try {
-      await api.put("/account/password", { currentPassword, newPassword });
+      const res = await api.put("/account/password", { currentPassword, newPassword });
+      // The change logs out every session; keep this device signed in with the fresh token
+      localStorage.setItem("token", res.data.token);
       setCurrentPassword("");
       setNewPassword("");
-      setPasswordState({ busy: false, error: "", success: "Password changed" });
+      setPasswordState({ busy: false, error: "", success: "Password changed. You've been logged out on your other devices." });
     } catch (err) {
       setPasswordState({ busy: false, error: errorMessage(err, "We couldn't change your password."), success: "" });
     }

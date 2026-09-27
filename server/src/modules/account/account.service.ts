@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
 import { DELETED_USERNAME } from "../../lib/validation";
+import { signToken } from "../../lib/tokens";
 
 async function verifyPassword(userId: string, password: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -14,10 +15,15 @@ async function verifyPassword(userId: string, password: string) {
   return user;
 }
 
+// Logs out every other session, and returns a fresh token so this device stays logged in
 export async function changePassword(userId: string, currentPassword: string, newPassword: string) {
   await verifyPassword(userId, currentPassword);
   const passwordHash = await bcrypt.hash(newPassword, 10);
-  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash, tokenVersion: { increment: 1 } },
+  });
+  return signToken(user);
 }
 
 export async function changeUsername(userId: string, username: string) {
@@ -70,6 +76,7 @@ export async function deleteAccount(userId: string, password: string) {
     prisma.transaction.deleteMany({ where: { userId } }),
     prisma.budget.deleteMany({ where: { userId } }),
     prisma.goal.deleteMany({ where: { userId } }),
+    prisma.passwordReset.deleteMany({ where: { userId } }),
     prisma.user.delete({ where: { id: userId } }),
   ]);
 }
