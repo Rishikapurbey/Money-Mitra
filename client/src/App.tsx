@@ -14,6 +14,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import AppLayout from "./components/AppLayout";
 import PublicLayout from "./components/PublicLayout";
+import ScrollManager from "./components/ScrollManager";
 import Landing from "./pages/Landing";
 
 const isSignedIn = () => Boolean(localStorage.getItem("token"));
@@ -34,6 +35,7 @@ function PublicOrAppLayout() {
 function App() {
   return (
     <BrowserRouter>
+      <ScrollManager />
       <Routes>
         <Route element={<RedirectIfSignedIn />}>
           <Route element={<PublicLayout />}>

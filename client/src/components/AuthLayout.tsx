@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
-import { Wallet, PieChart, Zap, ShieldCheck } from "lucide-react";
+import { Link } from "react-router-dom";
+import { PieChart, Zap, ShieldCheck } from "lucide-react";
+import { Logo } from "./Logo";
 
 const features = [
   { icon: Zap, text: "Log income and expenses in seconds" },
@@ -20,12 +22,9 @@ function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-canvas">
       <aside className="bg-ink-900 text-white px-6 py-8 sm:px-10 lg:p-14 flex flex-col justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="bg-ink-800 p-2 rounded-lg">
-            <Wallet className="text-brand-300" size={18} />
-          </div>
-          <span className="text-lg font-semibold tracking-tight">Money Mitra</span>
-        </div>
+        <Link to="/" className="w-fit" aria-label="Money Mitra home">
+          <Logo tone="dark" />
+        </Link>
 
         <div className="hidden lg:block max-w-md">
           <h2 className="text-4xl font-semibold tracking-tight leading-tight">

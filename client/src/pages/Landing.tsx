@@ -13,9 +13,11 @@ import {
   Target,
   TrendingUp,
   Wallet2,
+  Download,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { termBySlug } from "../lib/learn";
+import { useInstallPrompt } from "../lib/installPrompt";
 import { CALCULATORS } from "../lib/calculators";
 import { CALCULATOR_ICONS } from "../lib/calculatorIcons";
 
@@ -217,6 +219,8 @@ const faqs = [
 ];
 
 function Landing() {
+  const install = useInstallPrompt();
+
   return (
     <main>
       {/* Hero */}
@@ -249,14 +253,22 @@ function Landing() {
               </Link>
             </div>
             <p className="mt-4 text-sm text-ink-500">Free forever. No bank login needed.</p>
+            {install && (
+              <button
+                onClick={install}
+                className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-600 hover:text-brand-700"
+              >
+                <Download size={16} /> Install the app on this device
+              </button>
+            )}
           </div>
 
-          <div className="relative mx-auto w-full max-w-md" aria-hidden="true">
+          <div className="relative mx-auto w-full max-w-md sm:pt-32 sm:pb-40" aria-hidden="true">
             <MiniBalance />
-            <div className="mt-4 sm:mt-0 sm:absolute sm:-left-10 sm:-bottom-16 sm:w-72">
+            <div className="mt-4 sm:mt-0 sm:absolute sm:-left-10 sm:bottom-0 sm:w-72">
               <MiniBudgets />
             </div>
-            <div className="hidden sm:block absolute -right-6 -top-10 w-64 rotate-2">
+            <div className="hidden sm:block absolute -right-6 top-0 w-64 rotate-2">
               <MiniQuestion />
             </div>
           </div>

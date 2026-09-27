@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f1b2d" />
+    <title>Offline · Money Mitra</title>
+    <style>
+      html, body { margin: 0; height: 100%; }
+      body {
+        display: grid; place-items: center; padding: 24px; box-sizing: border-box;
+        background: #f5f7fa; color: #0f1b2d;
+        font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        text-align: center;
+      }
+      main { max-width: 360px; }
+      .tile { width: 72px; height: 72px; border-radius: 18px; background: #0f1b2d; display: grid; place-items: center; margin: 0 auto; }
+      h1 { font-size: 22px; margin: 24px 0 8px; letter-spacing: -0.01em; }
+      p { color: #64748b; line-height: 1.6; margin: 0; }
+      button {
+        margin-top: 24px; background: #0f6f67; color: #fff; border: 0; border-radius: 12px;
+        padding: 12px 22px; font: inherit; font-weight: 600; cursor: pointer;
+      }
+      button:focus-visible { outline: 3px solid #7cc4bd; outline-offset: 2px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="tile">
+        <svg width="46" height="46" viewBox="0 0 48 48" aria-hidden="true">
+          <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="5">
+            <path d="M8 40L16.5 23.5L24 34" stroke="#ffffff" />
+            <path d="M24 34L31.5 21L40 40" stroke="#5cc0ad" />
+          </g>
+          <circle cx="16.5" cy="13.5" r="4.6" fill="#ffffff" />
+          <circle cx="31.5" cy="10.5" r="4.6" fill="#5cc0ad" />
+        </svg>
+      </div>
+      <h1>You're offline</h1>
+      <p>Money Mitra needs an internet connection. Check your connection, then try again.</p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

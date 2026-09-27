@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
-import { Wallet } from "lucide-react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Menu, X } from "lucide-react";
+import { Logo } from "./Logo";
+import BackToTop from "./BackToTop";
 
 const SECTIONS = ["features", "privacy", "faq"];
 
@@ -32,39 +34,73 @@ function useActiveSection(enabled: boolean) {
   return enabled ? active : "";
 }
 
-const navLink = (active: boolean) =>
-  `transition ${active ? "text-ink-900 font-semibold" : "text-ink-500 hover:text-ink-900"}`;
+interface NavItem {
+  label: string;
+  to: string;
+  active: boolean;
+}
 
 // Header and footer for pages visitors can see without an account
 function PublicLayout() {
   const { pathname } = useLocation();
-  const activeSection = useActiveSection(pathname === "/");
-  const onLearn = pathname.startsWith("/learn");
-  const onCalculators = pathname.startsWith("/calculators");
+  const navigate = useNavigate();
+  const onHome = pathname === "/";
+  const activeSection = useActiveSection(onHome);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const items: NavItem[] = [
+    { label: "Home", to: "/", active: onHome && activeSection === "" },
+    { label: "Features", to: "/#features", active: activeSection === "features" },
+    { label: "Learn", to: "/learn", active: pathname.startsWith("/learn") },
+    { label: "Calculators", to: "/calculators", active: pathname.startsWith("/calculators") },
+    { label: "Privacy", to: "/#privacy", active: activeSection === "privacy" },
+    { label: "FAQ", to: "/#faq", active: activeSection === "faq" },
+  ];
+
+  // "Home" while already on the landing page scrolls smoothly back to the top
+  const handleNav = (e: React.MouseEvent, to: string) => {
+    setMenuOpen(false);
+    if (to === "/" && onHome) {
+      e.preventDefault();
+      navigate("/", { replace: true });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
 
   return (
     <div className="min-h-screen bg-canvas flex flex-col">
-      <header className="bg-surface/90 backdrop-blur border-b border-line sticky top-0 z-20">
+      <header className="bg-surface/90 backdrop-blur border-b border-line sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-8">
-          <Link to="/" className="flex items-center gap-2.5 shrink-0">
-            <div className="bg-ink-900 p-2 rounded-lg">
-              <Wallet className="text-brand-300" size={18} />
-            </div>
-            <span className="text-lg font-semibold tracking-tight text-ink-900">Money Mitra</span>
+          <Link to="/" onClick={(e) => handleNav(e, "/")} aria-label="Money Mitra home" className="shrink-0">
+            <Logo />
           </Link>
 
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <a href="/#features" className={navLink(activeSection === "features")}>Features</a>
-            <Link to="/learn" className={navLink(onLearn)} aria-current={onLearn ? "page" : undefined}>Learn</Link>
-            <Link to="/calculators" className={navLink(onCalculators)} aria-current={onCalculators ? "page" : undefined}>
-              Calculators
-            </Link>
-            <a href="/#privacy" className={navLink(activeSection === "privacy")}>Privacy</a>
-            <a href="/#faq" className={navLink(activeSection === "faq")}>FAQ</a>
+          <nav className="hidden md:flex items-center gap-6 text-sm font-medium" aria-label="Main">
+            {items.map((item) => (
+              <Link
+                key={item.label}
+                to={item.to}
+                onClick={(e) => handleNav(e, item.to)}
+                aria-current={item.active ? "page" : undefined}
+                className={`transition ${item.active ? "text-ink-900 font-semibold" : "text-ink-500 hover:text-ink-900"}`}
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
-            <Link to="/login" className="px-3 sm:px-4 py-2 text-sm font-medium text-ink-700 hover:text-ink-900 transition">
+            <Link
+              to="/login"
+              className="hidden sm:block px-4 py-2 text-sm font-medium text-ink-700 hover:text-ink-900 transition"
+            >
               Log in
             </Link>
             <Link
@@ -73,8 +109,47 @@ function PublicLayout() {
             >
               Get started
             </Link>
+            <button
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={menuOpen}
+              aria-controls="mobile-menu"
+              className="md:hidden p-2 -mr-2 rounded-lg text-ink-700 hover:bg-ink-100 transition"
+            >
+              {menuOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
           </div>
         </div>
+
+        {menuOpen && (
+          <nav id="mobile-menu" aria-label="Main" className="md:hidden border-t border-line bg-surface">
+            <ul className="max-w-6xl mx-auto px-4 py-3 grid">
+              {items.map((item) => (
+                <li key={item.label}>
+                  <Link
+                    to={item.to}
+                    onClick={(e) => handleNav(e, item.to)}
+                    aria-current={item.active ? "page" : undefined}
+                    className={`block px-3 py-3 rounded-lg transition ${
+                      item.active ? "bg-brand-50 text-brand-700 font-semibold" : "text-ink-700 hover:bg-ink-100"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+              <li className="mt-2 pt-3 border-t border-line">
+                <Link
+                  to="/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-3 py-3 rounded-lg font-medium text-ink-900 hover:bg-ink-100 transition"
+                >
+                  Log in
+                </Link>
+              </li>
+            </ul>
+          </nav>
+        )}
       </header>
 
       <div className="flex-1">
@@ -84,12 +159,7 @@ function PublicLayout() {
       <footer className="bg-ink-950 text-ink-300">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 grid gap-10 md:grid-cols-4">
           <div className="md:col-span-2">
-            <div className="flex items-center gap-2.5 text-white">
-              <div className="bg-ink-800 p-2 rounded-lg">
-                <Wallet className="text-brand-300" size={18} />
-              </div>
-              <span className="text-lg font-semibold tracking-tight">Money Mitra</span>
-            </div>
+            <Logo tone="dark" />
             <p className="mt-4 text-sm max-w-sm leading-relaxed">
               Your friend for money. Track where it goes, understand how it works, and ask anything without judgment.
             </p>
@@ -97,10 +167,10 @@ function PublicLayout() {
           <div>
             <p className="text-sm font-semibold text-white">Product</p>
             <ul className="mt-3 space-y-2 text-sm">
-              <li><a href="/#features" className="hover:text-white transition">Features</a></li>
+              <li><Link to="/#features" className="hover:text-white transition">Features</Link></li>
               <li><Link to="/learn" className="hover:text-white transition">Learn</Link></li>
               <li><Link to="/calculators" className="hover:text-white transition">Calculators</Link></li>
-              <li><a href="/#faq" className="hover:text-white transition">FAQ</a></li>
+              <li><Link to="/#faq" className="hover:text-white transition">FAQ</Link></li>
             </ul>
           </div>
           <div>
@@ -120,6 +190,8 @@ function PublicLayout() {
           </div>
         </div>
       </footer>
+
+      <BackToTop />
     </div>
   );
 }

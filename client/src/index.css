@@ -2,6 +2,8 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  /* Used for the "Money Mitra" wordmark */
+  --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
 
   /* Ink: deep navy for text, headers and the hero card */
   --color-ink-950: #0a1322;

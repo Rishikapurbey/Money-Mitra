@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Wallet, LayoutDashboard, MessagesSquare, BookOpen, LogOut, ChevronDown, Calculator, Settings } from "lucide-react";
+import { LayoutDashboard, MessagesSquare, BookOpen, LogOut, ChevronDown, Calculator, Settings, Download } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import api from "../lib/api";
+import { Logo } from "./Logo";
+import BackToTop from "./BackToTop";
+import { useInstallPrompt } from "../lib/installPrompt";
 
 export interface AppContext {
   username: string;
@@ -44,6 +47,8 @@ function AppLayout() {
     return () => document.removeEventListener("mousedown", close);
   }, [menuOpen]);
 
+  const install = useInstallPrompt();
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     navigate("/login");
@@ -53,11 +58,8 @@ function AppLayout() {
     <div className="min-h-screen bg-canvas pb-20 md:pb-0">
       <header className="bg-surface border-b border-line sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-8">
-          <NavLink to="/dashboard" className="flex items-center gap-2.5">
-            <div className="bg-ink-900 p-2 rounded-lg">
-              <Wallet className="text-brand-300" size={18} />
-            </div>
-            <span className="text-lg font-semibold tracking-tight text-ink-900">Money Mitra</span>
+          <NavLink to="/dashboard" aria-label="Money Mitra dashboard" className="shrink-0">
+            <Logo />
           </NavLink>
 
           <nav className="hidden md:flex items-center gap-1 h-full">
@@ -108,6 +110,18 @@ function AppLayout() {
                 >
                   <Settings size={16} /> Settings
                 </Link>
+                {install && (
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      install();
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-100 transition"
+                  >
+                    <Download size={16} /> Install app
+                  </button>
+                )}
                 <button
                   role="menuitem"
                   onClick={handleLogout}
@@ -144,6 +158,9 @@ function AppLayout() {
           )
         )}
       </nav>
+
+      {/* Sits above the phone tab bar */}
+      <BackToTop className="bottom-24 md:bottom-6" />
     </div>
   );
 }
