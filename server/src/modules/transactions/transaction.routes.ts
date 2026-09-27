@@ -19,6 +19,28 @@ function parseDate(value: unknown): Date | undefined | null {
   return isNaN(date.getTime()) ? null : date;
 }
 
+interface TransactionInput {
+  amount: number;
+  type: string;
+  category: string;
+  note: string | null;
+}
+
+// Returns the validated fields, or an error message
+function parseTransaction(body: Record<string, unknown>): TransactionInput | string {
+  const amount = Number(body.amount);
+  const type = body.type;
+  const category = typeof body.category === "string" ? body.category.trim() : "";
+  const note = typeof body.note === "string" ? body.note.trim() : "";
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000_000) {
+    return "Amount must be a positive number";
+  }
+  if (type !== "income" && type !== "expense") return "Type must be income or expense";
+  if (!category || category.length > 50) return "Category is required (up to 50 characters)";
+  if (note.length > 200) return "Note can be up to 200 characters";
+  return { amount, type, category, note: note || null };
+}
+
 function parseRange(query: Record<string, unknown>): DateRange | null {
   const from = parseDate(query.from);
   const to = parseDate(query.to);
@@ -28,12 +50,11 @@ function parseRange(query: Record<string, unknown>): DateRange | null {
 
 router.post("/", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
-  const { amount, type, category, note } = req.body;
-  if (!amount || !type || !category) {
-    return res.status(400).json({ error: "amount, type, and category are required" });
-  }
+  const input = parseTransaction(req.body);
+  if (typeof input === "string") return res.status(400).json({ error: input });
   const date = parseDate(req.body.date);
   if (date === null) return res.status(400).json({ error: "Invalid date" });
+  const { amount, type, category, note } = input;
   const transaction = await createTransaction(req.userId, amount, type, category, note, date);
   res.status(201).json({ transaction });
 });
@@ -68,28 +89,19 @@ router.get("/trend", authMiddleware, async (req: AuthRequest, res) => {
 router.delete("/:id", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   const id = req.params.id as string;
-  try {
-    await deleteTransaction(req.userId, id);
-    res.status(200).json({ success: true });
-  } catch (err: any) {
-    res.status(404).json({ error: err.message });
-  }
+  await deleteTransaction(req.userId, id);
+  res.status(200).json({ success: true });
 });
 
 router.put("/:id", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   const id = req.params.id as string;
+  const input = parseTransaction(req.body);
+  if (typeof input === "string") return res.status(400).json({ error: input });
   const date = parseDate(req.body.date);
   if (date === null) return res.status(400).json({ error: "Invalid date" });
-  try {
-    const { amount, type, category, note } = req.body;
-    const transaction = await updateTransaction(req.userId, id, {
-      amount, type, category, note: note ?? null, date,
-    });
-    res.status(200).json({ transaction });
-  } catch (err: any) {
-    res.status(404).json({ error: err.message });
-  }
+  const transaction = await updateTransaction(req.userId, id, { ...input, date });
+  res.status(200).json({ transaction });
 });
 
 export default router;

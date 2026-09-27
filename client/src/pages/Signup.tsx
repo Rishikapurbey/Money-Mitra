@@ -41,9 +41,12 @@ function Signup() {
             placeholder="Choose a username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            pattern="[A-Za-z0-9_]{3,20}"
+            title="3 to 20 characters: letters, numbers and underscores"
             className={`${authInputClass} mt-1.5`}
             required
           />
+          <span className="mt-1 block text-xs text-ink-500">3 to 20 characters: letters, numbers and underscores.</span>
         </label>
         <label className="block">
           <span className="text-sm font-medium text-ink-700">Password</span>
@@ -52,9 +55,12 @@ function Signup() {
             placeholder="Create a password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            minLength={8}
+            maxLength={72}
             className={`${authInputClass} mt-1.5`}
             required
           />
+          <span className="mt-1 block text-xs text-ink-500">At least 8 characters, with a letter and a number.</span>
         </label>
         <button
           type="submit"

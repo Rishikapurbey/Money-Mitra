@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
+import { postLimiter } from "../../middleware/rateLimit";
 import { TOPICS, listPosts, getPost, createPost, deletePost, createReply, deleteReply } from "./post.service";
 
 const router = Router();
@@ -21,7 +22,7 @@ router.get("/:id", authMiddleware, async (req: AuthRequest, res) => {
   res.status(200).json({ post });
 });
 
-router.post("/", authMiddleware, async (req: AuthRequest, res) => {
+router.post("/", authMiddleware, postLimiter, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   const title = text(req.body.title);
   const body = text(req.body.body);
@@ -39,39 +40,27 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
 
 router.delete("/:id", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
-  try {
-    await deletePost(req.userId, req.params.id as string);
-    res.status(200).json({ success: true });
-  } catch (err: any) {
-    res.status(404).json({ error: err.message });
-  }
+  await deletePost(req.userId, req.params.id as string);
+  res.status(200).json({ success: true });
 });
 
-router.post("/:id/replies", authMiddleware, async (req: AuthRequest, res) => {
+router.post("/:id/replies", authMiddleware, postLimiter, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   const body = text(req.body.body);
   if (!body || body.length > 3000) {
     return res.status(400).json({ error: "Reply must be between 1 and 3000 characters" });
   }
-  try {
-    const reply = await createReply(req.userId, req.params.id as string, {
-      body,
-      isAnonymous: req.body.isAnonymous === true,
-    });
-    res.status(201).json({ reply });
-  } catch (err: any) {
-    res.status(404).json({ error: err.message });
-  }
+  const reply = await createReply(req.userId, req.params.id as string, {
+    body,
+    isAnonymous: req.body.isAnonymous === true,
+  });
+  res.status(201).json({ reply });
 });
 
 router.delete("/:id/replies/:replyId", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
-  try {
-    await deleteReply(req.userId, req.params.id as string, req.params.replyId as string);
-    res.status(200).json({ success: true });
-  } catch (err: any) {
-    res.status(404).json({ error: err.message });
-  }
+  await deleteReply(req.userId, req.params.id as string, req.params.replyId as string);
+  res.status(200).json({ success: true });
 });
 
 export default router;

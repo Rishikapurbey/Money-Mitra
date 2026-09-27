@@ -26,12 +26,8 @@ router.put("/", authMiddleware, async (req: AuthRequest, res) => {
 
 router.delete("/:id", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
-  try {
-    await deleteBudget(req.userId, req.params.id as string);
-    res.status(200).json({ success: true });
-  } catch (err: any) {
-    res.status(404).json({ error: err.message });
-  }
+  await deleteBudget(req.userId, req.params.id as string);
+  res.status(200).json({ success: true });
 });
 
 export default router;

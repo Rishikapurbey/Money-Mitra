@@ -332,6 +332,8 @@ function Dashboard() {
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-500 font-medium">₹</span>
               <input
                 type="number"
+                min="0.01"
+                step="0.01"
                 placeholder="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
@@ -354,6 +356,7 @@ function Dashboard() {
             <input
               type="text"
               placeholder="Category (e.g. Food, Rent, Salary)"
+              maxLength={50}
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className={`${inputClass} w-full`}
@@ -382,6 +385,7 @@ function Dashboard() {
           <input
             type="text"
             placeholder="Note (optional)"
+            maxLength={200}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             className={`${inputClass} w-full`}

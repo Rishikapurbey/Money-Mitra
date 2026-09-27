@@ -1,4 +1,5 @@
 import prisma from "../../db/prisma";
+import { HttpError } from "../../lib/httpError";
 
 export interface DateRange {
   from?: Date | undefined;
@@ -73,7 +74,7 @@ export async function getTrend(userId: string, from: Date, tzOffset: number) {
 
 export async function deleteTransaction(userId: string, id: string) {
   const transaction = await prisma.transaction.findUnique({ where: { id } });
-  if (!transaction || transaction.userId !== userId) throw new Error("Transaction not found");
+  if (!transaction || transaction.userId !== userId) throw new HttpError(404, "Transaction not found");
   return prisma.transaction.delete({ where: { id } });
 }
 
@@ -83,7 +84,7 @@ export async function updateTransaction(
   data: { amount?: number; type?: string; category?: string; note?: string | null; date?: Date | undefined }
 ) {
   const transaction = await prisma.transaction.findUnique({ where: { id } });
-  if (!transaction || transaction.userId !== userId) throw new Error("Transaction not found");
+  if (!transaction || transaction.userId !== userId) throw new HttpError(404, "Transaction not found");
   const { date, ...rest } = data;
   return prisma.transaction.update({ where: { id }, data: { ...rest, ...(date && { date }) } });
 }

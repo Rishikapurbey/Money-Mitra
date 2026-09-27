@@ -1,4 +1,5 @@
 import prisma from "../../db/prisma";
+import { HttpError } from "../../lib/httpError";
 
 export interface GoalInput {
   name: string;
@@ -8,7 +9,7 @@ export interface GoalInput {
 
 async function findOwned(userId: string, id: string) {
   const goal = await prisma.goal.findUnique({ where: { id } });
-  if (!goal || goal.userId !== userId) throw new Error("Goal not found");
+  if (!goal || goal.userId !== userId) throw new HttpError(404, "Goal not found");
   return goal;
 }
 

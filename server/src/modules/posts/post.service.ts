@@ -1,4 +1,5 @@
 import prisma from "../../db/prisma";
+import { HttpError } from "../../lib/httpError";
 
 export const TOPICS = ["Budgeting", "Saving", "Investing", "Loans & Credit", "Tax", "Other"];
 
@@ -49,19 +50,19 @@ export async function createPost(
 
 export async function deletePost(userId: string, id: string) {
   const post = await prisma.post.findUnique({ where: { id } });
-  if (!post || post.authorId !== userId) throw new Error("Post not found");
+  if (!post || post.authorId !== userId) throw new HttpError(404, "Post not found");
   await prisma.post.delete({ where: { id } });
 }
 
 export async function createReply(authorId: string, postId: string, data: { body: string; isAnonymous: boolean }) {
   const post = await prisma.post.findUnique({ where: { id: postId } });
-  if (!post) throw new Error("Post not found");
+  if (!post) throw new HttpError(404, "Post not found");
   const reply = await prisma.reply.create({ data: { ...data, postId, authorId }, include: authorSelect });
   return present(reply, authorId);
 }
 
 export async function deleteReply(userId: string, postId: string, id: string) {
   const reply = await prisma.reply.findUnique({ where: { id } });
-  if (!reply || reply.postId !== postId || reply.authorId !== userId) throw new Error("Reply not found");
+  if (!reply || reply.postId !== postId || reply.authorId !== userId) throw new HttpError(404, "Reply not found");
   await prisma.reply.delete({ where: { id } });
 }

@@ -36,12 +36,8 @@ router.put("/:id", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   const input = parseGoal(req.body);
   if (typeof input === "string") return res.status(400).json({ error: input });
-  try {
-    const goal = await updateGoal(req.userId, req.params.id as string, input);
-    res.status(200).json({ goal });
-  } catch (err: any) {
-    res.status(404).json({ error: err.message });
-  }
+  const goal = await updateGoal(req.userId, req.params.id as string, input);
+  res.status(200).json({ goal });
 });
 
 router.post("/:id/contributions", authMiddleware, async (req: AuthRequest, res) => {
@@ -50,22 +46,14 @@ router.post("/:id/contributions", authMiddleware, async (req: AuthRequest, res) 
   if (!Number.isFinite(amount) || amount === 0) {
     return res.status(400).json({ error: "Enter an amount to add or withdraw" });
   }
-  try {
-    const goal = await addToGoal(req.userId, req.params.id as string, amount);
-    res.status(200).json({ goal });
-  } catch (err: any) {
-    res.status(404).json({ error: err.message });
-  }
+  const goal = await addToGoal(req.userId, req.params.id as string, amount);
+  res.status(200).json({ goal });
 });
 
 router.delete("/:id", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
-  try {
-    await deleteGoal(req.userId, req.params.id as string);
-    res.status(200).json({ success: true });
-  } catch (err: any) {
-    res.status(404).json({ error: err.message });
-  }
+  await deleteGoal(req.userId, req.params.id as string);
+  res.status(200).json({ success: true });
 });
 
 export default router;

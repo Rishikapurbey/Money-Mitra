@@ -1,16 +1,21 @@
 import bcrypt from "bcryptjs";
 import prisma from "../../db/prisma";
+import { HttpError } from "../../lib/httpError";
 import jwt from "jsonwebtoken";
 
 export async function signupUser(email: string, username: string, password: string) {
+  // Emails and usernames are unique regardless of capitalisation
   const existingUser = await prisma.user.findFirst({
     where: {
-      OR: [{ email }, { username }],
+      OR: [
+        { email: { equals: email, mode: "insensitive" } },
+        { username: { equals: username, mode: "insensitive" } },
+      ],
     },
   });
 
   if (existingUser) {
-    throw new Error("Email or username already in use");
+    throw new HttpError(409, "Email or username already in use");
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -31,16 +36,17 @@ export async function signupUser(email: string, username: string, password: stri
 }
 
 export async function loginUser(email: string, password: string) {
-  const user = await prisma.user.findUnique({ where: { email } });
+  // Case-insensitive so accounts created before emails were lowercased still work
+  const user = await prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
 
   if (!user) {
-    throw new Error("Invalid email or password");
+    throw new HttpError(401, "Invalid email or password");
   }
 
   const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
   if (!isPasswordValid) {
-    throw new Error("Invalid email or password");
+    throw new HttpError(401, "Invalid email or password");
   }
 
   const token = jwt.sign(

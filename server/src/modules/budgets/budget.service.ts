@@ -1,4 +1,5 @@
 import prisma from "../../db/prisma";
+import { HttpError } from "../../lib/httpError";
 
 export async function listBudgets(userId: string) {
   return prisma.budget.findMany({ where: { userId }, orderBy: { category: "asc" } });
@@ -15,6 +16,6 @@ export async function setBudget(userId: string, category: string, amount: number
 
 export async function deleteBudget(userId: string, id: string) {
   const budget = await prisma.budget.findUnique({ where: { id } });
-  if (!budget || budget.userId !== userId) throw new Error("Budget not found");
+  if (!budget || budget.userId !== userId) throw new HttpError(404, "Budget not found");
   await prisma.budget.delete({ where: { id } });
 }
