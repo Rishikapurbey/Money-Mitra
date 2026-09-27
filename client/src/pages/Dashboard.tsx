@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
-import { Wallet, LogOut, TrendingUp, TrendingDown, Wallet2, Pencil, Trash2, Plus, Receipt } from "lucide-react";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { Wallet, LogOut, TrendingUp, TrendingDown, Wallet2, Pencil, Trash2, Plus, Receipt, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Transaction {
   id: string;
@@ -28,6 +28,16 @@ const greeting = () => {
   return "Good evening";
 };
 
+// Local-time YYYY-MM-DD, the format <input type="date"> uses
+const toInputDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
+
+const addMonths = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth() + n, 1);
+
+const monthName = (d: Date) => d.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+
 const dayLabel = (iso: string) => {
   const d = new Date(iso);
   const today = new Date();
@@ -40,13 +50,17 @@ const dayLabel = (iso: string) => {
 
 function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0 });
+  const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0, totalBalance: 0 });
+  const [trend, setTrend] = useState<{ month: string; income: number; expense: number }[]>([]);
+  const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(true);
   const [amount, setAmount] = useState("");
   const [type, setType] = useState("expense");
   const [category, setCategory] = useState("");
   const [note, setNote] = useState("");
+  const [date, setDate] = useState(() => toInputDate(new Date()));
+  const [editingOriginalDate, setEditingOriginalDate] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
@@ -55,12 +69,19 @@ function Dashboard() {
 
   const loadData = async () => {
     try {
-      const [txRes, summaryRes] = await Promise.all([
-        api.get("/transactions"),
-        api.get("/transactions/summary"),
+      const range = { from: month.toISOString(), to: addMonths(month, 1).toISOString() };
+      const trendParams = {
+        from: addMonths(startOfMonth(new Date()), -5).toISOString(),
+        tzOffset: new Date().getTimezoneOffset(),
+      };
+      const [txRes, summaryRes, trendRes] = await Promise.all([
+        api.get("/transactions", { params: range }),
+        api.get("/transactions/summary", { params: range }),
+        api.get("/transactions/trend", { params: trendParams }),
       ]);
       setTransactions(txRes.data.transactions);
       setSummary(summaryRes.data.summary);
+      setTrend(trendRes.data.trend);
     } catch (err) {
       navigate("/login");
     } finally {
@@ -70,6 +91,9 @@ function Dashboard() {
 
   useEffect(() => {
     loadData();
+  }, [month]);
+
+  useEffect(() => {
     api.get("/auth/me").then((res) => setUsername(res.data.user.username)).catch(() => {});
   }, []);
 
@@ -78,18 +102,30 @@ function Dashboard() {
     setCategory("");
     setNote("");
     setType("expense");
+    setDate(toInputDate(new Date()));
+    setEditingOriginalDate(null);
     setEditingId(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Keep the exact original timestamp if the day wasn't changed; use the current
+    // time for today, and midday for other days so timezone shifts can't change the date
+    let when: string;
+    if (editingOriginalDate && toInputDate(new Date(editingOriginalDate)) === date) when = editingOriginalDate;
+    else if (date === toInputDate(new Date())) when = new Date().toISOString();
+    else when = new Date(`${date}T12:00:00`).toISOString();
+
+    const body = { amount: parseFloat(amount), type, category, note, date: when };
     if (editingId) {
-      await api.put(`/transactions/${editingId}`, { amount: parseFloat(amount), type, category, note });
+      await api.put(`/transactions/${editingId}`, body);
     } else {
-      await api.post("/transactions", { amount: parseFloat(amount), type, category, note });
+      await api.post("/transactions", body);
     }
     resetForm();
-    loadData();
+    const targetMonth = startOfMonth(new Date(when));
+    if (targetMonth.getTime() !== month.getTime()) setMonth(targetMonth);
+    else loadData();
   };
 
   const handleEdit = (t: Transaction) => {
@@ -98,6 +134,8 @@ function Dashboard() {
     setType(t.type);
     setCategory(t.category);
     setNote(t.note || "");
+    setDate(toInputDate(new Date(t.date)));
+    setEditingOriginalDate(t.date);
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
@@ -155,6 +193,14 @@ function Dashboard() {
     if (!(c in colorOf)) colorOf[c] = COLORS[Object.keys(colorOf).length % COLORS.length];
   });
 
+  const isCurrentMonth = month.getTime() === startOfMonth(new Date()).getTime();
+  const monthShort = month.toLocaleDateString("en-IN", { month: "long" });
+  const trendData = trend.map((m) => ({
+    ...m,
+    label: new Date(`${m.month}-01T00:00:00`).toLocaleDateString("en-IN", { month: "short" }),
+  }));
+  const hasTrend = trend.some((m) => m.income > 0 || m.expense > 0);
+
   const savingsRate = summary.income > 0 ? Math.round((summary.balance / summary.income) * 100) : null;
 
   if (loading) {
@@ -191,26 +237,46 @@ function Dashboard() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink-900">
-            {greeting()}{username && `, ${username}`}
-          </h1>
-          <p className="mt-1 text-sm text-ink-500">
-            {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-          </p>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-ink-900">
+              {greeting()}{username && `, ${username}`}
+            </h1>
+            <p className="mt-1 text-sm text-ink-500">
+              {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+            </p>
+          </div>
+          <div className="flex items-center bg-surface border border-line rounded-xl">
+            <button
+              onClick={() => setMonth(addMonths(month, -1))}
+              aria-label="Previous month"
+              className="p-2.5 text-ink-500 hover:text-ink-900 transition"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span className="w-36 text-center text-sm font-medium text-ink-900">{monthName(month)}</span>
+            <button
+              onClick={() => setMonth(addMonths(month, 1))}
+              disabled={isCurrentMonth}
+              aria-label="Next month"
+              className="p-2.5 text-ink-500 hover:text-ink-900 transition disabled:text-ink-200 disabled:cursor-not-allowed"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
         </div>
 
         <section className="bg-ink-900 rounded-2xl p-6 sm:p-8 text-white">
           <div className="flex items-center gap-2 text-ink-300 text-xs font-medium uppercase tracking-wider">
             <Wallet2 size={14} /> Balance
           </div>
-          <p className="mt-2 text-4xl sm:text-5xl font-semibold tracking-tight tabular-nums">{formatINR(summary.balance)}</p>
+          <p className="mt-2 text-4xl sm:text-5xl font-semibold tracking-tight tabular-nums">{formatINR(summary.totalBalance)}</p>
           {savingsRate !== null && (
             <div className="mt-4 max-w-sm">
               <p className="text-sm text-ink-300">
                 {savingsRate >= 0
-                  ? `You've saved ${savingsRate}% of your income`
-                  : `You've spent ${Math.abs(savingsRate)}% more than your income`}
+                  ? `You saved ${savingsRate}% of your income in ${monthShort}`
+                  : `You spent ${Math.abs(savingsRate)}% more than your income in ${monthShort}`}
               </p>
               <div className="mt-2 h-1.5 rounded-full bg-ink-800 overflow-hidden">
                 <div
@@ -223,13 +289,13 @@ function Dashboard() {
           <div className="mt-6 grid grid-cols-2 gap-4 border-t border-ink-800 pt-5">
             <div>
               <div className="flex items-center gap-1.5 text-ink-300 text-xs font-medium uppercase tracking-wider">
-                <TrendingUp size={14} className="text-brand-300" /> Income
+                <TrendingUp size={14} className="text-brand-300" /> Income in {monthShort}
               </div>
               <p className="mt-1 text-xl font-semibold tabular-nums">{formatINR(summary.income)}</p>
             </div>
             <div>
               <div className="flex items-center gap-1.5 text-ink-300 text-xs font-medium uppercase tracking-wider">
-                <TrendingDown size={14} className="text-ink-400" /> Expense
+                <TrendingDown size={14} className="text-ink-400" /> Expense in {monthShort}
               </div>
               <p className="mt-1 text-xl font-semibold tabular-nums">{formatINR(summary.expense)}</p>
             </div>
@@ -268,14 +334,25 @@ function Dashboard() {
               ))}
             </div>
 
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-500 font-medium">₹</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-500 font-medium">₹</span>
+                <input
+                  type="number"
+                  placeholder="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className={`${inputClass} w-full pl-9 text-lg font-semibold tabular-nums`}
+                  required
+                />
+              </div>
               <input
-                type="number"
-                placeholder="0"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className={`${inputClass} w-full pl-9 text-lg font-semibold tabular-nums`}
+                type="date"
+                value={date}
+                max={toInputDate(new Date())}
+                onChange={(e) => setDate(e.target.value)}
+                aria-label="Date"
+                className={`${inputClass} w-full`}
                 required
               />
             </div>
@@ -363,10 +440,46 @@ function Dashboard() {
                 </ul>
               </>
             ) : (
-              <p className="mt-3 text-sm text-ink-500">Add an expense to see where your money goes.</p>
+              <p className="mt-3 text-sm text-ink-500">No expenses in {monthName(month)} yet.</p>
             )}
           </section>
         </div>
+
+        <section className="bg-surface p-6 rounded-2xl border border-line">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-semibold text-ink-900">Last 6 months</h2>
+            <div className="flex items-center gap-4 text-sm text-ink-500">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-chart-1" /> Income
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-chart-2" /> Expense
+              </span>
+            </div>
+          </div>
+          {hasTrend ? (
+            <div className="mt-4">
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={trendData} barGap={4} margin={{ left: 0, right: 0 }}>
+                  <CartesianGrid vertical={false} stroke="var(--color-line)" />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "var(--color-ink-500)", fontSize: 12 }} />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    width={56}
+                    tick={{ fill: "var(--color-ink-500)", fontSize: 12 }}
+                    tickFormatter={(v) => "₹" + Number(v).toLocaleString("en-IN", { notation: "compact" })}
+                  />
+                  <Tooltip cursor={{ fill: "var(--color-ink-100)" }} formatter={(v) => formatINR(Number(v))} />
+                  <Bar dataKey="income" name="Income" fill="var(--color-chart-1)" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                  <Bar dataKey="expense" name="Expense" fill="var(--color-chart-2)" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-ink-500">Your monthly trend will appear here as you add transactions.</p>
+          )}
+        </section>
 
         <section className="bg-surface rounded-2xl border border-line overflow-hidden">
           <div className="flex flex-wrap gap-3 justify-between items-center p-5 border-b border-line">
@@ -391,8 +504,10 @@ function Dashboard() {
               <div className="mx-auto w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center">
                 <Receipt size={22} className="text-brand-600" />
               </div>
-              <p className="mt-4 font-medium text-ink-900">No transactions yet</p>
-              <p className="mt-1 text-sm text-ink-500">Add your first income or expense above to start tracking.</p>
+              <p className="mt-4 font-medium text-ink-900">No transactions in {monthName(month)}</p>
+              <p className="mt-1 text-sm text-ink-500">
+                {isCurrentMonth ? "Add an income or expense above to start tracking." : "Nothing was recorded this month."}
+              </p>
             </div>
           ) : filtered.length === 0 ? (
             <p className="p-5 text-ink-500 text-sm">No transactions match these filters.</p>
