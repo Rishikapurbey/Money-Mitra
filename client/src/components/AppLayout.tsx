@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Wallet, LayoutDashboard, MessagesSquare, BookOpen, LogOut, ChevronDown, Calculator } from "lucide-react";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Wallet, LayoutDashboard, MessagesSquare, BookOpen, LogOut, ChevronDown, Calculator, Settings } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import api from "../lib/api";
 
 export interface AppContext {
   username: string;
+  setUsername: (username: string) => void;
 }
 
 interface NavItem {
@@ -99,6 +100,14 @@ function AppLayout() {
                 <p className="px-4 py-2 text-xs text-ink-500 border-b border-line">
                   Signed in as <span className="font-medium text-ink-900">{username}</span>
                 </p>
+                <Link
+                  to="/settings"
+                  role="menuitem"
+                  onClick={() => setMenuOpen(false)}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-100 transition"
+                >
+                  <Settings size={16} /> Settings
+                </Link>
                 <button
                   role="menuitem"
                   onClick={handleLogout}
@@ -112,7 +121,7 @@ function AppLayout() {
         </div>
       </header>
 
-      <Outlet context={{ username } satisfies AppContext} />
+      <Outlet context={{ username, setUsername } satisfies AppContext} />
 
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-surface border-t border-line grid grid-cols-4">
         {navItems.map(({ to, label, icon: Icon, soon }) =>

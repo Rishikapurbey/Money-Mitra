@@ -9,6 +9,7 @@ import Learn from "./pages/Learn";
 import LearnTerm from "./pages/LearnTerm";
 import Calculators from "./pages/Calculators";
 import CalculatorPage from "./pages/CalculatorPage";
+import Settings from "./pages/Settings";
 import AppLayout from "./components/AppLayout";
 import PublicLayout from "./components/PublicLayout";
 import Landing from "./pages/Landing";
@@ -44,6 +45,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/discuss" element={<Discuss />} />
             <Route path="/discuss/:id" element={<DiscussPost />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
         </Route>
         <Route element={<PublicOrAppLayout />}>

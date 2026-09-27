@@ -10,6 +10,7 @@ import transactionRoutes from "./modules/transactions/transaction.routes";
 import postRoutes from "./modules/posts/post.routes";
 import budgetRoutes from "./modules/budgets/budget.routes";
 import goalRoutes from "./modules/goals/goal.routes";
+import accountRoutes from "./modules/account/account.routes";
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ app.use("/api/transactions", transactionRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/budgets", budgetRoutes);
 app.use("/api/goals", goalRoutes);
+app.use("/api/account", accountRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "Money Mitra API is running" });

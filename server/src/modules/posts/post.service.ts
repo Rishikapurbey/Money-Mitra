@@ -1,5 +1,6 @@
 import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
+import { DELETED_USERNAME } from "../../lib/validation";
 
 export const TOPICS = ["Budgeting", "Saving", "Investing", "Loans & Credit", "Tax", "Other"];
 
@@ -14,7 +15,7 @@ function present<T extends Authored>(item: T, viewerId: string) {
   const { authorId, author, ...rest } = item;
   return {
     ...rest,
-    author: item.isAnonymous ? null : author.username,
+    author: item.isAnonymous ? null : author.username === DELETED_USERNAME ? "Deleted user" : author.username,
     isMine: authorId === viewerId,
   };
 }
