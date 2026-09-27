@@ -5,17 +5,12 @@ import { isAxiosError } from "axios";
 import { CheckCircle2, Download, FileJson, AlertTriangle } from "lucide-react";
 import api from "../lib/api";
 import { inputClass } from "../lib/ui";
+import { csvField } from "../lib/csv";
 import type { AppContext } from "../components/AppLayout";
 
 const errorMessage = (err: unknown, fallback: string) =>
   (isAxiosError(err) && err.response?.data?.error) || fallback;
 
-// Quote CSV fields safely, and stop spreadsheet apps treating text like "=SUM(...)" as a formula
-const csvField = (value: unknown) => {
-  let s = value === null || value === undefined ? "" : String(value);
-  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
 
 function download(filename: string, content: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }));

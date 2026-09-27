@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import api from "../lib/api";
 import type { AppContext } from "../components/AppLayout";
@@ -47,6 +47,31 @@ const dayLabel = (iso: string) => {
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 };
 
+interface DashboardData {
+  transactions: Transaction[];
+  summary: { income: number; expense: number; balance: number; totalBalance: number };
+  trend: { month: string; income: number; expense: number }[];
+}
+
+// Everything the dashboard shows for one month, or null if it couldn't be loaded
+async function fetchDashboard(month: Date): Promise<DashboardData | null> {
+  try {
+    const range = { from: month.toISOString(), to: addMonths(month, 1).toISOString() };
+    const trendParams = {
+      from: addMonths(startOfMonth(new Date()), -5).toISOString(),
+      tzOffset: new Date().getTimezoneOffset(),
+    };
+    const [txRes, summaryRes, trendRes] = await Promise.all([
+      api.get("/transactions", { params: range }),
+      api.get("/transactions/summary", { params: range }),
+      api.get("/transactions/trend", { params: trendParams }),
+    ]);
+    return { transactions: txRes.data.transactions, summary: summaryRes.data.summary, trend: trendRes.data.trend };
+  } catch {
+    return null;
+  }
+}
+
 function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0, totalBalance: 0 });
@@ -66,32 +91,29 @@ function Dashboard() {
   const [filterCategory, setFilterCategory] = useState("all");
   const formRef = useRef<HTMLFormElement>(null);
 
-  const loadData = async () => {
-    setError("");
-    try {
-      const range = { from: month.toISOString(), to: addMonths(month, 1).toISOString() };
-      const trendParams = {
-        from: addMonths(startOfMonth(new Date()), -5).toISOString(),
-        tzOffset: new Date().getTimezoneOffset(),
-      };
-      const [txRes, summaryRes, trendRes] = await Promise.all([
-        api.get("/transactions", { params: range }),
-        api.get("/transactions/summary", { params: range }),
-        api.get("/transactions/trend", { params: trendParams }),
-      ]);
-      setTransactions(txRes.data.transactions);
-      setSummary(summaryRes.data.summary);
-      setTrend(trendRes.data.trend);
-    } catch {
+  const applyData = useCallback((data: DashboardData | null) => {
+    if (data) {
+      setTransactions(data.transactions);
+      setSummary(data.summary);
+      setTrend(data.trend);
+      setError("");
+    } else {
       setError("We couldn't load your data. Check your connection and try again.");
-    } finally {
-      setLoading(false);
     }
-  };
+    setLoading(false);
+  }, []);
 
+  // Reload after adding, editing or deleting
+  const loadData = useCallback(async () => applyData(await fetchDashboard(month)), [month, applyData]);
+
+  // Ignore a response that arrives after the user has already moved to another month
   useEffect(() => {
-    loadData();
-  }, [month]);
+    let current = true;
+    fetchDashboard(month).then((data) => current && applyData(data));
+    return () => {
+      current = false;
+    };
+  }, [month, applyData]);
 
   const resetForm = () => {
     setAmount("");

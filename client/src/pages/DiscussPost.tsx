@@ -1,10 +1,21 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { isAxiosError } from "axios";
 import { ArrowLeft, Trash2, AlertCircle } from "lucide-react";
 import api from "../lib/api";
 import { authorName, timeAgo, discussInputClass } from "../lib/discuss";
 import type { Post } from "../lib/discuss";
+
+type PostResult = Post | "not-found" | "error";
+
+async function fetchPost(id: string | undefined): Promise<PostResult> {
+  try {
+    const res = await api.get(`/posts/${id}`);
+    return res.data.post;
+  } catch (err) {
+    return isAxiosError(err) && err.response?.status === 404 ? "not-found" : "error";
+  }
+}
 
 function DiscussPost() {
   const { id } = useParams();
@@ -17,22 +28,26 @@ function DiscussPost() {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [replying, setReplying] = useState(false);
 
-  const loadPost = async () => {
-    setError("");
-    try {
-      const res = await api.get(`/posts/${id}`);
-      setPost(res.data.post);
-    } catch (err) {
-      if (isAxiosError(err) && err.response?.status === 404) setNotFound(true);
-      else setError("We couldn't load this discussion. Check your connection and try again.");
-    } finally {
-      setLoading(false);
+  const applyPost = useCallback((result: PostResult) => {
+    if (result === "not-found") setNotFound(true);
+    else if (result === "error") setError("We couldn't load this discussion. Check your connection and try again.");
+    else {
+      setPost(result);
+      setError("");
     }
-  };
+    setLoading(false);
+  }, []);
 
+  const loadPost = useCallback(async () => applyPost(await fetchPost(id)), [id, applyPost]);
+
+  // Ignore a response that arrives after the user has already opened another discussion
   useEffect(() => {
-    loadPost();
-  }, [id]);
+    let current = true;
+    fetchPost(id).then((result) => current && applyPost(result));
+    return () => {
+      current = false;
+    };
+  }, [id, applyPost]);
 
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -8,6 +8,8 @@ const limiter = (windowMinutes: number, limit: number, message: string, skipSucc
     legacyHeaders: false,
     skipSuccessfulRequests,
     message: { error: message },
+    // The test suite makes many requests from one address; limits are tested separately by hand
+    skip: () => process.env.NODE_ENV === "test",
   });
 
 // Only failed logins count, so people who log in successfully are never blocked

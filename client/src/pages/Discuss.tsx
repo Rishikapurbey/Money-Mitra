@@ -1,10 +1,19 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { isAxiosError } from "axios";
 import { MessageCircle, Plus, AlertCircle, MessagesSquare, X } from "lucide-react";
 import api from "../lib/api";
 import { TOPICS, authorName, timeAgo, discussInputClass } from "../lib/discuss";
 import type { Post } from "../lib/discuss";
+
+async function fetchPosts(topic: string): Promise<Post[] | null> {
+  try {
+    const res = await api.get("/posts", { params: topic ? { topic } : {} });
+    return res.data.posts;
+  } catch {
+    return null;
+  }
+}
 
 function Discuss() {
   // Links from Learn open the ask form with a topic already chosen: /discuss?ask=1&topic=Tax
@@ -22,21 +31,26 @@ function Discuss() {
   const [formError, setFormError] = useState("");
   const [posting, setPosting] = useState(false);
 
-  const loadPosts = async () => {
-    setError("");
-    try {
-      const res = await api.get("/posts", { params: topic ? { topic } : {} });
-      setPosts(res.data.posts);
-    } catch {
+  const applyPosts = useCallback((result: Post[] | null) => {
+    if (result) {
+      setPosts(result);
+      setError("");
+    } else {
       setError("We couldn't load the discussions. Check your connection and try again.");
-    } finally {
-      setLoading(false);
     }
-  };
+    setLoading(false);
+  }, []);
 
+  const loadPosts = useCallback(async () => applyPosts(await fetchPosts(topic)), [topic, applyPosts]);
+
+  // Ignore a response that arrives after the user has already picked another topic
   useEffect(() => {
-    loadPosts();
-  }, [topic]);
+    let current = true;
+    fetchPosts(topic).then((result) => current && applyPosts(result));
+    return () => {
+      current = false;
+    };
+  }, [topic, applyPosts]);
 
   const closeForm = () => {
     setAsking(false);
