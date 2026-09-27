@@ -32,6 +32,8 @@
   --color-gain-soft: #e6f4ee;
   --color-loss: #b4363f;
   --color-loss-soft: #fbecec;
+  --color-warn: #a86a12;
+  --color-warn-soft: #fbf3e4;
 
   /* Categorical chart palette */
   --color-chart-1: #14857b;

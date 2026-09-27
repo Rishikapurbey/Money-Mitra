@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import api from "../lib/api";
 import type { AppContext } from "../components/AppLayout";
+import { formatINR, inputClass } from "../lib/ui";
+import BudgetsCard from "../components/BudgetsCard";
+import GoalsCard from "../components/GoalsCard";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { AlertCircle, TrendingUp, TrendingDown, Wallet2, Pencil, Trash2, Plus, Receipt, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -16,11 +19,6 @@ interface Transaction {
 
 const COLORS = [1, 2, 3, 4, 5, 6].map((n) => `var(--color-chart-${n})`);
 
-const formatINR = (n: number) =>
-  "₹" + n.toLocaleString("en-IN", { maximumFractionDigits: 2 });
-
-const inputClass =
-  "border border-line bg-surface rounded-xl px-4 py-2.5 text-ink-900 placeholder:text-ink-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition";
 
 const greeting = () => {
   const hour = new Date().getHours();
@@ -438,6 +436,15 @@ function Dashboard() {
             <p className="mt-3 text-sm text-ink-500">No expenses in {monthName(month)} yet.</p>
           )}
         </section>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <BudgetsCard
+          expenses={transactions.filter((t) => t.type === "expense")}
+          monthLabel={monthName(month)}
+          categories={categories}
+        />
+        <GoalsCard />
       </div>
 
       <section className="bg-surface p-6 rounded-2xl border border-line">

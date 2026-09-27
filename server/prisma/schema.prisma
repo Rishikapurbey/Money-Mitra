@@ -25,6 +25,8 @@ model User {
   transactions Transaction[]
   posts        Post[]
   replies      Reply[]
+  budgets      Budget[]
+  goals        Goal[]
 }
 
 model Transaction {
@@ -65,4 +67,27 @@ model Reply {
   author      User     @relation(fields: [authorId], references: [id])
 
   @@index([postId])
+}
+
+// A monthly spending limit for one expense category
+model Budget {
+  id        String   @id @default(cuid())
+  category  String
+  amount    Float
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, category])
+}
+
+model Goal {
+  id           String    @id @default(cuid())
+  name         String
+  targetAmount Float
+  savedAmount  Float     @default(0)
+  targetDate   DateTime?
+  createdAt    DateTime  @default(now())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
 }
