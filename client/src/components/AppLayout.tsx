@@ -4,6 +4,7 @@ import { House, PieChart, MessagesSquare, BookOpen, LogOut, ChevronDown, Calcula
 import type { LucideIcon } from "lucide-react";
 import api from "../lib/api";
 import { Logo } from "./Logo";
+import { pageWidth } from "../lib/ui";
 import BackToTop from "./BackToTop";
 import NotificationBell from "./NotificationBell";
 import ThemeToggle from "./ThemeToggle";
@@ -80,7 +81,7 @@ function AppLayout() {
   return (
     <div className="min-h-screen bg-canvas pb-20 md:pb-0">
       <header className="bg-surface border-b border-line sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-8">
+        <div className={`${pageWidth} h-16 flex items-center gap-8`}>
           <NavLink to="/home" aria-label="Money Mitra home" className="shrink-0">
             <Logo />
           </NavLink>
