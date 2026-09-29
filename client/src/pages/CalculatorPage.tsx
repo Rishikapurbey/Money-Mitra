@@ -1,12 +1,14 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, BookOpen, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Calculator as CalculatorIcon, CheckCircle2 } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import api from "../lib/api";
-import { calculatorBySlug, emergencyFund, emi, fd, inflation, sip } from "../lib/calculators";
+import { CALCULATORS, calculatorBySlug, emergencyFund, emi, fd, inflation, sip } from "../lib/calculators";
+import { CALCULATOR_ICONS } from "../lib/calculatorIcons";
+import { useWideLayout } from "../lib/useMediaQuery";
 import { termBySlug } from "../lib/learn";
-import { formatINR } from "../lib/ui";
+import { formatINR, pageWidth } from "../lib/ui";
 import { useTitle } from "../lib/useTitle";
 
 const rupees = (n: number) => formatINR(Math.round(n));
@@ -336,26 +338,68 @@ const CALCULATORS_BY_SLUG: Record<string, () => Layout> = {
   "emergency-fund": useEmergencyFundCalculator,
 };
 
+interface PageParts {
+  wide: boolean;
+  backLink: ReactNode;
+  intro: ReactNode;
+  learnCard: ReactNode;
+  otherCalculators: ReactNode;
+  disclaimer: ReactNode;
+}
+
 // Separate component so each calculator's hooks always run in the same order
-function CalculatorBody({ useCalculator }: { useCalculator: () => Layout }) {
+function CalculatorBody({ useCalculator, wide, backLink, intro, learnCard, otherCalculators, disclaimer }: PageParts & { useCalculator: () => Layout }) {
   const { inputs, results, howItWorks } = useCalculator();
-  return (
-    <>
-      <div className="grid gap-6 lg:grid-cols-5">
-        <section className="lg:col-span-2 bg-surface border border-line rounded-2xl p-6 space-y-6">{inputs}</section>
-        <section className="lg:col-span-3 bg-surface border border-line rounded-2xl p-6 space-y-5">{results}</section>
+
+  const workArea = (
+    <div className="grid gap-6 lg:grid-cols-5">
+      <section className="lg:col-span-2 bg-surface border border-line rounded-2xl p-6 space-y-6">{inputs}</section>
+      <section className="lg:col-span-3 bg-surface border border-line rounded-2xl p-6 space-y-5">{results}</section>
+    </div>
+  );
+
+  const howCard = (
+    <section className="bg-canvas border border-line rounded-2xl p-5">
+      <h2 className="text-sm font-semibold text-ink-900">How this is calculated</h2>
+      <p className="mt-2 text-sm text-ink-700 leading-relaxed">{howItWorks}</p>
+    </section>
+  );
+
+  // Wide screens: inputs and results keep a compact width, with the explanation and next steps beside them
+  if (wide) {
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)_340px] gap-8 items-start">
+        <div className="space-y-6 min-w-0">
+          {backLink}
+          {intro}
+          {workArea}
+          {disclaimer}
+        </div>
+        <aside className="space-y-6 sticky top-20" aria-label="About this calculator">
+          {howCard}
+          {learnCard}
+          {otherCalculators}
+        </aside>
       </div>
-      <section className="bg-canvas border border-line rounded-2xl p-5">
-        <h2 className="text-sm font-semibold text-ink-900">How this is calculated</h2>
-        <p className="mt-2 text-sm text-ink-700 leading-relaxed">{howItWorks}</p>
-      </section>
-    </>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {backLink}
+      {intro}
+      {workArea}
+      {howCard}
+      {learnCard}
+      {disclaimer}
+    </div>
   );
 }
 
 function CalculatorPage() {
   const { slug } = useParams();
   const info = slug ? calculatorBySlug(slug) : undefined;
+  const wide = useWideLayout();
   useTitle(info?.name ?? "Calculators");
   const useCalculator = slug ? CALCULATORS_BY_SLUG[slug] : undefined;
 
@@ -367,7 +411,7 @@ function CalculatorPage() {
 
   if (!info || !useCalculator) {
     return (
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <main className={`${pageWidth} py-8 space-y-6`}>
         {backLink}
         <div className="bg-surface border border-line rounded-2xl px-5 py-14 text-center">
           <p className="font-medium text-ink-900">We couldn't find that calculator</p>
@@ -378,32 +422,63 @@ function CalculatorPage() {
 
   const learn = termBySlug(info.learnSlug);
 
+  const intro = (
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight text-ink-900">{info.name}</h1>
+      <p className="mt-1 text-sm text-ink-500">{info.short}</p>
+    </div>
+  );
+
+  const learnCard = learn && (
+    <Link
+      to={`/learn/${learn.slug}`}
+      className="flex items-center gap-3 bg-brand-50 rounded-2xl p-5 text-brand-700 hover:bg-brand-100 transition"
+    >
+      <BookOpen size={20} className="shrink-0" />
+      <span>
+        <span className="block font-semibold">New to this? Read: {learn.term}</span>
+        <span className="block text-sm text-ink-700">{learn.short}</span>
+      </span>
+    </Link>
+  );
+
+  const otherCalculators = (
+    <section className="bg-surface border border-line rounded-2xl p-5" aria-labelledby="other-calculators-title">
+      <h2 id="other-calculators-title" className="font-semibold text-ink-900">Other calculators</h2>
+      <ul className="mt-3 space-y-1">
+        {CALCULATORS.filter((c) => c.slug !== info.slug).map((c) => {
+          const Icon = CALCULATOR_ICONS[c.slug] ?? CalculatorIcon;
+          return (
+            <li key={c.slug}>
+              <Link to={`/calculators/${c.slug}`} className="flex items-center gap-3 py-1.5 group">
+                <Icon size={16} className="shrink-0 text-ink-400 group-hover:text-brand-600 transition" />
+                <span className="text-sm font-medium text-ink-900 group-hover:text-brand-700 transition">{c.name}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+
+  const disclaimer = (
+    <p className="text-xs text-ink-400 text-center">
+      Results are estimates for planning only. They are not guaranteed returns or financial advice.
+    </p>
+  );
+
   return (
-    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-      {backLink}
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink-900">{info.name}</h1>
-        <p className="mt-1 text-sm text-ink-500">{info.short}</p>
-      </div>
-
-      <CalculatorBody key={info.slug} useCalculator={useCalculator} />
-
-      {learn && (
-        <Link
-          to={`/learn/${learn.slug}`}
-          className="flex items-center gap-3 bg-brand-50 rounded-2xl p-5 text-brand-700 hover:bg-brand-100 transition"
-        >
-          <BookOpen size={20} className="shrink-0" />
-          <span>
-            <span className="block font-semibold">New to this? Read: {learn.term}</span>
-            <span className="block text-sm text-ink-700">{learn.short}</span>
-          </span>
-        </Link>
-      )}
-
-      <p className="text-xs text-ink-400 text-center">
-        Results are estimates for planning only. They are not guaranteed returns or financial advice.
-      </p>
+    <main className={`${pageWidth} py-8`}>
+      <CalculatorBody
+        key={info.slug}
+        useCalculator={useCalculator}
+        wide={wide}
+        backLink={backLink}
+        intro={intro}
+        learnCard={learnCard}
+        otherCalculators={otherCalculators}
+        disclaimer={disclaimer}
+      />
     </main>
   );
 }
