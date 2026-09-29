@@ -36,6 +36,7 @@ model User {
   reports        Report[]
   notifications  Notification[]
   recurring      RecurringTransaction[]
+  categories     Category[]
 }
 
 model Transaction {
@@ -196,4 +197,19 @@ model RecurringTransaction {
   entries    Transaction[]
 
   @@index([userId])
+}
+
+// The user's own list of categories, offered when adding transactions and managed in Settings.
+// Transactions, budgets and recurring rules store the category by name; renaming or merging
+// here updates those names too.
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  // income | expense
+  type      String
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, name])
 }

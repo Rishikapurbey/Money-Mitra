@@ -1,5 +1,6 @@
 import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
+import { rememberCategory } from "../categories/category.service";
 import { dueOccurrences, firstOnOrAfter, nextAfter, occurrenceIn, toLocalDate } from "./recurrence";
 
 export interface RecurringInput {
@@ -36,6 +37,7 @@ export async function createRecurring(
     nextDue = nextAfter(occurrenceIn(year, month, fields.dayOfMonth, tzOffset), fields.dayOfMonth, tzOffset);
   }
 
+  fields.category = await rememberCategory(userId, fields.type, fields.category);
   return prisma.$transaction(async (tx) => {
     const rule = await tx.recurringTransaction.create({ data: { ...fields, tzOffset, nextDue, userId } });
     if (firstEntryId) await tx.transaction.update({ where: { id: firstEntryId }, data: { recurringId: rule.id } });
@@ -48,7 +50,8 @@ export async function updateRecurring(userId: string, id: string, data: Recurrin
   const rule = await findOwned(userId, id);
   const nextDue =
     data.dayOfMonth === rule.dayOfMonth ? rule.nextDue : firstOnOrAfter(new Date(), data.dayOfMonth, rule.tzOffset);
-  return prisma.recurringTransaction.update({ where: { id }, data: { ...data, nextDue } });
+  const category = await rememberCategory(userId, data.type, data.category);
+  return prisma.recurringTransaction.update({ where: { id }, data: { ...data, category, nextDue } });
 }
 
 export async function setPaused(userId: string, id: string, paused: boolean) {

@@ -4,10 +4,11 @@ import api from "../lib/api";
 import { inputClass, formatINR } from "../lib/ui";
 import { toInputDate, transactionTimestamp } from "../lib/dates";
 import { useToast } from "../lib/toast";
+import { quickPicks, useCategories } from "../lib/categories";
 
 interface QuickAddSheetProps {
   type: "expense" | "income";
-  // Categories the user already uses, offered as one-tap choices
+  // This month's expense categories, offered first as one-tap choices
   recentCategories: string[];
   onClose: () => void;
   onSaved: () => void;
@@ -24,6 +25,8 @@ function QuickAddSheet({ type: initialType, recentCategories, onClose, onSaved }
   const [error, setError] = useState("");
   const amountRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
+  const { categories } = useCategories();
+  const picks = quickPicks(type === "expense" ? recentCategories : [], categories, type);
 
   useEffect(() => {
     amountRef.current?.focus();
@@ -101,13 +104,22 @@ function QuickAddSheet({ type: initialType, recentCategories, onClose, onSaved }
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             maxLength={50}
+            list="quick-add-categories"
+            autoComplete="off"
             aria-label="Category"
             className={`${inputClass} w-full`}
             required
           />
-          {recentCategories.length > 0 && (
+          <datalist id="quick-add-categories">
+            {categories
+              .filter((c) => c.type === type)
+              .map((c) => (
+                <option key={c.id} value={c.name} />
+              ))}
+          </datalist>
+          {picks.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
-              {recentCategories.slice(0, 6).map((c) => (
+              {picks.map((c) => (
                 <button
                   key={c}
                   type="button"

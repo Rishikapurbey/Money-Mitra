@@ -1,6 +1,7 @@
 import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
 import { computeInsights } from "./insights";
+import { rememberCategory } from "../categories/category.service";
 
 export interface DateRange {
   from?: Date | undefined;
@@ -20,8 +21,9 @@ export async function createTransaction(
   note?: string | null,
   date?: Date
 ) {
+  const saved = await rememberCategory(userId, type, category);
   return prisma.transaction.create({
-    data: { userId, amount, type, category, note: note ?? null, ...(date && { date }) },
+    data: { userId, amount, type, category: saved, note: note ?? null, ...(date && { date }) },
   });
 }
 
@@ -149,7 +151,8 @@ export async function updateTransaction(
   const transaction = await prisma.transaction.findUnique({ where: { id } });
   if (!transaction || transaction.userId !== userId) throw new HttpError(404, "Transaction not found");
   const { date, ...rest } = data;
-  return prisma.transaction.update({ where: { id }, data: { ...rest, ...(date && { date }) } });
+  const category = await rememberCategory(userId, rest.type ?? transaction.type, rest.category ?? transaction.category);
+  return prisma.transaction.update({ where: { id }, data: { ...rest, category, ...(date && { date }) } });
 }
 
 // Plain-English observations about [from, to), compared with the month before it ([prevFrom, from)).

@@ -8,6 +8,7 @@ import { inputClass, pageWidth } from "../lib/ui";
 import { useWideLayout } from "../lib/useMediaQuery";
 import { csvField } from "../lib/csv";
 import type { AppContext } from "../components/AppLayout";
+import CategoriesCard from "../components/CategoriesCard";
 import { setTheme, useTheme } from "../lib/theme";
 import type { ThemeChoice } from "../lib/theme";
 import { useTitle } from "../lib/useTitle";
@@ -242,6 +243,8 @@ function Settings() {
             ))}
           </div>
         </Card>
+
+        <CategoriesCard />
 
         <Card title="Email notifications" description="Notifications always appear under the bell in the app. Choose whether you also get emails.">
           <label className="flex items-start justify-between gap-4 cursor-pointer">

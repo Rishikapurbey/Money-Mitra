@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
 import { signToken } from "../../lib/tokens";
+import { addStarterCategories } from "../categories/category.service";
 
 export async function signupUser(email: string, username: string, password: string) {
   // Emails and usernames are unique regardless of capitalisation
@@ -27,6 +28,7 @@ export async function signupUser(email: string, username: string, password: stri
       passwordHash,
     },
   });
+  await addStarterCategories(user.id);
 
   return {
     id: user.id,

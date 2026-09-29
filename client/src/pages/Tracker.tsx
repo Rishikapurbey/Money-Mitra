@@ -12,6 +12,7 @@ import TransactionsCard from "../components/TransactionsCard";
 import type { Transaction } from "../components/TransactionsCard";
 import { announceDataChange, onDataChange } from "../lib/dataEvents";
 import { ordinal } from "../lib/recurring";
+import { quickPicks, useCategories } from "../lib/categories";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { AlertCircle, TrendingUp, TrendingDown, Wallet2, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -65,6 +66,8 @@ function Tracker() {
   const [repeatEnd, setRepeatEnd] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  // Reloaded along with the month's data, so a category added with a transaction appears straight away
+  const { categories: savedCategories } = useCategories(transactions);
 
   const applyData = useCallback((data: DashboardData | null) => {
     if (data) {
@@ -205,16 +208,19 @@ function Tracker() {
 
   const categories = Array.from(new Set(transactions.map((t) => t.category)));
 
-  // Most-used categories for the selected type, offered as quick picks
+  // This month's most-used categories for the selected type first, then the rest of the user's list
   const categoryCounts = transactions
     .filter((t) => t.type === type)
     .reduce((acc: Record<string, number>, t) => {
       acc[t.category] = (acc[t.category] || 0) + 1;
       return acc;
     }, {});
-  const quickCategories = Object.keys(categoryCounts)
-    .sort((a, b) => categoryCounts[b] - categoryCounts[a])
-    .slice(0, 6);
+  const quickCategories = quickPicks(
+    Object.keys(categoryCounts).sort((a, b) => categoryCounts[b] - categoryCounts[a]),
+    savedCategories,
+    type
+  );
+  const typeCategories = savedCategories.filter((c) => c.type === type);
 
   const chartData = Object.values(
     transactions
@@ -402,9 +408,16 @@ function Tracker() {
           maxLength={50}
           value={category}
           onChange={(e) => setCategory(e.target.value)}
+          list="tracker-categories"
+          autoComplete="off"
           className={`${inputClass} w-full`}
           required
         />
+        <datalist id="tracker-categories">
+          {typeCategories.map((c) => (
+            <option key={c.id} value={c.name} />
+          ))}
+        </datalist>
         {quickCategories.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {quickCategories.map((c) => (

@@ -1,12 +1,14 @@
 import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
+import { rememberCategory } from "../categories/category.service";
 
 export async function listBudgets(userId: string) {
   return prisma.budget.findMany({ where: { userId }, orderBy: { category: "asc" } });
 }
 
 // One budget per category: setting it again updates the amount
-export async function setBudget(userId: string, category: string, amount: number) {
+export async function setBudget(userId: string, name: string, amount: number) {
+  const category = await rememberCategory(userId, "expense", name);
   return prisma.budget.upsert({
     where: { userId_category: { userId, category } },
     create: { userId, category, amount },

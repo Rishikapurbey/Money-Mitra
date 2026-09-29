@@ -49,6 +49,7 @@ export async function exportData(userId: string) {
       username: true,
       createdAt: true,
       transactions: { orderBy: { date: "desc" }, select: { amount: true, type: true, category: true, note: true, date: true } },
+      categories: { orderBy: { name: "asc" }, select: { name: true, type: true } },
       budgets: { select: { category: true, amount: true, createdAt: true } },
       goals: { select: { name: true, targetAmount: true, savedAmount: true, targetDate: true, createdAt: true } },
       recurring: { select: { amount: true, type: true, category: true, note: true, dayOfMonth: true, endDate: true, paused: true } },
@@ -83,6 +84,7 @@ export async function deleteAccount(userId: string, password: string) {
     prisma.recurringTransaction.deleteMany({ where: { userId } }),
     prisma.budget.deleteMany({ where: { userId } }),
     prisma.goal.deleteMany({ where: { userId } }),
+    prisma.category.deleteMany({ where: { userId } }),
     prisma.passwordReset.deleteMany({ where: { userId } }),
     prisma.user.delete({ where: { id: userId } }),
   ]);
