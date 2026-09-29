@@ -4,7 +4,8 @@ import { useNavigate, useOutletContext } from "react-router-dom";
 import { isAxiosError } from "axios";
 import { CheckCircle2, Download, FileJson, AlertTriangle } from "lucide-react";
 import api from "../lib/api";
-import { inputClass } from "../lib/ui";
+import { inputClass, pageWidth } from "../lib/ui";
+import { useWideLayout } from "../lib/useMediaQuery";
 import { csvField } from "../lib/csv";
 import type { AppContext } from "../components/AppLayout";
 import { setTheme, useTheme } from "../lib/theme";
@@ -53,6 +54,7 @@ function Settings() {
   useTitle("Settings");
   const { username, setUsername } = useOutletContext<AppContext>();
   const navigate = useNavigate();
+  const wide = useWideLayout();
   const { choice: themeChoice } = useTheme();
   const [email, setEmail] = useState("");
 
@@ -155,176 +157,180 @@ function Settings() {
   };
 
   return (
-    <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-      <div>
+    <main className={`${pageWidth} py-8 space-y-6`}>
+      <div className={wide ? "" : "max-w-2xl mx-auto"}>
         <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Settings</h1>
         <p className="mt-1 text-sm text-ink-500">Manage your account and your data.</p>
       </div>
 
-      <Card title="Profile" description="Your username is shown on questions and replies you don't post anonymously.">
-        <form onSubmit={saveUsername} className="space-y-4">
-          <label className="block">
-            <span className="text-sm font-medium text-ink-700">Email</span>
-            <input value={email} disabled className={`${inputClass} w-full mt-1.5 bg-canvas text-ink-500`} />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium text-ink-700">Username</span>
-            <input
-              value={newUsername}
-              onChange={(e) => setNewUsername(e.target.value)}
-              pattern="[A-Za-z0-9_]{3,20}"
-              title="3 to 20 characters: letters, numbers and underscores"
-              className={`${inputClass} w-full mt-1.5`}
-              required
-            />
-            <span className="mt-1 block text-xs text-ink-500">3 to 20 characters: letters, numbers and underscores.</span>
-          </label>
-          <Status {...usernameState} />
-          <button type="submit" disabled={usernameState.busy || newUsername === username} className={button}>
-            {usernameState.busy ? "Saving…" : "Save username"}
-          </button>
-        </form>
-      </Card>
+      {/* Wide screens: cards flow into two columns instead of one long strip */}
+      <div className={wide ? "columns-2 gap-6 [&>section]:break-inside-avoid [&>section]:mb-6" : "max-w-2xl mx-auto space-y-6"}>
 
-      <Card title="Password">
-        <form onSubmit={savePassword} className="space-y-4">
-          <label className="block">
-            <span className="text-sm font-medium text-ink-700">Current password</span>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className={`${inputClass} w-full mt-1.5`}
-              required
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium text-ink-700">New password</span>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              minLength={8}
-              maxLength={72}
-              className={`${inputClass} w-full mt-1.5`}
-              required
-            />
-            <span className="mt-1 block text-xs text-ink-500">At least 8 characters, with a letter and a number.</span>
-          </label>
-          <Status {...passwordState} />
-          <button type="submit" disabled={passwordState.busy} className={button}>
-            {passwordState.busy ? "Changing…" : "Change password"}
-          </button>
-        </form>
-      </Card>
-
-      <Card title="Appearance" description="Choose light or dark, or follow your device's setting.">
-        <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 p-1 bg-ink-100 rounded-xl text-sm font-medium">
-          {(["system", "light", "dark"] as ThemeChoice[]).map((option) => (
-            <button
-              key={option}
-              role="radio"
-              aria-checked={themeChoice === option}
-              onClick={() => setTheme(option)}
-              className={`py-2 rounded-lg capitalize transition ${
-                themeChoice === option ? "bg-surface text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-700"
-              }`}
-            >
-              {option === "system" ? "Device" : option}
+        <Card title="Profile" description="Your username is shown on questions and replies you don't post anonymously.">
+          <form onSubmit={saveUsername} className="space-y-4">
+            <label className="block">
+              <span className="text-sm font-medium text-ink-700">Email</span>
+              <input value={email} disabled className={`${inputClass} w-full mt-1.5 bg-canvas text-ink-500`} />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-ink-700">Username</span>
+              <input
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                pattern="[A-Za-z0-9_]{3,20}"
+                title="3 to 20 characters: letters, numbers and underscores"
+                className={`${inputClass} w-full mt-1.5`}
+                required
+              />
+              <span className="mt-1 block text-xs text-ink-500">3 to 20 characters: letters, numbers and underscores.</span>
+            </label>
+            <Status {...usernameState} />
+            <button type="submit" disabled={usernameState.busy || newUsername === username} className={button}>
+              {usernameState.busy ? "Saving…" : "Save username"}
             </button>
-          ))}
-        </div>
-      </Card>
+          </form>
+        </Card>
 
-      <Card title="Email notifications" description="Notifications always appear under the bell in the app. Choose whether you also get emails.">
-        <label className="flex items-start justify-between gap-4 cursor-pointer">
-          <span>
-            <span className="block text-sm font-medium text-ink-900">Replies to my questions</span>
-            <span className="block text-sm text-ink-500">
-              An email when someone answers a question you asked, at most once an hour per question.
+        <Card title="Password">
+          <form onSubmit={savePassword} className="space-y-4">
+            <label className="block">
+              <span className="text-sm font-medium text-ink-700">Current password</span>
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className={`${inputClass} w-full mt-1.5`}
+                required
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-ink-700">New password</span>
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                minLength={8}
+                maxLength={72}
+                className={`${inputClass} w-full mt-1.5`}
+                required
+              />
+              <span className="mt-1 block text-xs text-ink-500">At least 8 characters, with a letter and a number.</span>
+            </label>
+            <Status {...passwordState} />
+            <button type="submit" disabled={passwordState.busy} className={button}>
+              {passwordState.busy ? "Changing…" : "Change password"}
+            </button>
+          </form>
+        </Card>
+
+        <Card title="Appearance" description="Choose light or dark, or follow your device's setting.">
+          <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 p-1 bg-ink-100 rounded-xl text-sm font-medium">
+            {(["system", "light", "dark"] as ThemeChoice[]).map((option) => (
+              <button
+                key={option}
+                role="radio"
+                aria-checked={themeChoice === option}
+                onClick={() => setTheme(option)}
+                className={`py-2 rounded-lg capitalize transition ${
+                  themeChoice === option ? "bg-surface text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-700"
+                }`}
+              >
+                {option === "system" ? "Device" : option}
+              </button>
+            ))}
+          </div>
+        </Card>
+
+        <Card title="Email notifications" description="Notifications always appear under the bell in the app. Choose whether you also get emails.">
+          <label className="flex items-start justify-between gap-4 cursor-pointer">
+            <span>
+              <span className="block text-sm font-medium text-ink-900">Replies to my questions</span>
+              <span className="block text-sm text-ink-500">
+                An email when someone answers a question you asked, at most once an hour per question.
+              </span>
             </span>
-          </span>
-          <input
-            type="checkbox"
-            role="switch"
-            checked={emailReplies ?? false}
-            disabled={emailReplies === null || emailState.busy}
-            onChange={(e) => saveEmailReplies(e.target.checked)}
-            className="peer sr-only"
-          />
-          <span
-            aria-hidden="true"
-            className="relative shrink-0 w-11 h-6 rounded-full bg-ink-200 transition peer-checked:bg-brand-600 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-300 after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-5"
-          />
-        </label>
-        <div className="mt-3">
-          <Status {...emailState} />
-        </div>
-      </Card>
-
-      <Card title="Your data" description="Download a copy of everything you've stored in Money Mitra.">
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={() => exportData("csv")}
-            disabled={exportState.busy}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-line font-medium text-ink-900 hover:bg-ink-100 transition disabled:opacity-60"
-          >
-            <Download size={16} /> Transactions (CSV)
-          </button>
-          <button
-            onClick={() => exportData("json")}
-            disabled={exportState.busy}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-line font-medium text-ink-900 hover:bg-ink-100 transition disabled:opacity-60"
-          >
-            <FileJson size={16} /> Everything (JSON)
-          </button>
-        </div>
-        <p className="mt-3 text-xs text-ink-500">
-          The CSV opens in Excel or Google Sheets. The JSON file includes your transactions, budgets, goals, questions and replies.
-        </p>
-        <div className="mt-3">
-          <Status {...exportState} />
-        </div>
-      </Card>
-
-      <Card
-        title="Delete account"
-        description="This permanently deletes your account, transactions, budgets and goals. Your questions and replies in Discuss stay visible as “Deleted user” so conversations still make sense."
-        danger
-      >
-        <form onSubmit={deleteAccount} className="space-y-4">
-          <label className="block">
-            <span className="text-sm font-medium text-ink-700">Enter your password to confirm</span>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={deletePassword}
-              onChange={(e) => setDeletePassword(e.target.value)}
-              className={`${inputClass} w-full mt-1.5`}
-              required
-            />
-          </label>
-          <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"
-              checked={understood}
-              onChange={(e) => setUnderstood(e.target.checked)}
-              className="mt-0.5 w-4 h-4 accent-loss"
+              role="switch"
+              checked={emailReplies ?? false}
+              disabled={emailReplies === null || emailState.busy}
+              onChange={(e) => saveEmailReplies(e.target.checked)}
+              className="peer sr-only"
             />
-            <span className="text-sm text-ink-700">I understand this can't be undone.</span>
+            <span
+              aria-hidden="true"
+              className="relative shrink-0 w-11 h-6 rounded-full bg-ink-200 transition peer-checked:bg-brand-600 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-300 after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-5"
+            />
           </label>
-          <Status {...deleteState} />
-          <button
-            type="submit"
-            disabled={!understood || deleteState.busy}
-            className="flex items-center gap-2 bg-loss text-white px-5 py-2.5 rounded-xl font-medium hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <AlertTriangle size={16} /> {deleteState.busy ? "Deleting…" : "Delete my account"}
-          </button>
-        </form>
-      </Card>
+          <div className="mt-3">
+            <Status {...emailState} />
+          </div>
+        </Card>
+
+        <Card title="Your data" description="Download a copy of everything you've stored in Money Mitra.">
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => exportData("csv")}
+              disabled={exportState.busy}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-line font-medium text-ink-900 hover:bg-ink-100 transition disabled:opacity-60"
+            >
+              <Download size={16} /> Transactions (CSV)
+            </button>
+            <button
+              onClick={() => exportData("json")}
+              disabled={exportState.busy}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-line font-medium text-ink-900 hover:bg-ink-100 transition disabled:opacity-60"
+            >
+              <FileJson size={16} /> Everything (JSON)
+            </button>
+          </div>
+          <p className="mt-3 text-xs text-ink-500">
+            The CSV opens in Excel or Google Sheets. The JSON file includes your transactions, budgets, goals, questions and replies.
+          </p>
+          <div className="mt-3">
+            <Status {...exportState} />
+          </div>
+        </Card>
+
+        <Card
+          title="Delete account"
+          description="This permanently deletes your account, transactions, budgets and goals. Your questions and replies in Discuss stay visible as “Deleted user” so conversations still make sense."
+          danger
+        >
+          <form onSubmit={deleteAccount} className="space-y-4">
+            <label className="block">
+              <span className="text-sm font-medium text-ink-700">Enter your password to confirm</span>
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                className={`${inputClass} w-full mt-1.5`}
+                required
+              />
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={understood}
+                onChange={(e) => setUnderstood(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-loss"
+              />
+              <span className="text-sm text-ink-700">I understand this can't be undone.</span>
+            </label>
+            <Status {...deleteState} />
+            <button
+              type="submit"
+              disabled={!understood || deleteState.busy}
+              className="flex items-center gap-2 bg-loss text-white px-5 py-2.5 rounded-xl font-medium hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <AlertTriangle size={16} /> {deleteState.busy ? "Deleting…" : "Delete my account"}
+            </button>
+          </form>
+        </Card>
+      </div>
     </main>
   );
 }

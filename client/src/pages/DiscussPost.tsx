@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { isAxiosError } from "axios";
-import { ArrowLeft, Trash2, AlertCircle, ThumbsUp, Award, EyeOff } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Trash2, AlertCircle, ThumbsUp, Award, EyeOff } from "lucide-react";
 import api from "../lib/api";
 import { authorName, timeAgo, discussInputClass } from "../lib/discuss";
 import type { Post } from "../lib/discuss";
 import ReportButton from "../components/ReportButton";
+import { pageWidth } from "../lib/ui";
+import { useWideLayout } from "../lib/useMediaQuery";
+import { TERMS } from "../lib/learn";
 import { useToast } from "../lib/toast";
 import { useTitle } from "../lib/useTitle";
 import { announceNotificationsChange } from "../lib/dataEvents";
@@ -33,7 +36,22 @@ function DiscussPost() {
   const [replying, setReplying] = useState(false);
   // Which item is waiting for delete confirmation: "post", a reply id, or null
   const [confirming, setConfirming] = useState<string | null>(null);
+  const wide = useWideLayout();
+  const [moreInTopic, setMoreInTopic] = useState<Post[]>([]);
   const toast = useToast();
+  const postTopic = post?.topic;
+  // Other questions on the same topic, for the side rail
+  useEffect(() => {
+    if (!postTopic) return;
+    let current = true;
+    api
+      .get("/posts", { params: { topic: postTopic } })
+      .then((res) => current && setMoreInTopic((res.data.posts as Post[]).filter((p) => p.id !== id).slice(0, 5)))
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [postTopic, id]);
   useTitle(post && !post.hidden ? post.title : "Discuss");
 
   const applyPost = useCallback((result: PostResult) => {
@@ -127,21 +145,25 @@ function DiscussPost() {
 
   if (loading) {
     return (
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-4 animate-pulse">
-        <div className="h-4 w-32 bg-ink-200 rounded" />
-        <div className="h-48 bg-ink-100 rounded-2xl" />
-        <div className="h-24 bg-ink-100 rounded-2xl" />
+      <main className={`${pageWidth} py-8`}>
+        <div className="max-w-3xl mx-auto space-y-4 animate-pulse">
+          <div className="h-4 w-32 bg-ink-200 rounded" />
+          <div className="h-48 bg-ink-100 rounded-2xl" />
+          <div className="h-24 bg-ink-100 rounded-2xl" />
+        </div>
       </main>
     );
   }
 
   if (notFound) {
     return (
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        {backLink}
-        <div className="bg-surface border border-line rounded-2xl px-5 py-14 text-center">
-          <p className="font-medium text-ink-900">This discussion doesn't exist</p>
-          <p className="mt-1 text-sm text-ink-500">It may have been deleted by its author.</p>
+      <main className={`${pageWidth} py-8`}>
+        <div className="max-w-3xl mx-auto space-y-6">
+          {backLink}
+          <div className="bg-surface border border-line rounded-2xl px-5 py-14 text-center">
+            <p className="font-medium text-ink-900">This discussion doesn't exist</p>
+            <p className="mt-1 text-sm text-ink-500">It may have been deleted by its author.</p>
+          </div>
         </div>
       </main>
     );
@@ -149,8 +171,60 @@ function DiscussPost() {
 
   const replies = post?.replies ?? [];
 
+  const relatedTerms = post
+    ? (TERMS.some((t) => t.topic === post.topic) ? TERMS.filter((t) => t.topic === post.topic) : TERMS.filter((t) => t.level === "Basics")).slice(0, 4)
+    : [];
+
+  const sideRail = post && !post.hidden && (
+    <aside className="space-y-6 sticky top-20" aria-label="More on this topic">
+      <div className="dark-panel bg-ink-900 text-white rounded-2xl p-5">
+        <p className="font-semibold">Have a question of your own?</p>
+        <p className="mt-1 text-sm text-ink-300">Ask the community. You can post anonymously.</p>
+        <Link
+          to={`/discuss?ask=1&topic=${encodeURIComponent(post.topic)}`}
+          className="mt-4 inline-flex items-center gap-1.5 bg-brand-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-brand-500 transition"
+        >
+          Ask a question
+        </Link>
+      </div>
+      {moreInTopic.length > 0 && (
+        <section className="bg-surface border border-line rounded-2xl p-5" aria-labelledby="more-title">
+          <h2 id="more-title" className="font-semibold text-ink-900">More in {post.topic}</h2>
+          <ul className="mt-3 divide-y divide-line">
+            {moreInTopic.map((p) => (
+              <li key={p.id}>
+                <Link to={`/discuss/${p.id}`} className="block py-2.5 group">
+                  <span className="block text-sm font-medium text-ink-900 group-hover:text-brand-700 transition line-clamp-2">{p.title}</span>
+                  <span className="block mt-0.5 text-xs text-ink-500">
+                    {p.replyCount ?? 0} {p.replyCount === 1 ? "reply" : "replies"} · {timeAgo(p.createdAt)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      <section className="bg-surface border border-line rounded-2xl p-5" aria-labelledby="terms-title">
+        <h2 id="terms-title" className="flex items-center gap-2 font-semibold text-ink-900">
+          <BookOpen size={16} className="text-brand-600" /> Learn more
+        </h2>
+        <ul className="mt-3 space-y-1">
+          {relatedTerms.map((t) => (
+            <li key={t.slug}>
+              <Link to={`/learn/${t.slug}`} className="flex items-center justify-between gap-2 py-1.5 text-sm text-ink-700 hover:text-brand-700 transition">
+                {t.term} <ArrowRight size={14} className="shrink-0 text-ink-300" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </aside>
+  );
+
   return (
-    <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+    <main className={`${pageWidth} py-8`}>
+      <div className={wide ? "grid grid-cols-[minmax(0,1fr)_340px] gap-8 items-start" : "max-w-3xl mx-auto"}>
+      <div className="space-y-6 min-w-0">
       {backLink}
 
       {error && (
@@ -314,6 +388,9 @@ function DiscussPost() {
           </form>
         </>
       )}
+      </div>
+      {wide && sideRail}
+      </div>
     </main>
   );
 }

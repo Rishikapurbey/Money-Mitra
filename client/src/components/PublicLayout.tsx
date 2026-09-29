@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { Logo } from "./Logo";
+import { pageWidth } from "../lib/ui";
 import BackToTop from "./BackToTop";
 import ThemeToggle from "./ThemeToggle";
 
@@ -78,7 +79,7 @@ function PublicLayout() {
   return (
     <div className="min-h-screen bg-canvas flex flex-col">
       <header className="bg-surface/90 backdrop-blur border-b border-line sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-8">
+        <div className={`${pageWidth} h-16 flex items-center gap-8`}>
           <Link to="/" onClick={(e) => handleNav(e, "/")} aria-label="Money Mitra home" className="shrink-0">
             <Logo />
           </Link>
@@ -125,7 +126,7 @@ function PublicLayout() {
 
         {menuOpen && (
           <nav id="mobile-menu" aria-label="Main" className="md:hidden border-t border-line bg-surface">
-            <ul className="max-w-6xl mx-auto px-4 py-3 grid">
+            <ul className={`${pageWidth} py-3 grid`}>
               {items.map((item) => (
                 <li key={item.label}>
                   <Link
@@ -159,7 +160,7 @@ function PublicLayout() {
       </div>
 
       <footer className="dark-panel bg-ink-950 text-ink-300">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 grid gap-10 md:grid-cols-4">
+        <div className={`${pageWidth} py-12 grid gap-10 md:grid-cols-4`}>
           <div className="md:col-span-2">
             <Logo tone="dark" />
             <p className="mt-4 text-sm max-w-sm leading-relaxed">
@@ -184,7 +185,7 @@ function PublicLayout() {
           </div>
         </div>
         <div className="border-t border-ink-800">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row gap-3 justify-between text-xs text-ink-400">
+          <div className={`${pageWidth} py-6 flex flex-col sm:flex-row gap-3 justify-between text-xs text-ink-400`}>
             <p>© {new Date().getFullYear()} Money Mitra</p>
             <p className="max-w-xl sm:text-right">
               Money Mitra is for education and personal tracking only. It is not financial, tax or investment advice.

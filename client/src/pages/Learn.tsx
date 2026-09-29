@@ -4,11 +4,13 @@ import { Search, BookOpen, ChevronRight } from "lucide-react";
 import { TERMS, LEVELS, LEARN_TOPICS } from "../lib/learn";
 import type { Level } from "../lib/learn";
 import { useTitle } from "../lib/useTitle";
+import { pageWidth } from "../lib/ui";
+import { useWideLayout } from "../lib/useMediaQuery";
 
 const levelStyle: Record<Level, string> = {
   Basics: "text-brand-700 bg-brand-50",
   Intermediate: "text-ink-700 bg-ink-100",
-  Advanced: "text-white bg-ink-800",
+  Advanced: "text-surface bg-ink-800",
 };
 
 const chip = (active: boolean) =>
@@ -21,6 +23,7 @@ function Learn() {
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState("");
   const [topic, setTopic] = useState("");
+  const wide = useWideLayout();
 
   const q = query.trim().toLowerCase();
   const results = TERMS.filter((t) => {
@@ -30,41 +33,47 @@ function Learn() {
     return true;
   });
 
-  return (
-    <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Learn</h1>
-        <p className="mt-1 text-sm text-ink-500">Money terms explained simply, with examples in rupees.</p>
-      </div>
+  const pageHeader = (
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Learn</h1>
+      <p className="mt-1 text-sm text-ink-500">Money terms explained simply, with examples in rupees.</p>
+    </div>
+  );
 
-      <div className="relative">
-        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400" />
-        <input
-          type="search"
-          placeholder="Search a term, like SIP or credit score"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="w-full border border-line bg-surface rounded-xl pl-11 pr-4 py-3 text-ink-900 placeholder:text-ink-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition"
-        />
-      </div>
+  const searchBox = (
+    <div className="relative">
+      <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400" />
+      <input
+        type="search"
+        placeholder={wide ? "Search terms" : "Search a term, like SIP or credit score"}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="w-full border border-line bg-surface rounded-xl pl-11 pr-4 py-3 text-ink-900 placeholder:text-ink-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition"
+      />
+    </div>
+  );
 
-      <div className="space-y-3">
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
-          {["", ...LEVELS].map((l) => (
-            <button key={l || "all"} onClick={() => setLevel(l)} className={chip(level === l)}>
-              {l || "All levels"}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
-          {["", ...LEARN_TOPICS].map((t) => (
-            <button key={t || "all"} onClick={() => setTopic(t)} className={chip(topic === t)}>
-              {t || "All topics"}
-            </button>
-          ))}
-        </div>
+  const filterChips = (
+    <div className="space-y-3">
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
+        {["", ...LEVELS].map((l) => (
+          <button key={l || "all"} onClick={() => setLevel(l)} className={chip(level === l)}>
+            {l || "All levels"}
+          </button>
+        ))}
       </div>
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
+        {["", ...LEARN_TOPICS].map((t) => (
+          <button key={t || "all"} onClick={() => setTopic(t)} className={chip(topic === t)}>
+            {t || "All topics"}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
+  const resultsList = (
+    <>
       {results.length === 0 ? (
         <div className="bg-surface border border-line rounded-2xl px-5 py-14 text-center">
           <div className="mx-auto w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center">
@@ -82,7 +91,7 @@ function Learn() {
           </p>
         </div>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className={`grid gap-3 sm:grid-cols-2 ${wide ? "xl:grid-cols-3 2xl:grid-cols-4" : ""}`}>
           {results.map((t) => (
             <li key={t.slug}>
               <Link
@@ -103,10 +112,71 @@ function Learn() {
           ))}
         </ul>
       )}
+    </>
+  );
 
-      <p className="text-xs text-ink-400 text-center">
-        For education only, not financial advice. Consider your own situation or a qualified adviser before making decisions.
-      </p>
+  const disclaimer = (
+    <p className="text-xs text-ink-400 text-center">
+      For education only, not financial advice. Consider your own situation or a qualified adviser before making decisions.
+    </p>
+  );
+
+  const count = (match: (t: (typeof TERMS)[number]) => boolean) => TERMS.filter(match).length;
+  const option = (active: boolean) =>
+    `w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm transition ${
+      active ? "bg-surface border border-line font-semibold text-ink-900 shadow-sm" : "text-ink-700 hover:bg-surface"
+    }`;
+
+  // Wide screens: search and filters in a panel that stays in view
+  const filterPanel = (
+    <aside className="sticky top-20 space-y-6" aria-label="Filter terms">
+      {searchBox}
+      <nav aria-label="Level">
+        <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-ink-500">Level</p>
+        {["", ...LEVELS].map((l) => (
+          <button key={l || "all"} onClick={() => setLevel(l)} aria-current={level === l ? "page" : undefined} className={option(level === l)}>
+            {l || "All levels"}
+            <span className="text-xs text-ink-400 tabular-nums">{count((t) => !l || t.level === l)}</span>
+          </button>
+        ))}
+      </nav>
+      <nav aria-label="Topic">
+        <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-ink-500">Topic</p>
+        {["", ...LEARN_TOPICS].map((t) => (
+          <button key={t || "all"} onClick={() => setTopic(t)} aria-current={topic === t ? "page" : undefined} className={option(topic === t)}>
+            {t || "All topics"}
+            <span className="text-xs text-ink-400 tabular-nums">{count((term) => !t || term.topic === t)}</span>
+          </button>
+        ))}
+      </nav>
+    </aside>
+  );
+
+  return (
+    <main className={`${pageWidth} py-8`}>
+      {wide ? (
+        <div className="grid grid-cols-[240px_minmax(0,1fr)] gap-8 items-start">
+          {filterPanel}
+          <div className="space-y-6 min-w-0">
+            <div className="flex items-end justify-between gap-4">
+              {pageHeader}
+              <p className="text-sm text-ink-500 tabular-nums">
+                {results.length} {results.length === 1 ? "term" : "terms"}
+              </p>
+            </div>
+            {resultsList}
+            {disclaimer}
+          </div>
+        </div>
+      ) : (
+        <div className="max-w-3xl mx-auto space-y-6">
+          {pageHeader}
+          {searchBox}
+          {filterChips}
+          {resultsList}
+          {disclaimer}
+        </div>
+      )}
     </main>
   );
 }

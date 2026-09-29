@@ -3,17 +3,18 @@ import { ArrowRight, Calculator as CalculatorIcon } from "lucide-react";
 import { CALCULATORS } from "../lib/calculators";
 import { CALCULATOR_ICONS } from "../lib/calculatorIcons";
 import { useTitle } from "../lib/useTitle";
+import { pageWidth } from "../lib/ui";
 
 function Calculators() {
   useTitle("Calculators");
   return (
-    <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+    <main className={`${pageWidth} py-8 space-y-6`}>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Calculators</h1>
         <p className="mt-1 text-sm text-ink-500">Quick, free tools to plan your money. Results update as you type.</p>
       </div>
 
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {CALCULATORS.map((c) => {
           const Icon = CALCULATOR_ICONS[c.slug] ?? CalculatorIcon;
           return (

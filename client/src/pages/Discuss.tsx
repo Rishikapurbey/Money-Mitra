@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { isAxiosError } from "axios";
-import { MessageCircle, Plus, AlertCircle, MessagesSquare, X } from "lucide-react";
+import { MessageCircle, Plus, AlertCircle, MessagesSquare, X, BookOpen, ArrowRight } from "lucide-react";
 import api from "../lib/api";
 import { TOPICS, authorName, timeAgo, discussInputClass } from "../lib/discuss";
 import type { Post } from "../lib/discuss";
 import { useTitle } from "../lib/useTitle";
 import { useToast } from "../lib/toast";
+import { pageWidth } from "../lib/ui";
+import { useWideLayout } from "../lib/useMediaQuery";
+import { TERMS } from "../lib/learn";
 
 async function fetchPosts(topic: string, unanswered: boolean): Promise<Post[] | null> {
   try {
@@ -35,6 +38,17 @@ function Discuss() {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [formError, setFormError] = useState("");
   const [posting, setPosting] = useState(false);
+  const wide = useWideLayout();
+  // Unanswered questions for the side rail, independent of the filters
+  const [waiting, setWaiting] = useState<Post[]>([]);
+
+  useEffect(() => {
+    let current = true;
+    fetchPosts("", true).then((result) => current && result && setWaiting(result.slice(0, 5)));
+    return () => {
+      current = false;
+    };
+  }, []);
 
   const applyPosts = useCallback((result: Post[] | null) => {
     if (result) {
@@ -87,135 +101,141 @@ function Discuss() {
     }
   };
 
-  return (
-    <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Discuss</h1>
-          <p className="mt-1 text-sm text-ink-500">Ask the community anything about money.</p>
-        </div>
-        {!asking && (
-          <button
-            onClick={() => setAsking(true)}
-            className="flex items-center gap-1.5 bg-brand-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-brand-700 transition"
-          >
-            <Plus size={16} /> Ask a question
-          </button>
-        )}
+  const pageHeader = (
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Discuss</h1>
+        <p className="mt-1 text-sm text-ink-500">Ask the community anything about money.</p>
       </div>
-
-      <div className="dark-panel bg-ink-900 text-white rounded-2xl p-5 sm:p-6 flex gap-4 items-start">
-        <span className="bg-ink-800 p-2.5 rounded-xl shrink-0">
-          <MessagesSquare size={20} className="text-brand-300" />
-        </span>
-        <div>
-          <p className="font-semibold">No question is too basic.</p>
-          <p className="mt-1 text-sm text-ink-300">
-            Everyone starts somewhere. Post anonymously if you prefer, and your name won't be shown to anyone.
-          </p>
-        </div>
-      </div>
-
-      {asking && (
-        <form onSubmit={handleAsk} className="bg-surface p-6 rounded-2xl border border-brand-500 ring-2 ring-brand-100 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-ink-900">Ask a question</h2>
-            <button type="button" onClick={closeForm} aria-label="Close" className="text-ink-400 hover:text-ink-900 transition">
-              <X size={18} />
-            </button>
-          </div>
-          {formError && <p className="text-loss text-sm bg-loss-soft px-3 py-2 rounded-lg">{formError}</p>}
-          <input
-            type="text"
-            placeholder="Your question, in one line (at least 5 characters)"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            minLength={5}
-            maxLength={150}
-            className={discussInputClass}
-            required
-          />
-          <textarea
-            placeholder="Add details (optional): your situation, what you've tried, what you're unsure about"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            maxLength={5000}
-            rows={5}
-            className={`${discussInputClass} resize-y`}
-          />
-          <div>
-            <p className="text-sm font-medium text-ink-700 mb-2">Topic</p>
-            <div className="flex flex-wrap gap-2">
-              {TOPICS.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setNewTopic(t)}
-                  className={`px-3 py-1 rounded-full text-sm border transition ${
-                    newTopic === t ? "border-brand-500 bg-brand-50 text-brand-700" : "border-line text-ink-700 hover:border-ink-300"
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isAnonymous}
-              onChange={(e) => setIsAnonymous(e.target.checked)}
-              className="mt-0.5 w-4 h-4 accent-brand-600"
-            />
-            <span>
-              <span className="block text-sm font-medium text-ink-900">Post anonymously</span>
-              <span className="block text-sm text-ink-500">Your username won't be shown on this question.</span>
-            </span>
-          </label>
-          <button
-            type="submit"
-            disabled={posting || !newTopic}
-            className="bg-brand-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-brand-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {posting ? "Posting…" : "Post question"}
-          </button>
-        </form>
-      )}
-
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
-        {["", ...TOPICS].map((t) => (
-          <button
-            key={t || "all"}
-            onClick={() => setTopic(t)}
-            className={`px-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition ${
-              topic === t ? "bg-ink-900 text-surface" : "bg-surface border border-line text-ink-700 hover:border-ink-300"
-            }`}
-          >
-            {t || "All topics"}
-          </button>
-        ))}
-        <span className="w-px shrink-0 bg-line mx-1" aria-hidden="true" />
+      {!asking && (
         <button
-          onClick={() => setUnanswered((u) => !u)}
-          aria-pressed={unanswered}
-          className={`px-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition ${
-            unanswered ? "bg-brand-600 text-white" : "bg-surface border border-line text-ink-700 hover:border-ink-300"
-          }`}
+          onClick={() => setAsking(true)}
+          className="flex items-center gap-1.5 bg-brand-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-brand-700 transition"
         >
-          Unanswered
+          <Plus size={16} /> Ask a question
+        </button>
+      )}
+    </div>
+  );
+
+  const welcomeBanner = (
+    <div className="dark-panel bg-ink-900 text-white rounded-2xl p-5 sm:p-6 flex gap-4 items-start">
+      <span className="bg-ink-800 p-2.5 rounded-xl shrink-0">
+        <MessagesSquare size={20} className="text-brand-300" />
+      </span>
+      <div>
+        <p className="font-semibold">No question is too basic.</p>
+        <p className="mt-1 text-sm text-ink-300">
+          Everyone starts somewhere. Post anonymously if you prefer, and your name won't be shown to anyone.
+        </p>
+      </div>
+    </div>
+  );
+
+  const askForm = asking && (
+    <form onSubmit={handleAsk} className="bg-surface p-6 rounded-2xl border border-brand-500 ring-2 ring-brand-100 space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-ink-900">Ask a question</h2>
+        <button type="button" onClick={closeForm} aria-label="Close" className="text-ink-400 hover:text-ink-900 transition">
+          <X size={18} />
         </button>
       </div>
-
-      {error && (
-        <div role="alert" className="flex items-center gap-3 bg-loss-soft text-loss px-4 py-3 rounded-xl text-sm">
-          <AlertCircle size={18} className="shrink-0" />
-          <span className="flex-1">{error}</span>
-          <button onClick={loadPosts} className="font-medium underline underline-offset-2 hover:no-underline">
-            Retry
-          </button>
+      {formError && <p className="text-loss text-sm bg-loss-soft px-3 py-2 rounded-lg">{formError}</p>}
+      <input
+        type="text"
+        placeholder="Your question, in one line (at least 5 characters)"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        minLength={5}
+        maxLength={150}
+        className={discussInputClass}
+        required
+      />
+      <textarea
+        placeholder="Add details (optional): your situation, what you've tried, what you're unsure about"
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        maxLength={5000}
+        rows={5}
+        className={`${discussInputClass} resize-y`}
+      />
+      <div>
+        <p className="text-sm font-medium text-ink-700 mb-2">Topic</p>
+        <div className="flex flex-wrap gap-2">
+          {TOPICS.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setNewTopic(t)}
+              className={`px-3 py-1 rounded-full text-sm border transition ${
+                newTopic === t ? "border-brand-500 bg-brand-50 text-brand-700" : "border-line text-ink-700 hover:border-ink-300"
+              }`}
+            >
+              {t}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
+      <label className="flex items-start gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={isAnonymous}
+          onChange={(e) => setIsAnonymous(e.target.checked)}
+          className="mt-0.5 w-4 h-4 accent-brand-600"
+        />
+        <span>
+          <span className="block text-sm font-medium text-ink-900">Post anonymously</span>
+          <span className="block text-sm text-ink-500">Your username won't be shown on this question.</span>
+        </span>
+      </label>
+      <button
+        type="submit"
+        disabled={posting || !newTopic}
+        className="bg-brand-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-brand-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        {posting ? "Posting…" : "Post question"}
+      </button>
+    </form>
+  );
 
+  const topicChips = (
+    <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
+      {["", ...TOPICS].map((t) => (
+        <button
+          key={t || "all"}
+          onClick={() => setTopic(t)}
+          className={`px-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition ${
+            topic === t ? "bg-ink-900 text-surface" : "bg-surface border border-line text-ink-700 hover:border-ink-300"
+          }`}
+        >
+          {t || "All topics"}
+        </button>
+      ))}
+      <span className="w-px shrink-0 bg-line mx-1" aria-hidden="true" />
+      <button
+        onClick={() => setUnanswered((u) => !u)}
+        aria-pressed={unanswered}
+        className={`px-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition ${
+          unanswered ? "bg-brand-600 text-white" : "bg-surface border border-line text-ink-700 hover:border-ink-300"
+        }`}
+      >
+        Unanswered
+      </button>
+    </div>
+  );
+
+  const errorBanner = error && (
+    <div role="alert" className="flex items-center gap-3 bg-loss-soft text-loss px-4 py-3 rounded-xl text-sm">
+      <AlertCircle size={18} className="shrink-0" />
+      <span className="flex-1">{error}</span>
+      <button onClick={loadPosts} className="font-medium underline underline-offset-2 hover:no-underline">
+        Retry
+      </button>
+    </div>
+  );
+
+  const feed = (
+    <>
       {loading ? (
         <div className="space-y-3 animate-pulse">
           {[0, 1, 2].map((i) => (
@@ -262,6 +282,96 @@ function Discuss() {
             </li>
           ))}
         </ul>
+      )}
+    </>
+  );
+
+  // Wide screens only: topics as a list on the left
+  const topicNav = (
+    <nav aria-label="Topics" className="sticky top-20 space-y-1">
+      <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-ink-500">Topics</p>
+      {["", ...TOPICS].map((t) => (
+        <button
+          key={t || "all"}
+          onClick={() => setTopic(t)}
+          aria-current={topic === t ? "page" : undefined}
+          className={`w-full text-left px-3 py-2 rounded-xl text-sm transition ${
+            topic === t ? "bg-surface border border-line font-semibold text-ink-900 shadow-sm" : "text-ink-700 hover:bg-surface"
+          }`}
+        >
+          {t || "All topics"}
+        </button>
+      ))}
+      <div className="pt-3 mt-3 border-t border-line">
+        <label className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-sm text-ink-700 cursor-pointer hover:bg-surface">
+          Unanswered only
+          <input type="checkbox" checked={unanswered} onChange={(e) => setUnanswered(e.target.checked)} className="w-4 h-4 accent-brand-600" />
+        </label>
+      </div>
+    </nav>
+  );
+
+  // Terms to read, following the selected topic when Learn covers it
+  const suggestedTerms = (TERMS.some((t) => t.topic === topic) ? TERMS.filter((t) => t.topic === topic) : TERMS.filter((t) => t.level === "Basics")).slice(0, 4);
+
+  const sideRail = (
+    <aside className="space-y-6" aria-label="Help others and learn">
+      {welcomeBanner}
+      {waiting.length > 0 && (
+        <section className="bg-surface border border-line rounded-2xl p-5" aria-labelledby="waiting-title">
+          <h2 id="waiting-title" className="font-semibold text-ink-900">Waiting for an answer</h2>
+          <p className="mt-0.5 text-xs text-ink-500">Know something? Help someone out.</p>
+          <ul className="mt-3 divide-y divide-line">
+            {waiting.map((post) => (
+              <li key={post.id}>
+                <Link to={`/discuss/${post.id}`} className="block py-2.5 group">
+                  <span className="block text-sm font-medium text-ink-900 group-hover:text-brand-700 transition line-clamp-2">{post.title}</span>
+                  <span className="block mt-0.5 text-xs text-ink-500">{post.topic} · {timeAgo(post.createdAt)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      <section className="bg-surface border border-line rounded-2xl p-5" aria-labelledby="learn-title">
+        <h2 id="learn-title" className="flex items-center gap-2 font-semibold text-ink-900">
+          <BookOpen size={16} className="text-brand-600" /> {topic && TERMS.some((t) => t.topic === topic) ? `Learn about ${topic}` : "Learn the basics"}
+        </h2>
+        <ul className="mt-3 space-y-1">
+          {suggestedTerms.map((t) => (
+            <li key={t.slug}>
+              <Link to={`/learn/${t.slug}`} className="flex items-center justify-between gap-2 py-1.5 text-sm text-ink-700 hover:text-brand-700 transition">
+                {t.term} <ArrowRight size={14} className="shrink-0 text-ink-300" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </aside>
+  );
+
+  return (
+    <main className={`${pageWidth} py-8`}>
+      {wide ? (
+        <div className="grid grid-cols-[220px_minmax(0,1fr)_320px] gap-8 items-start">
+          {topicNav}
+          <div className="space-y-6 min-w-0">
+            {pageHeader}
+            {askForm}
+            {errorBanner}
+            {feed}
+          </div>
+          {sideRail}
+        </div>
+      ) : (
+        <div className="max-w-3xl mx-auto space-y-6">
+          {pageHeader}
+          {welcomeBanner}
+          {askForm}
+          {topicChips}
+          {errorBanner}
+          {feed}
+        </div>
       )}
     </main>
   );
