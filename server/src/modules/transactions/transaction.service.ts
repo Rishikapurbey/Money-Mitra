@@ -32,6 +32,68 @@ export async function getTransactions(userId: string, range: DateRange = {}) {
   });
 }
 
+export interface TransactionSearch {
+  range: DateRange;
+  q?: string | undefined;
+  type?: "income" | "expense" | undefined;
+  category?: string | undefined;
+  min?: number | undefined;
+  max?: number | undefined;
+}
+
+export const SEARCH_PAGE_SIZE = 50;
+
+// One page of matching transactions (newest first), plus totals for every match, not just this page
+export async function searchTransactions(userId: string, search: TransactionSearch, cursor?: string) {
+  const { range, q, type, category, min, max } = search;
+  const where = {
+    userId,
+    ...dateFilter(range),
+    ...(type && { type }),
+    ...(category && { category }),
+    ...((min !== undefined || max !== undefined) && {
+      amount: { ...(min !== undefined && { gte: min }), ...(max !== undefined && { lte: max }) },
+    }),
+    ...(q && {
+      OR: [
+        { note: { contains: q, mode: "insensitive" as const } },
+        { category: { contains: q, mode: "insensitive" as const } },
+      ],
+    }),
+  };
+
+  const [rows, groups] = await Promise.all([
+    prisma.transaction.findMany({
+      where,
+      orderBy: [{ date: "desc" }, { id: "desc" }],
+      take: SEARCH_PAGE_SIZE + 1,
+      ...(cursor && { cursor: { id: cursor }, skip: 1 }),
+    }),
+    prisma.transaction.groupBy({ by: ["type"], where, _sum: { amount: true }, _count: { _all: true } }),
+  ]);
+
+  const totals = { count: 0, income: 0, expense: 0 };
+  for (const g of groups) {
+    totals.count += g._count._all;
+    if (g.type === "income") totals.income += g._sum.amount ?? 0;
+    else totals.expense += g._sum.amount ?? 0;
+  }
+  const hasMore = rows.length > SEARCH_PAGE_SIZE;
+  const transactions = hasMore ? rows.slice(0, SEARCH_PAGE_SIZE) : rows;
+  return { transactions, totals, nextCursor: hasMore ? transactions[transactions.length - 1]!.id : null };
+}
+
+// Every category the user has ever used, for filter dropdowns
+export async function getCategories(userId: string) {
+  const rows = await prisma.transaction.findMany({
+    where: { userId },
+    distinct: ["category"],
+    select: { category: true },
+    orderBy: { category: "asc" },
+  });
+  return rows.map((r) => r.category);
+}
+
 export async function getSummary(userId: string, range: DateRange = {}) {
   const all = await prisma.transaction.findMany({ where: { userId } });
   const net = (list: typeof all) =>

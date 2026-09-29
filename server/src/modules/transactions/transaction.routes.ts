@@ -9,6 +9,9 @@ import {
   updateTransaction,
   DateRange,
   getInsights,
+  searchTransactions,
+  getCategories,
+  TransactionSearch,
 } from "./transaction.service";
 
 const router = Router();
@@ -49,6 +52,26 @@ function parseRange(query: Record<string, unknown>): DateRange | null {
   return { from, to };
 }
 
+// Returns the validated search, or an error message
+function parseSearch(query: Record<string, unknown>): TransactionSearch | string {
+  const range = parseRange(query);
+  if (!range) return "Invalid date range";
+  const q = typeof query.q === "string" ? query.q.trim() : "";
+  if (q.length > 100) return "Search can be up to 100 characters";
+  const type = query.type;
+  if (type !== undefined && type !== "income" && type !== "expense") return "Type must be income or expense";
+  const category = typeof query.category === "string" ? query.category.trim() : "";
+  if (category.length > 50) return "Category can be up to 50 characters";
+  const amount = (value: unknown) => (value === undefined || value === "" ? undefined : Number(value));
+  const min = amount(query.min);
+  const max = amount(query.max);
+  for (const n of [min, max]) {
+    if (n !== undefined && (!Number.isFinite(n) || n < 0)) return "Amounts must be positive numbers";
+  }
+  if (min !== undefined && max !== undefined && min > max) return "Minimum amount can't be more than the maximum";
+  return { range, q: q || undefined, type, category: category || undefined, min, max };
+}
+
 router.post("/", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   const input = parseTransaction(req.body);
@@ -66,6 +89,19 @@ router.get("/", authMiddleware, async (req: AuthRequest, res) => {
   if (!range) return res.status(400).json({ error: "Invalid date range" });
   const transactions = await getTransactions(req.userId, range);
   res.status(200).json({ transactions });
+});
+
+router.get("/search", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  const search = parseSearch(req.query);
+  if (typeof search === "string") return res.status(400).json({ error: search });
+  const cursor = typeof req.query.cursor === "string" && req.query.cursor.length <= 50 ? req.query.cursor : undefined;
+  res.status(200).json(await searchTransactions(req.userId, search, cursor));
+});
+
+router.get("/categories", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  res.status(200).json({ categories: await getCategories(req.userId) });
 });
 
 router.get("/summary", authMiddleware, async (req: AuthRequest, res) => {

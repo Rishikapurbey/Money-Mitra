@@ -8,35 +8,17 @@ import { addMonths, startOfMonth, toInputDate, transactionTimestamp } from "../l
 import BudgetsCard from "../components/BudgetsCard";
 import GoalsCard from "../components/GoalsCard";
 import RecurringCard from "../components/RecurringCard";
+import TransactionsCard from "../components/TransactionsCard";
+import type { Transaction } from "../components/TransactionsCard";
 import { announceDataChange, onDataChange } from "../lib/dataEvents";
 import { ordinal } from "../lib/recurring";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { AlertCircle, TrendingUp, TrendingDown, Wallet2, Pencil, Trash2, Plus, Receipt, ChevronLeft, ChevronRight, Repeat } from "lucide-react";
-
-interface Transaction {
-  id: string;
-  amount: number;
-  type: string;
-  category: string;
-  note?: string;
-  date: string;
-  recurringId?: string | null;
-}
+import { AlertCircle, TrendingUp, TrendingDown, Wallet2, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 
 const COLORS = [1, 2, 3, 4, 5, 6].map((n) => `var(--color-chart-${n})`);
 
 
 const monthName = (d: Date) => d.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
-
-const dayLabel = (iso: string) => {
-  const d = new Date(iso);
-  const today = new Date();
-  const yesterday = new Date();
-  yesterday.setDate(today.getDate() - 1);
-  if (d.toDateString() === today.toDateString()) return "Today";
-  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-};
 
 interface DashboardData {
   transactions: Transaction[];
@@ -82,8 +64,6 @@ function Tracker() {
   const [repeat, setRepeat] = useState(false);
   const [repeatEnd, setRepeatEnd] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [filterType, setFilterType] = useState("all");
-  const [filterCategory, setFilterCategory] = useState("all");
   const formRef = useRef<HTMLFormElement>(null);
 
   const applyData = useCallback((data: DashboardData | null) => {
@@ -236,20 +216,6 @@ function Tracker() {
     .sort((a, b) => categoryCounts[b] - categoryCounts[a])
     .slice(0, 6);
 
-  const filtered = transactions.filter((t) => {
-    if (filterType !== "all" && t.type !== filterType) return false;
-    if (filterCategory !== "all" && t.category !== filterCategory) return false;
-    return true;
-  });
-
-  const grouped = filtered.reduce((acc: { label: string; items: Transaction[] }[], t) => {
-    const label = dayLabel(t.date);
-    const last = acc[acc.length - 1];
-    if (last && last.label === label) last.items.push(t);
-    else acc.push({ label, items: [t] });
-    return acc;
-  }, []);
-
   const chartData = Object.values(
     transactions
       .filter((t) => t.type === "expense")
@@ -266,6 +232,9 @@ function Tracker() {
   [...chartData.map((d) => d.name), ...categories].forEach((c) => {
     if (!(c in colorOf)) colorOf[c] = COLORS[Object.keys(colorOf).length % COLORS.length];
   });
+  // Categories from other months (in search results) get a stable colour from their name
+  const colorFor = (c: string) =>
+    colorOf[c] ?? COLORS[[...c].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 0) % COLORS.length];
 
   const isCurrentMonth = month.getTime() === startOfMonth(new Date()).getTime();
   const monthShort = month.toLocaleDateString("en-IN", { month: "long" });
@@ -589,133 +558,15 @@ function Tracker() {
   );
 
   const transactionsCard = (
-    <section className="bg-surface rounded-2xl border border-line overflow-hidden">
-      <div className="flex flex-wrap gap-3 justify-between items-center p-5 border-b border-line">
-        <h2 className="font-semibold text-ink-900">Transactions</h2>
-        <div className="flex gap-2">
-          <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className={`${inputClass} py-1.5 text-sm`}>
-            <option value="all">All types</option>
-            <option value="income">Income</option>
-            <option value="expense">Expense</option>
-          </select>
-          <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className={`${inputClass} py-1.5 text-sm`}>
-            <option value="all">All categories</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {transactions.length === 0 ? (
-        <div className="px-5 py-14 text-center">
-          <div className="mx-auto w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center">
-            <Receipt size={22} className="text-brand-600" />
-          </div>
-          <p className="mt-4 font-medium text-ink-900">No transactions in {monthName(month)}</p>
-          <p className="mt-1 text-sm text-ink-500">
-            {isCurrentMonth ? "Add an income or expense above to start tracking." : "Nothing was recorded this month."}
-          </p>
-        </div>
-      ) : filtered.length === 0 ? (
-        <p className="p-5 text-ink-500 text-sm">No transactions match these filters.</p>
-      ) : (
-        wide ? (
-          <table className="w-full text-sm">
-            <thead className="bg-canvas text-xs uppercase tracking-wider text-ink-500">
-              <tr>
-                <th scope="col" className="text-left font-medium px-5 py-2.5 w-32">Date</th>
-                <th scope="col" className="text-left font-medium px-5 py-2.5">Category</th>
-                <th scope="col" className="text-left font-medium px-5 py-2.5">Note</th>
-                <th scope="col" className="text-right font-medium px-5 py-2.5">Amount</th>
-                <th scope="col" className="px-5 py-2.5 w-24"><span className="sr-only">Actions</span></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {filtered.map((t) => (
-                <tr key={t.id} className="hover:bg-canvas transition">
-                  <td className="px-5 py-3 text-ink-500 whitespace-nowrap">{dayLabel(t.date)}</td>
-                  <td className="px-5 py-3">
-                    <span className="flex items-center gap-3 min-w-0">
-                      <span
-                        className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs font-semibold text-white"
-                        style={{ background: colorOf[t.category] }}
-                      >
-                        {t.category.charAt(0).toUpperCase()}
-                      </span>
-                      <span className="font-medium text-ink-900 truncate">{t.category}</span>
-                      {t.recurringId && <Repeat size={13} className="shrink-0 text-ink-400" aria-label="Added automatically every month" />}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-ink-500 max-w-xs truncate">{t.note || "—"}</td>
-                  <td className="px-5 py-3 text-right">
-                    <span
-                      className={`px-2.5 py-1 rounded-lg font-semibold tabular-nums ${
-                        t.type === "income" ? "text-gain bg-gain-soft" : "text-loss bg-loss-soft"
-                      }`}
-                    >
-                      {t.type === "income" ? "+" : "−"}{formatINR(t.amount)}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className="flex items-center justify-end gap-3">
-                      <button onClick={() => handleEdit(t)} aria-label={`Edit ${t.category}`} className="text-ink-300 hover:text-brand-600 transition">
-                        <Pencil size={16} />
-                      </button>
-                      <button onClick={() => handleDelete(t)} aria-label={`Delete ${t.category}`} className="text-ink-300 hover:text-loss transition">
-                        <Trash2 size={16} />
-                      </button>
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-        grouped.map((group) => (
-          <div key={group.label}>
-            <p className="px-5 py-2 bg-canvas text-xs font-medium uppercase tracking-wider text-ink-500 border-b border-line">
-              {group.label}
-            </p>
-            {group.items.map((t) => (
-              <div key={t.id} className="flex justify-between items-center gap-4 px-5 py-4 border-b border-line last:border-0 hover:bg-canvas transition">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span
-                    className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-sm font-semibold text-white"
-                    style={{ background: colorOf[t.category] }}
-                  >
-                    {t.category.charAt(0).toUpperCase()}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-medium text-ink-900 truncate flex items-center gap-1.5">
-                      {t.category}
-                      {t.recurringId && <Repeat size={13} className="shrink-0 text-ink-400" aria-label="Added automatically every month" />}
-                    </p>
-                    {t.note && <p className="text-sm text-ink-500 truncate">{t.note}</p>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span
-                    className={`px-2.5 py-1 rounded-lg text-sm font-semibold tabular-nums ${
-                      t.type === "income" ? "text-gain bg-gain-soft" : "text-loss bg-loss-soft"
-                    }`}
-                  >
-                    {t.type === "income" ? "+" : "−"}{formatINR(t.amount)}
-                  </span>
-                  <button onClick={() => handleEdit(t)} aria-label="Edit" className="text-ink-300 hover:text-brand-600 transition">
-                    <Pencil size={16} />
-                  </button>
-                  <button onClick={() => handleDelete(t)} aria-label="Delete" className="text-ink-300 hover:text-loss transition">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ))
-        )
-      )}
-    </section>
+    <TransactionsCard
+      month={month}
+      monthTransactions={transactions}
+      isCurrentMonth={isCurrentMonth}
+      wide={wide}
+      colorFor={colorFor}
+      onEdit={handleEdit}
+      onDelete={handleDelete}
+    />
   );
 
   return (
