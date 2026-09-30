@@ -1,7 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { isAxiosError } from "axios";
-import { CalendarDays, Lock, MessageCircle, Pencil, ThumbsUp, UserPlus, UserRound } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  Circle,
+  Globe,
+  HelpCircle,
+  Lock,
+  MessageCircle,
+  Pencil,
+  ThumbsUp,
+  UserPlus,
+  UserRound,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import api from "../lib/api";
 import { nameOf } from "../lib/me";
 import type { Profile as ProfileData } from "../lib/profile";
@@ -21,22 +35,6 @@ async function fetchProfile(username: string | undefined): Promise<Result> {
   } catch (err) {
     return isAxiosError(err) && err.response?.status === 404 ? "not-found" : "error";
   }
-}
-
-function Stat({ value, label, to }: { value: number; label: string; to?: string | false }) {
-  const content = (
-    <>
-      <p className="text-xl font-semibold tabular-nums text-ink-900">{value}</p>
-      <p className="text-xs text-ink-500">{label}</p>
-    </>
-  );
-  return to ? (
-    <Link to={to} className="block text-center rounded-xl py-1 hover:bg-ink-100 transition">
-      {content}
-    </Link>
-  ) : (
-    <div className="text-center py-1">{content}</div>
-  );
 }
 
 // A person's community identity: who they are and what they've shared in Discuss under their name.
@@ -101,178 +99,326 @@ function Profile() {
 
   const joined = new Date(profile.joinedAt).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
   const activity = profile.activity;
+  const name = nameOf(profile);
 
-  const card = (
-    <section className="bg-surface border border-line rounded-2xl p-6">
-      <div className="flex flex-col items-center text-center">
-        <Avatar name={nameOf(profile)} avatarUrl={profile.avatarUrl} size="xl" />
-        <h1 className="mt-4 text-xl font-semibold tracking-tight text-ink-900">{nameOf(profile)}</h1>
-        {profile.displayName && <p className="text-sm text-ink-500">@{profile.username}</p>}
-        {profile.bio && <p className="mt-3 text-sm text-ink-700 whitespace-pre-line break-words">{profile.bio}</p>}
-        {profile.followsYou && (
-          <span className="mt-2 text-xs font-medium text-ink-700 bg-ink-100 px-2 py-0.5 rounded-md">Follows you</span>
-        )}
-        <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-500">
-          <CalendarDays size={14} /> Joined {joined}
-          {profile.isPrivate && (
-            <>
-              <span aria-hidden="true">·</span>
-              <Lock size={13} /> Private
-            </>
-          )}
-        </p>
-      </div>
-      {profile.followStatus && (
-        <div className="mt-5 flex justify-center">
-          <FollowButton username={profile.username} status={profile.followStatus} onChange={reload} />
+  const socialCount = (value: number, label: string, to: string) => {
+    const content = (
+      <>
+        <span className="font-semibold tabular-nums text-ink-900">{value}</span> {label}
+      </>
+    );
+    // The lists only open when the activity is visible
+    return activity ? (
+      <Link to={to} className="text-sm text-ink-500 hover:text-ink-900 hover:underline">
+        {content}
+      </Link>
+    ) : (
+      <span className="text-sm text-ink-500">{content}</span>
+    );
+  };
+
+  const actions = profile.isMe ? (
+    <div className="flex flex-wrap items-center gap-2">
+      {profile.pendingRequests > 0 && (
+        <Link
+          to="/follow-requests"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-50 text-brand-700 text-sm font-medium hover:opacity-90 transition"
+        >
+          <UserPlus size={15} /> Follow requests
+          <span className="min-w-5 h-5 px-1.5 rounded-full bg-brand-600 text-white text-xs leading-5 text-center tabular-nums">
+            {profile.pendingRequests}
+          </span>
+        </Link>
+      )}
+      <Link
+        to="/settings/profile"
+        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-line text-sm font-medium text-ink-900 hover:bg-ink-100 transition"
+      >
+        <Pencil size={15} /> Edit profile
+      </Link>
+    </div>
+  ) : (
+    profile.followStatus && <FollowButton username={profile.username} status={profile.followStatus} onChange={reload} />
+  );
+
+  const header = (
+    <section className="bg-surface border border-line rounded-2xl overflow-hidden">
+      {/* A quiet band in the brand's deep teal with a fine dot pattern, the same in both themes */}
+      <div
+        aria-hidden="true"
+        className="h-28 sm:h-36"
+        style={{
+          backgroundColor: "#0c5a54",
+          backgroundImage: "radial-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1px)",
+          backgroundSize: "18px 18px",
+        }}
+      />
+      <div className="px-5 sm:px-8 pb-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="-mt-14 rounded-full ring-4 ring-surface bg-surface">
+            <Avatar name={name} avatarUrl={profile.avatarUrl} size="2xl" />
+          </div>
+          <div className="pt-4">{actions}</div>
         </div>
-      )}
-      {profile.followStatus === "requested" && (
-        <p className="mt-2 text-xs text-ink-500 text-center">You'll see their activity once they accept.</p>
-      )}
-      {/* Counts are shown to everyone; the lists open only when the activity is visible */}
-      <div className="mt-6 pt-5 border-t border-line grid grid-cols-2 gap-2">
-        <Stat
-          value={profile.followerCount}
-          label={profile.followerCount === 1 ? "Follower" : "Followers"}
-          to={activity ? `/u/${profile.username}/followers` : undefined}
-        />
-        <Stat value={profile.followingCount} label="Following" to={activity ? `/u/${profile.username}/following` : undefined} />
-      </div>
-      {activity && (
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          <Stat value={activity.questionCount} label={activity.questionCount === 1 ? "Question" : "Questions"} />
-          <Stat value={activity.replyCount} label={activity.replyCount === 1 ? "Reply" : "Replies"} />
-          <Stat value={activity.helpfulCount} label="Helpful votes" />
-        </div>
-      )}
-      {profile.isMe && (
-        <>
-          {profile.pendingRequests > 0 && (
-            <Link
-              to="/follow-requests"
-              className="mt-6 flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-brand-50 text-brand-700 text-sm font-medium hover:opacity-90 transition"
-            >
-              <span className="flex items-center gap-2">
-                <UserPlus size={16} /> Follow requests
+
+        <div className="mt-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-ink-900">{name}</h1>
+            {profile.isPrivate && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-ink-500 bg-ink-100 px-2 py-0.5 rounded-md">
+                <Lock size={12} /> Private
               </span>
-              <span className="tabular-nums">{profile.pendingRequests}</span>
-            </Link>
-          )}
-          <Link
-            to="/settings/profile"
-            className="mt-6 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-line font-medium text-ink-900 hover:bg-ink-100 transition"
-          >
-            <Pencil size={15} /> Edit profile
-          </Link>
-          <p className="mt-3 text-xs text-ink-500 text-center">
-            {profile.isPrivate
-              ? "Your profile is private: only followers you accept see your activity."
-              : "This is how others see your profile. Anonymous posts never appear here."}
+            )}
+            {profile.followsYou && (
+              <span className="text-xs font-medium text-ink-700 bg-ink-100 px-2 py-0.5 rounded-md">Follows you</span>
+            )}
+          </div>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-ink-500">
+            <span>@{profile.username}</span>
+            <span aria-hidden="true">·</span>
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarDays size={14} /> Joined {joined}
+            </span>
           </p>
-        </>
-      )}
+          {profile.bio && <p className="mt-3 max-w-2xl text-ink-700 whitespace-pre-line break-words">{profile.bio}</p>}
+          <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1">
+            {socialCount(profile.followerCount, profile.followerCount === 1 ? "follower" : "followers", `/u/${profile.username}/followers`)}
+            {socialCount(profile.followingCount, "following", `/u/${profile.username}/following`)}
+          </div>
+          {profile.followStatus === "requested" && (
+            <p className="mt-3 text-sm text-ink-500">Request sent. You'll see their activity once they accept.</p>
+          )}
+        </div>
+      </div>
     </section>
   );
 
   const tabs = activity && (
-    <div role="tablist" aria-label="Activity" className="grid grid-cols-2 p-1 bg-ink-100 rounded-xl text-sm font-medium max-w-sm">
+    <div role="tablist" aria-label="Activity" className="flex gap-6 border-b border-line">
       {(["questions", "replies"] as const).map((t) => (
         <button
           key={t}
           role="tab"
           aria-selected={tab === t}
           onClick={() => setTab(t)}
-          className={`py-2 rounded-lg capitalize transition ${tab === t ? "bg-surface text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-700"}`}
+          className={`-mb-px pb-3 border-b-2 text-sm font-medium capitalize transition ${
+            tab === t ? "border-brand-600 text-ink-900" : "border-transparent text-ink-500 hover:text-ink-900"
+          }`}
         >
-          {t} ({t === "questions" ? activity.questionCount : activity.replyCount})
+          {t}
+          <span className="ml-1.5 text-ink-400 tabular-nums">{t === "questions" ? activity.questionCount : activity.replyCount}</span>
         </button>
       ))}
     </div>
   );
 
-  const empty = (message: string) => (
-    <div className="bg-surface border border-line rounded-2xl p-10 text-center text-sm text-ink-500">{message}</div>
-  );
-
-  const list = !activity ? (
-    <div className="bg-surface border border-line rounded-2xl p-10 text-center">
-      <Lock size={28} className="mx-auto text-ink-300" />
-      <p className="mt-3 font-medium text-ink-900">This profile is private</p>
-      <p className="mt-1 text-sm text-ink-500">
-        {profile.followStatus === "requested"
-          ? `You've asked to follow ${nameOf(profile)}. Their activity will show here once they accept.`
-          : `Follow ${nameOf(profile)} to see their questions and replies.`}
-      </p>
-    </div>
-  ) : tab === "questions" ? (
-    activity.questions.length === 0 ? (
-      empty(profile.isMe ? "Questions you ask under your name will show here." : "No questions asked under their name yet.")
-    ) : (
-      <ul className="bg-surface border border-line rounded-2xl divide-y divide-line">
-        {activity.questions.map((q) => (
-          <li key={q.id}>
-            <Link to={`/discuss/${q.id}`} className="block p-5 hover:bg-canvas transition">
-              <span className="text-xs font-medium text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md">{q.topic}</span>
-              <p className="mt-2 font-medium text-ink-900">{q.title}</p>
-              <p className="mt-1.5 flex items-center gap-3 text-xs text-ink-500">
-                {timeAgo(q.createdAt)}
-                <span className="flex items-center gap-1">
-                  <MessageCircle size={13} /> {q.replyCount} {q.replyCount === 1 ? "reply" : "replies"}
-                </span>
-              </p>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    )
-  ) : activity.replies.length === 0 ? (
-    empty(profile.isMe ? "Replies you post under your name will show here." : "No replies under their name yet.")
-  ) : (
-    <ul className="bg-surface border border-line rounded-2xl divide-y divide-line">
-      {activity.replies.map((r) => (
-        <li key={r.id}>
-          <Link to={`/discuss/${r.postId}`} className="block p-5 hover:bg-canvas transition">
-            <p className="text-xs text-ink-500">
-              Replied to <span className="font-medium text-ink-700">{r.postTitle}</span>
-            </p>
-            <p className="mt-1.5 text-sm text-ink-700 line-clamp-3">{r.body}</p>
-            <p className="mt-1.5 flex items-center gap-3 text-xs text-ink-500">
-              {timeAgo(r.createdAt)}
-              {r.helpfulCount > 0 && (
-                <span className="flex items-center gap-1">
-                  <ThumbsUp size={13} /> {r.helpfulCount} found this helpful
-                </span>
-              )}
-            </p>
+  const emptyState = (icon: LucideIcon, title: string, text: string, action?: { to: string; label: string }) => {
+    const Icon = icon;
+    return (
+      <div className="bg-surface border border-line rounded-2xl px-6 py-14 text-center">
+        <div className="mx-auto w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center">
+          <Icon size={22} className="text-brand-600" />
+        </div>
+        <p className="mt-4 font-medium text-ink-900">{title}</p>
+        <p className="mt-1 text-sm text-ink-500 max-w-sm mx-auto">{text}</p>
+        {action && (
+          <Link
+            to={action.to}
+            className="mt-5 inline-flex items-center gap-1.5 bg-brand-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-brand-700 transition"
+          >
+            {action.label}
           </Link>
-        </li>
-      ))}
-    </ul>
-  );
+        )}
+      </div>
+    );
+  };
+
+  const list = !activity
+    ? emptyState(
+        Lock,
+        "This profile is private",
+        profile.followStatus === "requested"
+          ? `You've asked to follow ${name}. Their questions and replies will show here once they accept.`
+          : `Follow ${name} to see their questions and replies.`
+      )
+    : tab === "questions"
+      ? activity.questions.length === 0
+        ? profile.isMe
+          ? emptyState(HelpCircle, "You haven't asked anything yet", "No question is too basic. Questions you ask under your name show here.", {
+              to: "/discuss?ask=1",
+              label: "Ask a question",
+            })
+          : emptyState(HelpCircle, "No questions yet", `${name} hasn't asked anything under their name yet.`)
+        : (
+          <ul className="bg-surface border border-line rounded-2xl divide-y divide-line">
+            {activity.questions.map((q) => (
+              <li key={q.id}>
+                <Link to={`/discuss/${q.id}`} className="block px-5 py-4 hover:bg-canvas transition">
+                  <span className="text-xs font-medium text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md">{q.topic}</span>
+                  <p className="mt-2 font-medium text-ink-900">{q.title}</p>
+                  <p className="mt-1.5 flex items-center gap-3 text-xs text-ink-500">
+                    {timeAgo(q.createdAt)}
+                    <span className="flex items-center gap-1">
+                      <MessageCircle size={13} /> {q.replyCount} {q.replyCount === 1 ? "reply" : "replies"}
+                    </span>
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )
+      : activity.replies.length === 0
+        ? profile.isMe
+          ? emptyState(MessageCircle, "Share what you know", "Your answers help someone else make a better money decision. Replies under your name show here.", {
+              to: "/discuss",
+              label: "Answer a question",
+            })
+          : emptyState(MessageCircle, "No replies yet", `${name} hasn't replied under their name yet.`)
+        : (
+          <ul className="bg-surface border border-line rounded-2xl divide-y divide-line">
+            {activity.replies.map((r) => (
+              <li key={r.id}>
+                <Link to={`/discuss/${r.postId}`} className="block px-5 py-4 hover:bg-canvas transition">
+                  <p className="text-xs text-ink-500">
+                    Replied to <span className="font-medium text-ink-700">{r.postTitle}</span>
+                  </p>
+                  <p className="mt-1.5 text-sm text-ink-700 line-clamp-3">{r.body}</p>
+                  <p className="mt-1.5 flex items-center gap-3 text-xs text-ink-500">
+                    {timeAgo(r.createdAt)}
+                    {r.helpfulCount > 0 && (
+                      <span className="flex items-center gap-1">
+                        <ThumbsUp size={13} /> {r.helpfulCount} found this helpful
+                      </span>
+                    )}
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        );
 
   const shownNote = activity && (activity.questionCount > activity.questions.length || activity.replyCount > activity.replies.length) && (
     <p className="text-xs text-ink-500">Showing the most recent 20.</p>
   );
 
+  // Your own profile: what's left to make it feel like yours
+  const steps = profile.isMe
+    ? [
+        { done: Boolean(profile.avatarUrl), label: "Add a photo", to: "/settings/profile" },
+        { done: Boolean(profile.displayName), label: "Add your name", to: "/settings/profile" },
+        { done: Boolean(profile.bio), label: "Write a short bio", to: "/settings/profile" },
+        {
+          done: Boolean(activity && activity.questionCount + activity.replyCount > 0),
+          label: "Ask or answer a question",
+          to: "/discuss",
+        },
+      ]
+    : [];
+  const doneCount = steps.filter((s) => s.done).length;
+
+  const checklist = steps.length > 0 && doneCount < steps.length && (
+    <section className="bg-surface border border-line rounded-2xl p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-semibold text-ink-900">Complete your profile</h2>
+        <span className="text-xs font-medium text-ink-500 tabular-nums">
+          {doneCount} of {steps.length}
+        </span>
+      </div>
+      <div className="mt-3 h-1.5 rounded-full bg-ink-100 overflow-hidden">
+        <div className="h-full rounded-full bg-brand-600 transition-all" style={{ width: `${(doneCount / steps.length) * 100}%` }} />
+      </div>
+      <ul className="mt-4 space-y-1">
+        {steps.map((step) => (
+          <li key={step.label}>
+            {step.done ? (
+              <span className="flex items-center gap-2.5 py-1.5 text-sm text-ink-400 line-through">
+                <CheckCircle2 size={17} className="text-brand-600 shrink-0" /> {step.label}
+              </span>
+            ) : (
+              <Link to={step.to} className="flex items-center gap-2.5 py-1.5 text-sm text-ink-900 hover:text-brand-700 group">
+                <Circle size={17} className="text-ink-300 shrink-0" />
+                <span className="flex-1">{step.label}</span>
+                <ArrowRight size={14} className="text-ink-300 group-hover:text-brand-600" />
+              </Link>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+
+  const community = activity && (
+    <section className="bg-surface border border-line rounded-2xl p-5">
+      <h2 className="font-semibold text-ink-900">In the community</h2>
+      <ul className="mt-3 space-y-3">
+        {[
+          { icon: HelpCircle, value: activity.questionCount, label: activity.questionCount === 1 ? "question asked" : "questions asked" },
+          { icon: MessageCircle, value: activity.replyCount, label: activity.replyCount === 1 ? "reply given" : "replies given" },
+          { icon: ThumbsUp, value: activity.helpfulCount, label: activity.helpfulCount === 1 ? "helpful vote received" : "helpful votes received" },
+        ].map(({ icon: Icon, value, label }) => (
+          <li key={label} className="flex items-center gap-3">
+            <span className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
+              <Icon size={17} className="text-brand-600" />
+            </span>
+            <span className="text-sm text-ink-500">
+              <span className="block text-lg font-semibold leading-tight tabular-nums text-ink-900">{value}</span>
+              {label}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-4 pt-4 border-t border-line text-xs text-ink-500">Only posts made under their name count. Anonymous posts never appear on a profile.</p>
+    </section>
+  );
+
+  const visibility = profile.isMe && (
+    <section className="bg-surface border border-line rounded-2xl p-5">
+      <h2 className="flex items-center gap-2 font-semibold text-ink-900">
+        {profile.isPrivate ? <Lock size={16} className="text-ink-500" /> : <Globe size={16} className="text-ink-500" />}
+        {profile.isPrivate ? "Private profile" : "Public profile"}
+      </h2>
+      <p className="mt-1.5 text-sm text-ink-500">
+        {profile.isPrivate
+          ? "Only followers you accept see your questions, replies and followers."
+          : "Anyone signed in can see your questions, replies and followers."}{" "}
+        Your money data is never shown to anyone.
+      </p>
+      <Link to="/settings/privacy" className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:underline">
+        Privacy settings <ArrowRight size={14} />
+      </Link>
+    </section>
+  );
+
+  const main = (
+    <div className="space-y-5 min-w-0">
+      {tabs}
+      {list}
+      {shownNote}
+    </div>
+  );
+
+  const rail = (
+    <aside className="space-y-5">
+      {checklist}
+      {community}
+      {visibility}
+    </aside>
+  );
+
   return (
-    <main className={`${pageWidth} py-8`}>
+    <main className={`${pageWidth} py-8 space-y-6`}>
+      {header}
       {wide ? (
-        <div className="grid grid-cols-[360px_minmax(0,1fr)] gap-10 items-start">
-          <div className="sticky top-24">{card}</div>
-          <div className="space-y-5 min-w-0">
-            <h2 className="text-lg font-semibold text-ink-900">Activity in Discuss</h2>
-            {tabs}
-            {list}
-            {shownNote}
-          </div>
+        <div className="grid grid-cols-[minmax(0,1fr)_340px] gap-8 items-start">
+          {main}
+          {rail}
         </div>
       ) : (
-        <div className="max-w-3xl mx-auto space-y-6">
-          {card}
-          {tabs}
-          {list}
-          {shownNote}
+        <div className="space-y-6">
+          {checklist}
+          {main}
+          {community}
+          {visibility}
         </div>
       )}
     </main>

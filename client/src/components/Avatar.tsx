@@ -6,6 +6,7 @@ const SIZES = {
   md: "w-8 h-8 text-sm",
   lg: "w-10 h-10 text-base",
   xl: "w-24 h-24 text-3xl",
+  "2xl": "w-28 h-28 text-4xl",
 };
 
 // A person's photo, or the first letter of their name on a teal circle when they have none
