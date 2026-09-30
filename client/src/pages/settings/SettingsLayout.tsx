@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import { Navigate, NavLink, Outlet, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import {
@@ -7,6 +6,7 @@ import {
   CircleHelp,
   Download,
   Info,
+  Lock,
   LogOut,
   MessageSquareText,
   Palette,
@@ -16,14 +16,12 @@ import {
   UserRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import api from "../../lib/api";
 import { pageWidth } from "../../lib/ui";
 import { useTitle } from "../../lib/useTitle";
 import { useWideLayout } from "../../lib/useMediaQuery";
 import type { AppContext } from "../../components/AppLayout";
-import type { Me, SettingsContext } from "./context";
 import { DeleteAccountSection, ProfileSection, SecuritySection } from "./AccountSections";
-import { AppearanceSection, CategoriesSection, DataSection, NotificationsSection } from "./PreferenceSections";
+import { AppearanceSection, CategoriesSection, DataSection, NotificationsSection, PrivacySection } from "./PreferenceSections";
 import { AboutSection, FeedbackSection, HelpSection } from "./SupportSections";
 
 interface Section {
@@ -40,7 +38,7 @@ const GROUPS: { title: string; sections: Section[] }[] = [
   {
     title: "Account",
     sections: [
-      { slug: "profile", label: "Profile", hint: "Username", icon: UserRound, component: ProfileSection },
+      { slug: "profile", label: "Profile", hint: "Photo, name and bio", icon: UserRound, component: ProfileSection },
       { slug: "security", label: "Login & security", hint: "Email, password, devices", icon: ShieldCheck, component: SecuritySection },
     ],
   },
@@ -53,8 +51,9 @@ const GROUPS: { title: string; sections: Section[] }[] = [
     ],
   },
   {
-    title: "Your data",
+    title: "Privacy & data",
     sections: [
+      { slug: "privacy", label: "Privacy", hint: "Private profile, anonymous posting", icon: Lock, component: PrivacySection },
       { slug: "data", label: "Download your data", hint: "CSV or JSON", icon: Download, component: DataSection },
       { slug: "delete", label: "Delete account", hint: "Permanently", icon: Trash2, component: DeleteAccountSection, danger: true },
     ],
@@ -144,27 +143,13 @@ function SettingsLayout() {
   const { section } = useParams();
   const open = SECTIONS.find((s) => s.slug === section);
   useTitle(open ? `${open.label} · Settings` : "Settings");
-  const { setUsername } = useOutletContext<AppContext>();
-  const [me, setMe] = useState<Me | null>(null);
-
-  useEffect(() => {
-    api.get("/auth/me").then((res) => setMe(res.data.user)).catch(() => {});
-  }, []);
-
-  const updateMe = useCallback(
-    (changes: Partial<Me>) => {
-      setMe((prev) => (prev ? { ...prev, ...changes } : prev));
-      if (changes.username) setUsername(changes.username);
-    },
-    [setUsername]
-  );
+  const context = useOutletContext<AppContext>();
+  const { me } = context;
 
   const logout = () => {
     localStorage.removeItem("token");
     navigate("/login");
   };
-
-  const context: SettingsContext = { me, updateMe };
 
   if (wide) {
     // Wide screens always have a section open

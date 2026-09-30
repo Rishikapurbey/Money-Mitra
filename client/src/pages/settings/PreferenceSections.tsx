@@ -72,6 +72,53 @@ export function NotificationsSection() {
   );
 }
 
+export function PrivacySection() {
+  const { me, updateMe } = useSettings();
+  const [state, setState] = useState(idle);
+
+  const save = async (key: "isPrivate" | "anonymousByDefault", value: boolean, message: string) => {
+    updateMe({ [key]: value });
+    setState({ busy: true, error: "", success: "" });
+    try {
+      await api.put("/account/privacy", { [key]: value });
+      setState({ busy: false, error: "", success: message });
+    } catch (err) {
+      updateMe({ [key]: !value });
+      setState({ busy: false, error: errorMessage(err, "We couldn't save that setting."), success: "" });
+    }
+  };
+
+  return (
+    <>
+      <SectionHeader
+        title="Privacy"
+        description="Your transactions, budgets and goals are always private. Nobody else can ever see them."
+      />
+      <Panel title="Profile">
+        <Toggle
+          label="Private profile"
+          description="Others see only your photo, name and bio, not the list of questions and replies on your profile. What you post in Discuss stays visible there."
+          checked={me?.isPrivate ?? false}
+          disabled={!me || state.busy}
+          onChange={(value) => save("isPrivate", value, value ? "Your profile is now private" : "Your profile is now public")}
+        />
+      </Panel>
+      <Panel title="Discuss">
+        <Toggle
+          label="Post anonymously by default"
+          description="Ticks “anonymous” for you when you ask or reply. You can still untick it each time."
+          checked={me?.anonymousByDefault ?? false}
+          disabled={!me || state.busy}
+          onChange={(value) =>
+            save("anonymousByDefault", value, value ? "New posts will start as anonymous" : "New posts will start with your name")
+          }
+        />
+      </Panel>
+      <Status {...state} />
+    </>
+  );
+}
+
 export function CategoriesSection() {
   return (
     <>

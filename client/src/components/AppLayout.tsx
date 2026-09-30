@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { House, PieChart, MessagesSquare, BookOpen, LogOut, ChevronDown, Calculator, Settings, Download } from "lucide-react";
+import { House, PieChart, MessagesSquare, BookOpen, LogOut, ChevronDown, Calculator, Settings, Download, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import api from "../lib/api";
 import { Logo } from "./Logo";
@@ -11,10 +11,14 @@ import ThemeToggle from "./ThemeToggle";
 import { useInstallPrompt } from "../lib/installPrompt";
 import { useToast } from "../lib/toast";
 import { announceDataChange } from "../lib/dataEvents";
+import { nameOf } from "../lib/me";
+import type { Me } from "../lib/me";
+import Avatar from "./Avatar";
 
 export interface AppContext {
-  username: string;
-  setUsername: (username: string) => void;
+  // null until loaded
+  me: Me | null;
+  updateMe: (changes: Partial<Me>) => void;
 }
 
 interface NavItem {
@@ -35,7 +39,7 @@ const navItems: NavItem[] = [
 const soonBadge = "text-[10px] font-semibold uppercase tracking-wider text-ink-400 bg-ink-100 px-1.5 py-0.5 rounded";
 
 function AppLayout() {
-  const [username, setUsername] = useState("");
+  const [me, setMe] = useState<Me | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -43,8 +47,10 @@ function AppLayout() {
   const toast = useToast();
 
   useEffect(() => {
-    api.get("/auth/me").then((res) => setUsername(res.data.user.username)).catch(() => {});
+    api.get("/auth/me").then((res) => setMe(res.data.user)).catch(() => {});
   }, []);
+
+  const updateMe = useCallback((changes: Partial<Me>) => setMe((prev) => (prev ? { ...prev, ...changes } : prev)), []);
 
   // Add any recurring transactions that became due since the last visit, then let pages refresh
   useEffect(() => {
@@ -118,17 +124,25 @@ function AppLayout() {
                 aria-expanded={menuOpen}
                 className="flex items-center gap-2 rounded-xl p-1 pr-2 hover:bg-ink-100 transition"
               >
-                <span className="w-8 h-8 rounded-full bg-brand-600 text-white text-sm font-semibold flex items-center justify-center">
-                  {username ? username.charAt(0).toUpperCase() : ""}
-                </span>
-                <span className="hidden sm:block text-sm font-medium text-ink-700">{username}</span>
+                {me ? <Avatar name={nameOf(me)} avatarUrl={me.avatarUrl} /> : <span className="w-8 h-8 rounded-full bg-ink-100" />}
+                <span className="hidden sm:block text-sm font-medium text-ink-700">{me && nameOf(me)}</span>
                 <ChevronDown size={16} className="text-ink-400" />
               </button>
               {menuOpen && (
                 <div role="menu" className="absolute right-0 mt-2 w-52 bg-surface border border-line rounded-xl shadow-lg py-1">
                   <p className="px-4 py-2 text-xs text-ink-500 border-b border-line">
-                    Signed in as <span className="font-medium text-ink-900">{username}</span>
+                    Signed in as <span className="font-medium text-ink-900">@{me?.username}</span>
                   </p>
+                  {me && (
+                    <Link
+                      to={`/u/${me.username}`}
+                      role="menuitem"
+                      onClick={() => setMenuOpen(false)}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-100 transition"
+                    >
+                      <UserRound size={16} /> Your profile
+                    </Link>
+                  )}
                   <Link
                     to="/settings"
                     role="menuitem"
@@ -163,7 +177,7 @@ function AppLayout() {
         </div>
       </header>
 
-      <Outlet context={{ username, setUsername } satisfies AppContext} />
+      <Outlet context={{ me, updateMe } satisfies AppContext} />
 
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-surface border-t border-line grid grid-cols-5">
         {navItems.map(({ to, label, icon: Icon, soon }) =>

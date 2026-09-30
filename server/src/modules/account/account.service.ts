@@ -4,6 +4,7 @@ import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
 import { DELETED_USERNAME } from "../../lib/validation";
 import { signToken } from "../../lib/tokens";
+import { avatarUrl } from "../../lib/identity";
 
 async function verifyPassword(userId: string, password: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -38,7 +39,8 @@ export async function changeUsername(userId: string, username: string) {
   });
   if (taken) throw new HttpError(409, "That username is already taken");
   const user = await prisma.user.update({ where: { id: userId }, data: { username } });
-  return { id: user.id, email: user.email, username: user.username };
+  // The photo's address includes the username, so it changes too
+  return { id: user.id, email: user.email, username: user.username, avatarUrl: avatarUrl(user) };
 }
 
 export async function setEmailPreferences(userId: string, emailReplies: boolean) {
@@ -53,6 +55,10 @@ export async function exportData(userId: string) {
     select: {
       email: true,
       username: true,
+      displayName: true,
+      bio: true,
+      isPrivate: true,
+      anonymousByDefault: true,
       createdAt: true,
       transactions: { orderBy: { date: "desc" }, select: { amount: true, type: true, category: true, note: true, date: true } },
       categories: { orderBy: { name: "asc" }, select: { name: true, type: true } },

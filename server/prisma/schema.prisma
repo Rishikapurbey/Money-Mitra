@@ -17,26 +17,45 @@ datasource db {
 }
 
 model User {
-  id             String                 @id @default(cuid())
-  email          String                 @unique
-  username       String                 @unique
-  passwordHash   String
+  id                 String                 @id @default(cuid())
+  email              String                 @unique
+  username           String                 @unique
+  passwordHash       String
   // Bumped on password change or reset; logins issued before it stop working
-  tokenVersion   Int                    @default(0)
+  tokenVersion       Int                    @default(0)
   // Email me when someone replies to my question
-  emailReplies   Boolean                @default(true)
-  createdAt      DateTime               @default(now())
-  transactions   Transaction[]
-  posts          Post[]
-  replies        Reply[]
-  budgets        Budget[]
-  goals          Goal[]
-  passwordResets PasswordReset[]
-  replyVotes     ReplyVote[]
-  reports        Report[]
-  notifications  Notification[]
-  recurring      RecurringTransaction[]
-  categories     Category[]
+  emailReplies       Boolean                @default(true)
+  // Public profile: shown instead of the username where set
+  displayName        String?
+  bio                String?
+  // Only the owner sees a private profile's Discuss activity
+  isPrivate          Boolean                @default(false)
+  // Pre-ticks "anonymous" when asking or replying in Discuss
+  anonymousByDefault Boolean                @default(false)
+  // When the photo last changed, so its URL changes and browsers fetch the new one; null means no photo
+  avatarUpdatedAt    DateTime?
+  createdAt          DateTime               @default(now())
+  transactions       Transaction[]
+  posts              Post[]
+  replies            Reply[]
+  budgets            Budget[]
+  goals              Goal[]
+  passwordResets     PasswordReset[]
+  replyVotes         ReplyVote[]
+  reports            Report[]
+  notifications      Notification[]
+  recurring          RecurringTransaction[]
+  categories         Category[]
+  avatar             Avatar?
+}
+
+// A profile photo, kept apart from User so the image bytes are only read when the photo is requested.
+// Resized to a small square on the user's device before upload.
+model Avatar {
+  userId   String @id
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data     Bytes
+  mimeType String
 }
 
 model Transaction {

@@ -4,6 +4,7 @@ import { DELETED_USERNAME } from "../../lib/validation";
 import { sendEmail } from "../../lib/email";
 import { escapeHtml } from "../../lib/html";
 import { notifyHelpful, notifyHidden, notifyReply } from "../notifications/notification.service";
+import { identity, identitySelect } from "../../lib/identity";
 
 // Notifications are secondary: a problem sending one must never undo the action that caused it
 async function safely(task: () => Promise<unknown>) {
@@ -29,15 +30,18 @@ export const HIDE_AFTER_REPORTS = 3;
 interface Authored {
   isAnonymous: boolean;
   authorId: string;
-  author: { username: string };
+  author: { username: string; displayName: string | null; avatarUpdatedAt: Date | null };
 }
 
-// Never expose who wrote an anonymous post or reply, only whether it's the viewer's own
+// Never expose who wrote an anonymous post or reply, only whether it's the viewer's own.
+// `profile` (name, photo, link) is only given for authors posting under their own name.
 function present<T extends Authored>(item: T, viewerId: string) {
   const { authorId, author, ...rest } = item;
+  const deleted = author.username === DELETED_USERNAME;
   return {
     ...rest,
-    author: item.isAnonymous ? null : author.username === DELETED_USERNAME ? "Deleted user" : author.username,
+    author: item.isAnonymous ? null : deleted ? "Deleted user" : author.username,
+    profile: item.isAnonymous || deleted ? null : identity(author),
     isMine: authorId === viewerId,
   };
 }
@@ -45,10 +49,10 @@ function present<T extends Authored>(item: T, viewerId: string) {
 // Hidden content keeps its place in the thread but shows none of what was written or who wrote it
 function hideIfReported<T extends { body: string; author: string | null }>(item: T, reportCount: number) {
   const hidden = reportCount >= HIDE_AFTER_REPORTS;
-  return hidden ? { ...item, body: "", author: null, hidden } : { ...item, hidden };
+  return hidden ? { ...item, body: "", author: null, profile: null, hidden } : { ...item, hidden };
 }
 
-const authorSelect = { author: { select: { username: true } } };
+const authorSelect = { author: { select: identitySelect } };
 
 export async function listPosts(viewerId: string, options: { topic?: string | undefined; unanswered?: boolean } = {}) {
   const posts = await prisma.post.findMany({

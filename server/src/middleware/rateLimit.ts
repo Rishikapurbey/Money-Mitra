@@ -30,3 +30,5 @@ export const reportLimiter = limiter(60, 20, "You've sent a lot of reports. Plea
 export const postLimiter = limiter(10, 30, "You're posting very quickly. Please wait a few minutes and try again.");
 
 export const feedbackLimiter = limiter(60, 5, "You've sent a lot of feedback recently. Please try again in an hour.");
+
+export const photoLimiter = limiter(60, 20, "You've changed your photo a lot recently. Please try again in an hour.");

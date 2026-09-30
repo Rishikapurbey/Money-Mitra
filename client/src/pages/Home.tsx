@@ -92,7 +92,9 @@ async function fetchHome(): Promise<HomeData | null> {
 
 function Home() {
   useTitle("Home");
-  const { username } = useOutletContext<AppContext>();
+  const { me } = useOutletContext<AppContext>();
+  // Greet people by their first name when they've given one
+  const greetName = me ? me.displayName?.split(" ")[0] || me.username : "";
   const [data, setData] = useState<HomeData | null>(null);
   const [failed, setFailed] = useState(false);
   const [quickAdd, setQuickAdd] = useState<"expense" | "income" | null>(null);
@@ -374,7 +376,7 @@ function Home() {
     <main className={`${pageWidth} py-8 space-y-6`}>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink-900">
-          {greeting(new Date().getHours())}{username && `, ${username}`}
+          {greeting(new Date().getHours())}{greetName && `, ${greetName}`}
         </h1>
         <p className="mt-1 text-sm text-ink-500">{today}</p>
       </div>

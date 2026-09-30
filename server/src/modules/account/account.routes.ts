@@ -1,8 +1,18 @@
 import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
-import { accountLimiter } from "../../middleware/rateLimit";
+import { accountLimiter, photoLimiter } from "../../middleware/rateLimit";
 import { passwordProblem, text, usernameProblem } from "../../lib/validation";
 import { changePassword, changeUsername, deleteAccount, exportData, logoutEverywhere, setEmailPreferences } from "./account.service";
+
+import {
+  MAX_BIO,
+  displayNameProblem,
+  parsePhoto,
+  removePhoto,
+  setPhoto,
+  updatePrivacy,
+  updateProfile,
+} from "../profiles/profile.service";
 
 const router = Router();
 
@@ -32,6 +42,44 @@ router.put("/username", authMiddleware, async (req: AuthRequest, res) => {
   if (problem) return res.status(400).json({ error: problem });
   const user = await changeUsername(req.userId, username);
   res.status(200).json({ user });
+});
+
+// Name and bio on the public profile; empty values clear them
+router.put("/profile", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  const displayName = text(req.body.displayName).replace(/\s+/g, " ");
+  const bio = text(req.body.bio);
+  const problem = displayNameProblem(displayName);
+  if (problem) return res.status(400).json({ error: problem });
+  if (bio.length > MAX_BIO) return res.status(400).json({ error: `Your bio can be up to ${MAX_BIO} characters` });
+  const profile = await updateProfile(req.userId, { displayName: displayName || null, bio: bio || null });
+  res.status(200).json({ profile });
+});
+
+router.put("/photo", authMiddleware, photoLimiter, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  const photo = parsePhoto(typeof req.body.image === "string" ? req.body.image : "");
+  res.status(200).json({ avatarUrl: await setPhoto(req.userId, photo) });
+});
+
+router.delete("/photo", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  await removePhoto(req.userId);
+  res.status(200).json({ avatarUrl: null });
+});
+
+router.put("/privacy", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  const changes: { isPrivate?: boolean; anonymousByDefault?: boolean } = {};
+  for (const key of ["isPrivate", "anonymousByDefault"] as const) {
+    const value = req.body[key];
+    if (value === undefined) continue;
+    if (typeof value !== "boolean") return res.status(400).json({ error: `${key} must be true or false` });
+    changes[key] = value;
+  }
+  if (Object.keys(changes).length === 0) return res.status(400).json({ error: "Nothing to change" });
+  const privacy = await updatePrivacy(req.userId, changes);
+  res.status(200).json(privacy);
 });
 
 router.put("/email-preferences", authMiddleware, async (req: AuthRequest, res) => {

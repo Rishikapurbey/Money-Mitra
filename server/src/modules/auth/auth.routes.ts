@@ -2,6 +2,7 @@ import { Router } from "express";
 import { signupUser, loginUser } from "./auth.service";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
 import prisma from "../../db/prisma";
+import { avatarUrl } from "../../lib/identity";
 import { forgotPasswordLimiter, loginLimiter, resetPasswordLimiter, signupLimiter } from "../../middleware/rateLimit";
 import { requestPasswordReset, resetPassword } from "./passwordReset.service";
 import { text, emailProblem, usernameProblem, passwordProblem } from "../../lib/validation";
@@ -62,13 +63,25 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
 
   const user = await prisma.user.findUnique({
     where: { id: req.userId },
-    select: { id: true, email: true, username: true, createdAt: true, emailReplies: true },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      createdAt: true,
+      emailReplies: true,
+      displayName: true,
+      bio: true,
+      isPrivate: true,
+      anonymousByDefault: true,
+      avatarUpdatedAt: true,
+    },
   });
 
   if (!user) {
     return res.status(404).json({ error: "User not found" });
   }
 
-  res.status(200).json({ user });
+  const { avatarUpdatedAt, ...rest } = user;
+  res.status(200).json({ user: { ...rest, avatarUrl: avatarUrl({ username: user.username, avatarUpdatedAt }) } });
 });
 export default router;

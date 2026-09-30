@@ -15,6 +15,7 @@ import notificationRoutes from "./modules/notifications/notification.routes";
 import recurringRoutes from "./modules/recurring/recurring.routes";
 import categoryRoutes from "./modules/categories/category.routes";
 import feedbackRoutes from "./modules/feedback/feedback.routes";
+import profileRoutes from "./modules/profiles/profile.routes";
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/recurring", recurringRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/feedback", feedbackRoutes);
+app.use("/api/users", profileRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "Money Mitra API is running" });

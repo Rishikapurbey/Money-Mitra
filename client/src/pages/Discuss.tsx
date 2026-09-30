@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { isAxiosError } from "axios";
 import { MessageCircle, Plus, AlertCircle, MessagesSquare, X, BookOpen, ArrowRight } from "lucide-react";
 import api from "../lib/api";
-import { TOPICS, authorName, timeAgo, discussInputClass } from "../lib/discuss";
+import { TOPICS, timeAgo, discussInputClass } from "../lib/discuss";
 import type { Post } from "../lib/discuss";
 import { useTitle } from "../lib/useTitle";
 import { useToast } from "../lib/toast";
 import { pageWidth } from "../lib/ui";
 import { useWideLayout } from "../lib/useMediaQuery";
 import { TERMS } from "../lib/learn";
+import Byline from "../components/Byline";
+import type { AppContext } from "../components/AppLayout";
 
 async function fetchPosts(topic: string, unanswered: boolean): Promise<Post[] | null> {
   try {
@@ -35,7 +37,10 @@ function Discuss() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [newTopic, setNewTopic] = useState(presetTopic);
-  const [isAnonymous, setIsAnonymous] = useState(false);
+  const { me } = useOutletContext<AppContext>();
+  // null until the person ticks or unticks it; until then it follows their "anonymous by default" setting
+  const [anonymousChoice, setIsAnonymous] = useState<boolean | null>(null);
+  const isAnonymous = anonymousChoice ?? me?.anonymousByDefault ?? false;
   const [formError, setFormError] = useState("");
   const [posting, setPosting] = useState(false);
   const wide = useWideLayout();
@@ -79,7 +84,7 @@ function Discuss() {
     setTitle("");
     setBody("");
     setNewTopic("");
-    setIsAnonymous(false);
+    setIsAnonymous(null);
     setFormError("");
   };
 
@@ -185,7 +190,7 @@ function Discuss() {
         />
         <span>
           <span className="block text-sm font-medium text-ink-900">Post anonymously</span>
-          <span className="block text-sm text-ink-500">Your username won't be shown on this question.</span>
+          <span className="block text-sm text-ink-500">Your name and photo won't be shown on this question.</span>
         </span>
       </label>
       <button
@@ -264,21 +269,23 @@ function Discuss() {
         <ul className="space-y-3">
           {posts.map((post) => (
             <li key={post.id}>
-              <Link
-                to={`/discuss/${post.id}`}
-                className="block bg-surface border border-line rounded-2xl p-5 hover:border-ink-300 transition"
-              >
+              {/* The title's link stretches over the whole card; the author's name links to their profile */}
+              <article className="relative bg-surface border border-line rounded-2xl p-5 hover:border-ink-300 transition">
                 <span className="text-xs font-medium text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md">{post.topic}</span>
-                <h2 className="mt-2.5 font-semibold text-ink-900">{post.title}</h2>
+                <h2 className="mt-2.5 font-semibold text-ink-900">
+                  <Link to={`/discuss/${post.id}`} className="after:absolute after:inset-0 after:rounded-2xl">
+                    {post.title}
+                  </Link>
+                </h2>
                 {post.body && <p className="mt-1 text-sm text-ink-500 line-clamp-2">{post.body}</p>}
                 <div className="mt-3 flex items-center gap-3 text-xs text-ink-500">
-                  <span className="font-medium text-ink-700">{authorName(post)}</span>
+                  <Byline item={post} />
                   <span>{timeAgo(post.createdAt)}</span>
                   <span className="ml-auto flex items-center gap-1">
                     <MessageCircle size={14} /> {post.replyCount ?? 0} {post.replyCount === 1 ? "reply" : "replies"}
                   </span>
                 </div>
-              </Link>
+              </article>
             </li>
           ))}
         </ul>

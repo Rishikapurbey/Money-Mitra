@@ -10,6 +10,7 @@ import Learn from "./pages/Learn";
 import LearnTerm from "./pages/LearnTerm";
 import Calculators from "./pages/Calculators";
 import CalculatorPage from "./pages/CalculatorPage";
+import Profile from "./pages/Profile";
 import SettingsLayout, { SettingsSection } from "./pages/settings/SettingsLayout";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -58,6 +59,7 @@ function App() {
               <Route path="/dashboard" element={<Navigate to="/home" replace />} />
               <Route path="/discuss" element={<Discuss />} />
               <Route path="/discuss/:id" element={<DiscussPost />} />
+              <Route path="/u/:username" element={<Profile />} />
               <Route path="/settings" element={<SettingsLayout />}>
                 <Route path=":section" element={<SettingsSection />} />
               </Route>

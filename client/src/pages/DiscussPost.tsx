@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { isAxiosError } from "axios";
 import { ArrowLeft, ArrowRight, BookOpen, Trash2, AlertCircle, ThumbsUp, Award, EyeOff } from "lucide-react";
 import api from "../lib/api";
-import { authorName, timeAgo, discussInputClass } from "../lib/discuss";
+import { timeAgo, discussInputClass } from "../lib/discuss";
 import type { Post } from "../lib/discuss";
 import ReportButton from "../components/ReportButton";
 import { pageWidth } from "../lib/ui";
@@ -12,6 +12,8 @@ import { TERMS } from "../lib/learn";
 import { useToast } from "../lib/toast";
 import { useTitle } from "../lib/useTitle";
 import { announceNotificationsChange } from "../lib/dataEvents";
+import Byline from "../components/Byline";
+import type { AppContext } from "../components/AppLayout";
 
 type PostResult = Post | "not-found" | "error";
 
@@ -32,7 +34,10 @@ function DiscussPost() {
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState("");
   const [reply, setReply] = useState("");
-  const [isAnonymous, setIsAnonymous] = useState(false);
+  const { me } = useOutletContext<AppContext>();
+  // null until the person ticks or unticks it; until then it follows their "anonymous by default" setting
+  const [anonymousChoice, setIsAnonymous] = useState<boolean | null>(null);
+  const isAnonymous = anonymousChoice ?? me?.anonymousByDefault ?? false;
   const [replying, setReplying] = useState(false);
   // Which item is waiting for delete confirmation: "post", a reply id, or null
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -85,7 +90,7 @@ function DiscussPost() {
       const res = await api.post(`/posts/${id}/replies`, { body: reply, isAnonymous });
       setPost((current) => current && { ...current, replies: [...(current.replies ?? []), res.data.reply] });
       setReply("");
-      setIsAnonymous(false);
+      setIsAnonymous(null);
     } catch (err) {
       setError((isAxiosError(err) && err.response?.data?.error) || "We couldn't post your reply. Please try again.");
     } finally {
@@ -122,7 +127,7 @@ function DiscussPost() {
     setPost((current) =>
       current && {
         ...current,
-        replies: current.replies?.map((r) => (r.id === replyId ? { ...r, hidden: true, body: "", author: null } : r)),
+        replies: current.replies?.map((r) => (r.id === replyId ? { ...r, hidden: true, body: "", author: null, profile: null } : r)),
       }
     );
 
@@ -270,7 +275,7 @@ function DiscussPost() {
             </div>
             <h1 className="mt-3 text-xl font-semibold tracking-tight text-ink-900">{post.title}</h1>
             <p className="mt-1.5 text-xs text-ink-500">
-              <span className="font-medium text-ink-700">{authorName(post)}</span> · {timeAgo(post.createdAt)}
+              <Byline item={post} /> · {timeAgo(post.createdAt)}
             </p>
             {post.body && <p className="mt-4 text-ink-700 leading-relaxed whitespace-pre-line">{post.body}</p>}
             {!post.isMine && (
@@ -302,7 +307,7 @@ function DiscussPost() {
                       )}
                       <div className="flex items-center justify-between gap-4">
                         <p className="text-xs text-ink-500">
-                          <span className="font-medium text-ink-700">{authorName(r)}</span> · {timeAgo(r.createdAt)}
+                          <Byline item={r} /> · {timeAgo(r.createdAt)}
                         </p>
                         {r.isMine &&
                           (confirming === r.id ? (

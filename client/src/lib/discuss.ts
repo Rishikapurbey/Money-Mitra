@@ -1,3 +1,12 @@
+import { nameOf } from "./me";
+
+// Who wrote a post, for anyone posting under their own name; null when anonymous, deleted or hidden
+export interface AuthorProfile {
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+}
+
 export const TOPICS = ["Budgeting", "Saving", "Investing", "Loans & Credit", "Tax", "Other"];
 
 export interface Reply {
@@ -6,6 +15,7 @@ export interface Reply {
   isAnonymous: boolean;
   createdAt: string;
   author: string | null;
+  profile: AuthorProfile | null;
   isMine: boolean;
   hidden: boolean;
   helpfulCount: number;
@@ -20,6 +30,7 @@ export interface Post {
   isAnonymous: boolean;
   createdAt: string;
   author: string | null;
+  profile: AuthorProfile | null;
   isMine: boolean;
   replyCount?: number;
   replies?: Reply[];
@@ -33,8 +44,9 @@ export const REPORT_REASONS = [
   { key: "other", label: "Other" },
 ];
 
-export const authorName = (item: { author: string | null; isMine: boolean }) => {
-  if (item.author) return item.isMine ? `${item.author} (you)` : item.author;
+export const authorName = (item: { author: string | null; profile: AuthorProfile | null; isMine: boolean }) => {
+  const name = item.profile ? nameOf(item.profile) : item.author;
+  if (name) return item.isMine ? `${name} (you)` : name;
   return item.isMine ? "Anonymous (you)" : "Anonymous";
 };
 

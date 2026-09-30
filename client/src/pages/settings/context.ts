@@ -1,20 +1,9 @@
 import { useOutletContext } from "react-router-dom";
 import { isAxiosError } from "axios";
+import type { AppContext } from "../../components/AppLayout";
 
-export interface Me {
-  email: string;
-  username: string;
-  emailReplies: boolean;
-  createdAt: string;
-}
-
-export interface SettingsContext {
-  // null until loaded
-  me: Me | null;
-  updateMe: (changes: Partial<Me>) => void;
-}
-
-export const useSettings = () => useOutletContext<SettingsContext>();
+// Settings pages share the app's account details, so changes show in the header straight away
+export const useSettings = () => useOutletContext<AppContext>();
 
 export const errorMessage = (err: unknown, fallback: string) =>
   (isAxiosError(err) && err.response?.data?.error) || fallback;
