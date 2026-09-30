@@ -13,9 +13,11 @@ import { TERMS } from "../lib/learn";
 import Byline from "../components/Byline";
 import type { AppContext } from "../components/AppLayout";
 
-async function fetchPosts(topic: string, unanswered: boolean): Promise<Post[] | null> {
+async function fetchPosts(topic: string, unanswered: boolean, following = false): Promise<Post[] | null> {
   try {
-    const res = await api.get("/posts", { params: { ...(topic && { topic }), ...(unanswered && { unanswered: "1" }) } });
+    const res = await api.get("/posts", {
+      params: { ...(topic && { topic }), ...(unanswered && { unanswered: "1" }), ...(following && { following: "1" }) },
+    });
     return res.data.posts;
   } catch {
     return null;
@@ -31,6 +33,8 @@ function Discuss() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [topic, setTopic] = useState("");
   const [unanswered, setUnanswered] = useState(false);
+  // Only questions from people you follow
+  const [following, setFollowing] = useState(searchParams.get("feed") === "following");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [asking, setAsking] = useState(searchParams.get("ask") === "1");
@@ -66,18 +70,18 @@ function Discuss() {
   }, []);
 
   const loadPosts = useCallback(
-    async () => applyPosts(await fetchPosts(topic, unanswered)),
-    [topic, unanswered, applyPosts]
+    async () => applyPosts(await fetchPosts(topic, unanswered, following)),
+    [topic, unanswered, following, applyPosts]
   );
 
   // Ignore a response that arrives after the user has already changed the filters
   useEffect(() => {
     let current = true;
-    fetchPosts(topic, unanswered).then((result) => current && applyPosts(result));
+    fetchPosts(topic, unanswered, following).then((result) => current && applyPosts(result));
     return () => {
       current = false;
     };
-  }, [topic, unanswered, applyPosts]);
+  }, [topic, unanswered, following, applyPosts]);
 
   const closeForm = () => {
     setAsking(false);
@@ -95,7 +99,7 @@ function Discuss() {
     try {
       const res = await api.post("/posts", { title, body, topic: newTopic, isAnonymous });
       closeForm();
-      if (!topic || topic === res.data.post.topic) setPosts((current) => [res.data.post, ...current]);
+      if (!following && (!topic || topic === res.data.post.topic)) setPosts((current) => [res.data.post, ...current]);
       toast({ message: "Question posted" });
     } catch (err) {
       setFormError(
@@ -120,6 +124,27 @@ function Discuss() {
           <Plus size={16} /> Ask a question
         </button>
       )}
+    </div>
+  );
+
+  const feedSwitch = (
+    <div role="tablist" aria-label="Show questions from" className="inline-grid grid-cols-2 p-1 bg-ink-100 rounded-xl text-sm font-medium">
+      {[
+        { value: false, label: "Everyone" },
+        { value: true, label: "Following" },
+      ].map((option) => (
+        <button
+          key={option.label}
+          role="tab"
+          aria-selected={following === option.value}
+          onClick={() => setFollowing(option.value)}
+          className={`px-5 py-1.5 rounded-lg transition ${
+            following === option.value ? "bg-surface text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-700"
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
     </div>
   );
 
@@ -253,14 +278,18 @@ function Discuss() {
             <MessageCircle size={22} className="text-brand-600" />
           </div>
           <p className="mt-4 font-medium text-ink-900">
-            {unanswered
+            {following
+              ? "Nothing from people you follow yet"
+              : unanswered
               ? "Every question has an answer"
               : topic
                 ? `No questions in ${topic} yet`
                 : "No questions yet"}
           </p>
           <p className="mt-1 text-sm text-ink-500">
-            {unanswered
+            {following
+              ? "Open someone's profile by tapping their name, then follow them to see their questions here."
+              : unanswered
               ? "Nice work, community. Check back later to help someone new."
               : "Be the first to ask. Someone else is probably wondering the same thing."}
           </p>
@@ -365,6 +394,7 @@ function Discuss() {
           <div className="space-y-6 min-w-0">
             {pageHeader}
             {askForm}
+            {feedSwitch}
             {errorBanner}
             {feed}
           </div>
@@ -375,6 +405,7 @@ function Discuss() {
           {pageHeader}
           {welcomeBanner}
           {askForm}
+          {feedSwitch}
           {topicChips}
           {errorBanner}
           {feed}

@@ -67,6 +67,8 @@ export async function exportData(userId: string) {
       recurring: { select: { amount: true, type: true, category: true, note: true, dayOfMonth: true, endDate: true, paused: true } },
       posts: { select: { title: true, body: true, topic: true, isAnonymous: true, createdAt: true } },
       replies: { select: { body: true, isAnonymous: true, createdAt: true, post: { select: { title: true } } } },
+      following: { select: { status: true, createdAt: true, following: { select: { username: true } } } },
+      followers: { select: { status: true, createdAt: true, follower: { select: { username: true } } } },
     },
   });
   if (!user) throw new HttpError(404, "Account not found");

@@ -43,7 +43,11 @@ model User {
   passwordResets     PasswordReset[]
   replyVotes         ReplyVote[]
   reports            Report[]
-  notifications      Notification[]
+  notifications      Notification[]         @relation("recipient")
+  // Notifications about something this user did, e.g. "Asha started following you"
+  actedIn            Notification[]         @relation("actor")
+  following          Follow[]               @relation("follower")
+  followers          Follow[]               @relation("followed")
   recurring          RecurringTransaction[]
   categories         Category[]
   avatar             Avatar?
@@ -176,6 +180,7 @@ model Report {
 model Notification {
   id        String    @id @default(cuid())
   // reply_to_question | reply_in_thread | helpful | post_hidden | reply_hidden
+  // | follow_request | new_follower | follow_accepted | followed_post
   kind      String
   count     Int       @default(1)
   // Question title at the time, so the notification still reads well if the title changes
@@ -186,13 +191,33 @@ model Notification {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  postId    String
-  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation("recipient", fields: [userId], references: [id], onDelete: Cascade)
+  // Empty for follow notifications, which aren't about a question
+  postId    String?
+  post      Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
   replyId   String?
   reply     Reply?    @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  // Who it's about, for follow notifications and new questions from people you follow; never
+  // set for anything that could reveal who wrote an anonymous post
+  actorId   String?
+  actor     User?     @relation("actor", fields: [actorId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
+}
+
+// One person following another. Following a private profile starts as a request ("pending")
+// that the profile's owner accepts; public profiles are followed straight away ("accepted").
+model Follow {
+  id          String   @id @default(cuid())
+  status      String
+  createdAt   DateTime @default(now())
+  followerId  String
+  follower    User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("followed", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId, status])
 }
 
 // A monthly repeating transaction (salary, rent, SIP, EMI). Entries are added when due by a

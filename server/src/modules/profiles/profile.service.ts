@@ -3,11 +3,12 @@ import { HttpError } from "../../lib/httpError";
 import { DELETED_USERNAME } from "../../lib/validation";
 import { HIDE_AFTER_REPORTS } from "../posts/post.service";
 import { avatarUrl, identity, identitySelect } from "../../lib/identity";
+import { acceptAllRequests, canSeeActivity, followCounts, followStatus, pendingRequestCount } from "../follows/follow.service";
 
 const RECENT = 20;
 
 // A person's public profile. Only posts and replies made under their name count; anonymous ones are
-// never shown or counted, and a private profile's activity is visible only to its owner.
+// never shown or counted. A private profile's activity is visible only to its owner and accepted followers.
 export async function getProfile(viewerId: string, username: string) {
   const user = await prisma.user.findFirst({
     where: { username: { equals: username, mode: "insensitive" }, NOT: { username: DELETED_USERNAME } },
@@ -16,8 +17,27 @@ export async function getProfile(viewerId: string, username: string) {
   if (!user) throw new HttpError(404, "Profile not found");
 
   const isMe = user.id === viewerId;
-  const profile = { ...identity(user), bio: user.bio, joinedAt: user.createdAt, isPrivate: user.isPrivate, isMe };
-  if (user.isPrivate && !isMe) return { ...profile, activity: null };
+  const [counts, status, followsYou, pendingRequests, visible] = await Promise.all([
+    followCounts(user.id),
+    isMe ? null : followStatus(viewerId, user.id),
+    isMe ? false : followStatus(user.id, viewerId).then((s) => s === "following"),
+    isMe ? pendingRequestCount(user.id) : 0,
+    canSeeActivity(viewerId, user),
+  ]);
+  const profile = {
+    ...identity(user),
+    bio: user.bio,
+    joinedAt: user.createdAt,
+    isPrivate: user.isPrivate,
+    isMe,
+    ...counts,
+    // null on your own profile
+    followStatus: status,
+    followsYou,
+    // Only on your own profile
+    pendingRequests,
+  };
+  if (!visible) return { ...profile, activity: null };
 
   const [posts, replies] = await Promise.all([
     prisma.post.findMany({
@@ -125,5 +145,7 @@ export async function updateProfile(userId: string, data: { displayName: string 
 }
 
 export async function updatePrivacy(userId: string, data: { isPrivate?: boolean; anonymousByDefault?: boolean }) {
-  return prisma.user.update({ where: { id: userId }, data, select: { isPrivate: true, anonymousByDefault: true } });
+  const privacy = await prisma.user.update({ where: { id: userId }, data, select: { isPrivate: true, anonymousByDefault: true } });
+  if (data.isPrivate === false) await acceptAllRequests(userId);
+  return privacy;
 }

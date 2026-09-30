@@ -1,3 +1,15 @@
+// How you relate to someone: not following, waiting for them to accept your request, or following
+export type FollowStatus = "none" | "requested" | "following";
+
+// Someone in a followers or following list
+export interface Person {
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  isMe: boolean;
+  followStatus: FollowStatus;
+}
+
 export interface ProfileQuestion {
   id: string;
   title: string;
@@ -23,7 +35,14 @@ export interface Profile {
   joinedAt: string;
   isPrivate: boolean;
   isMe: boolean;
-  // null when the profile is private and it isn't yours
+  followerCount: number;
+  followingCount: number;
+  // null on your own profile
+  followStatus: FollowStatus | null;
+  followsYou: boolean;
+  // Requests waiting for your answer; only on your own profile
+  pendingRequests: number;
+  // null when the profile is private and you're not an accepted follower
   activity: {
     questionCount: number;
     replyCount: number;

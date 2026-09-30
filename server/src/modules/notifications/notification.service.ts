@@ -3,8 +3,10 @@ import { HttpError } from "../../lib/httpError";
 import { sendEmail } from "../../lib/email";
 import { escapeHtml } from "../../lib/html";
 import { DELETED_USERNAME } from "../../lib/validation";
+import { identity, identitySelect } from "../../lib/identity";
 
 type Kind = "reply_to_question" | "reply_in_thread" | "helpful" | "post_hidden" | "reply_hidden";
+type PersonKind = "follow_request" | "new_follower" | "follow_accepted";
 
 const EMAIL_GAP_MS = 60 * 60 * 1000;
 
@@ -107,8 +109,38 @@ export async function notifyHidden(postId: string, replyId: string | null) {
   }
 }
 
-function message(kind: string, count: number) {
+// A follow event from one person to another. An unread one from the same person isn't repeated,
+// so following and unfollowing over and over doesn't flood the bell.
+export async function notifyPerson(userId: string, kind: PersonKind, actorId: string) {
+  const existing = await prisma.notification.findFirst({ where: { userId, kind, actorId, readAt: null } });
+  if (existing) return;
+  await prisma.notification.create({ data: { userId, kind, actorId, title: "" } });
+}
+
+// A request was answered or withdrawn, so it no longer needs the owner's attention
+export const clearFollowRequest = (ownerId: string, requesterId: string) =>
+  prisma.notification.deleteMany({ where: { userId: ownerId, kind: "follow_request", actorId: requesterId } });
+
+// Someone asked a question under their name: tell the people who follow them.
+// Never called for anonymous questions, which would reveal who asked.
+export async function notifyFollowersOfPost(authorId: string, postId: string, title: string) {
+  const followers = await prisma.follow.findMany({ where: { followingId: authorId, status: "accepted" }, select: { followerId: true } });
+  if (followers.length === 0) return;
+  await prisma.notification.createMany({
+    data: followers.map((f) => ({ userId: f.followerId, kind: "followed_post", actorId: authorId, postId, title })),
+  });
+}
+
+function message(kind: string, count: number, actor: string) {
   switch (kind) {
+    case "follow_request":
+      return `${actor} asked to follow you`;
+    case "new_follower":
+      return `${actor} started following you`;
+    case "follow_accepted":
+      return `${actor} accepted your follow request`;
+    case "followed_post":
+      return `${actor} asked a question`;
     case "reply_to_question":
       return count === 1 ? "New reply to your question" : `${count} new replies to your question`;
     case "reply_in_thread":
@@ -126,7 +158,12 @@ function message(kind: string, count: number) {
 
 export async function listNotifications(userId: string) {
   const [items, unread] = await Promise.all([
-    prisma.notification.findMany({ where: { userId }, orderBy: { updatedAt: "desc" }, take: 30 }),
+    prisma.notification.findMany({
+      where: { userId },
+      orderBy: { updatedAt: "desc" },
+      take: 30,
+      include: { actor: { select: identitySelect } },
+    }),
     prisma.notification.count({ where: { userId, readAt: null } }),
   ]);
   return {
@@ -134,9 +171,10 @@ export async function listNotifications(userId: string) {
     notifications: items.map((n) => ({
       id: n.id,
       kind: n.kind,
-      message: message(n.kind, n.count),
+      message: message(n.kind, n.count, n.actor ? n.actor.displayName || n.actor.username : "Someone"),
       title: n.title,
       postId: n.postId,
+      actor: n.actor ? identity(n.actor) : null,
       read: n.readAt !== null,
       updatedAt: n.updatedAt,
     })),

@@ -97,7 +97,7 @@ export function PrivacySection() {
       <Panel title="Profile">
         <Toggle
           label="Private profile"
-          description="Others see only your photo, name and bio, not the list of questions and replies on your profile. What you post in Discuss stays visible there."
+          description="People must ask to follow you, and only those you accept see your questions, replies and followers on your profile. What you post in Discuss stays visible there. Turning this off accepts any waiting requests."
           checked={me?.isPrivate ?? false}
           disabled={!me || state.busy}
           onChange={(value) => save("isPrivate", value, value ? "Your profile is now private" : "Your profile is now public")}

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { isAxiosError } from "axios";
-import { CalendarDays, Lock, MessageCircle, Pencil, ThumbsUp, UserRound } from "lucide-react";
+import { CalendarDays, Lock, MessageCircle, Pencil, ThumbsUp, UserPlus, UserRound } from "lucide-react";
 import api from "../lib/api";
 import { nameOf } from "../lib/me";
 import type { Profile as ProfileData } from "../lib/profile";
@@ -10,6 +10,7 @@ import { pageWidth } from "../lib/ui";
 import { useTitle } from "../lib/useTitle";
 import { useWideLayout } from "../lib/useMediaQuery";
 import Avatar from "../components/Avatar";
+import FollowButton from "../components/FollowButton";
 
 type Result = ProfileData | "not-found" | "error";
 
@@ -22,12 +23,19 @@ async function fetchProfile(username: string | undefined): Promise<Result> {
   }
 }
 
-function Stat({ value, label }: { value: number; label: string }) {
-  return (
-    <div className="text-center">
+function Stat({ value, label, to }: { value: number; label: string; to?: string | false }) {
+  const content = (
+    <>
       <p className="text-xl font-semibold tabular-nums text-ink-900">{value}</p>
       <p className="text-xs text-ink-500">{label}</p>
-    </div>
+    </>
+  );
+  return to ? (
+    <Link to={to} className="block text-center rounded-xl py-1 hover:bg-ink-100 transition">
+      {content}
+    </Link>
+  ) : (
+    <div className="text-center py-1">{content}</div>
   );
 }
 
@@ -51,6 +59,11 @@ function Profile() {
 
   const retry = useCallback(() => {
     setResult(null);
+    fetchProfile(username).then(setResult);
+  }, [username]);
+
+  // Following can open up a private profile's activity (or close it again), so reload it all
+  const reload = useCallback(() => {
     fetchProfile(username).then(setResult);
   }, [username]);
 
@@ -96,6 +109,9 @@ function Profile() {
         <h1 className="mt-4 text-xl font-semibold tracking-tight text-ink-900">{nameOf(profile)}</h1>
         {profile.displayName && <p className="text-sm text-ink-500">@{profile.username}</p>}
         {profile.bio && <p className="mt-3 text-sm text-ink-700 whitespace-pre-line break-words">{profile.bio}</p>}
+        {profile.followsYou && (
+          <span className="mt-2 text-xs font-medium text-ink-700 bg-ink-100 px-2 py-0.5 rounded-md">Follows you</span>
+        )}
         <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-500">
           <CalendarDays size={14} /> Joined {joined}
           {profile.isPrivate && (
@@ -106,8 +122,25 @@ function Profile() {
           )}
         </p>
       </div>
+      {profile.followStatus && (
+        <div className="mt-5 flex justify-center">
+          <FollowButton username={profile.username} status={profile.followStatus} onChange={reload} />
+        </div>
+      )}
+      {profile.followStatus === "requested" && (
+        <p className="mt-2 text-xs text-ink-500 text-center">You'll see their activity once they accept.</p>
+      )}
+      {/* Counts are shown to everyone; the lists open only when the activity is visible */}
+      <div className="mt-6 pt-5 border-t border-line grid grid-cols-2 gap-2">
+        <Stat
+          value={profile.followerCount}
+          label={profile.followerCount === 1 ? "Follower" : "Followers"}
+          to={activity ? `/u/${profile.username}/followers` : undefined}
+        />
+        <Stat value={profile.followingCount} label="Following" to={activity ? `/u/${profile.username}/following` : undefined} />
+      </div>
       {activity && (
-        <div className="mt-6 pt-5 border-t border-line grid grid-cols-3 gap-2">
+        <div className="mt-2 grid grid-cols-3 gap-2">
           <Stat value={activity.questionCount} label={activity.questionCount === 1 ? "Question" : "Questions"} />
           <Stat value={activity.replyCount} label={activity.replyCount === 1 ? "Reply" : "Replies"} />
           <Stat value={activity.helpfulCount} label="Helpful votes" />
@@ -115,6 +148,17 @@ function Profile() {
       )}
       {profile.isMe && (
         <>
+          {profile.pendingRequests > 0 && (
+            <Link
+              to="/follow-requests"
+              className="mt-6 flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-brand-50 text-brand-700 text-sm font-medium hover:opacity-90 transition"
+            >
+              <span className="flex items-center gap-2">
+                <UserPlus size={16} /> Follow requests
+              </span>
+              <span className="tabular-nums">{profile.pendingRequests}</span>
+            </Link>
+          )}
           <Link
             to="/settings/profile"
             className="mt-6 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-line font-medium text-ink-900 hover:bg-ink-100 transition"
@@ -123,7 +167,7 @@ function Profile() {
           </Link>
           <p className="mt-3 text-xs text-ink-500 text-center">
             {profile.isPrivate
-              ? "Your profile is private: others see only your photo, name and bio."
+              ? "Your profile is private: only followers you accept see your activity."
               : "This is how others see your profile. Anonymous posts never appear here."}
           </p>
         </>
@@ -155,7 +199,11 @@ function Profile() {
     <div className="bg-surface border border-line rounded-2xl p-10 text-center">
       <Lock size={28} className="mx-auto text-ink-300" />
       <p className="mt-3 font-medium text-ink-900">This profile is private</p>
-      <p className="mt-1 text-sm text-ink-500">{nameOf(profile)} has chosen not to show their activity.</p>
+      <p className="mt-1 text-sm text-ink-500">
+        {profile.followStatus === "requested"
+          ? `You've asked to follow ${nameOf(profile)}. Their activity will show here once they accept.`
+          : `Follow ${nameOf(profile)} to see their questions and replies.`}
+      </p>
     </div>
   ) : tab === "questions" ? (
     activity.questions.length === 0 ? (

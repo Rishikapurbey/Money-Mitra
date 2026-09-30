@@ -3,7 +3,7 @@ import { HttpError } from "../../lib/httpError";
 import { DELETED_USERNAME } from "../../lib/validation";
 import { sendEmail } from "../../lib/email";
 import { escapeHtml } from "../../lib/html";
-import { notifyHelpful, notifyHidden, notifyReply } from "../notifications/notification.service";
+import { notifyFollowersOfPost, notifyHelpful, notifyHidden, notifyReply } from "../notifications/notification.service";
 import { identity, identitySelect } from "../../lib/identity";
 
 // Notifications are secondary: a problem sending one must never undo the action that caused it
@@ -54,11 +54,19 @@ function hideIfReported<T extends { body: string; author: string | null }>(item:
 
 const authorSelect = { author: { select: identitySelect } };
 
-export async function listPosts(viewerId: string, options: { topic?: string | undefined; unanswered?: boolean } = {}) {
+export async function listPosts(
+  viewerId: string,
+  options: { topic?: string | undefined; unanswered?: boolean; following?: boolean } = {}
+) {
   const posts = await prisma.post.findMany({
     where: {
       ...(options.topic && { topic: options.topic }),
       ...(options.unanswered && { replies: { none: {} } }),
+      // Questions asked under their own name by people the viewer follows (anonymous ones never show)
+      ...(options.following && {
+        isAnonymous: false,
+        author: { followers: { some: { followerId: viewerId, status: "accepted" } } },
+      }),
     },
     orderBy: { createdAt: "desc" },
     include: { ...authorSelect, _count: { select: { replies: true, reports: true } } },
@@ -106,6 +114,7 @@ export async function createPost(
   data: { title: string; body: string; topic: string; isAnonymous: boolean }
 ) {
   const post = await prisma.post.create({ data: { ...data, authorId }, include: authorSelect });
+  if (!data.isAnonymous) await safely(() => notifyFollowersOfPost(authorId, post.id, post.title));
   return { ...present(post, authorId), replyCount: 0, hidden: false };
 }
 

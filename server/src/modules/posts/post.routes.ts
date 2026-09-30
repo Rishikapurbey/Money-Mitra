@@ -22,7 +22,11 @@ router.get("/", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   const topic = text(req.query.topic);
   if (topic && !TOPICS.includes(topic)) return res.status(400).json({ error: "Unknown topic" });
-  const posts = await listPosts(req.userId, { topic: topic || undefined, unanswered: req.query.unanswered === "1" });
+  const posts = await listPosts(req.userId, {
+    topic: topic || undefined,
+    unanswered: req.query.unanswered === "1",
+    following: req.query.following === "1",
+  });
   res.status(200).json({ posts });
 });
 

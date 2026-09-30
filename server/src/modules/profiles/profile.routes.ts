@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
 import { getAvatar, getProfile } from "./profile.service";
+import { listPeople } from "../follows/follow.service";
 
 const router = Router();
 
@@ -8,6 +9,16 @@ router.get("/:username", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   const profile = await getProfile(req.userId, req.params.username as string);
   res.status(200).json({ profile });
+});
+
+router.get("/:username/followers", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  res.status(200).json({ people: await listPeople(req.userId, req.params.username as string, "followers") });
+});
+
+router.get("/:username/following", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  res.status(200).json({ people: await listPeople(req.userId, req.params.username as string, "following") });
 });
 
 // Photos load in <img> tags, which can't send the login token, so this is public, like a

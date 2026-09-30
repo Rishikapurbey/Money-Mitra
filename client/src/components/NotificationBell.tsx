@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bell, EyeOff, MessageCircle, ThumbsUp } from "lucide-react";
+import { Bell, EyeOff, MessageCircle, ThumbsUp, UserCheck, UserPlus } from "lucide-react";
 import api from "../lib/api";
 import { timeAgo } from "../lib/discuss";
 import { announceNotificationsChange, onNotificationsChange } from "../lib/dataEvents";
+import { notificationLink } from "../lib/notifications";
 import type { AppNotification } from "../lib/notifications";
+import { nameOf } from "../lib/me";
+import Avatar from "./Avatar";
 
 const REFRESH_MS = 60_000;
 
@@ -14,6 +17,10 @@ const ICONS = {
   helpful: ThumbsUp,
   post_hidden: EyeOff,
   reply_hidden: EyeOff,
+  follow_request: UserPlus,
+  new_follower: UserPlus,
+  follow_accepted: UserCheck,
+  followed_post: MessageCircle,
 };
 
 // The bell in the header: an unread count that refreshes on navigation and every minute,
@@ -79,7 +86,7 @@ function NotificationBell() {
     if (!n.read) {
       api.post(`/notifications/${n.id}/read`).then(announceNotificationsChange).catch(() => {});
     }
-    navigate(`/discuss/${n.postId}`);
+    navigate(notificationLink(n));
   };
 
   const markAllRead = async () => {
@@ -120,7 +127,7 @@ function NotificationBell() {
             <div className="px-4 py-8 text-center">
               <Bell size={22} className="mx-auto text-ink-300" />
               <p className="mt-2 text-sm text-ink-500">
-                Nothing yet. You'll hear here when someone replies to your questions or finds your answers helpful.
+                Nothing yet. You'll hear here when someone replies to you, finds your answers helpful or follows you.
               </p>
             </div>
           ) : (
@@ -133,10 +140,14 @@ function NotificationBell() {
                       onClick={() => openNotification(n)}
                       className={`w-full flex gap-3 px-4 py-3 text-left transition hover:bg-canvas ${n.read ? "" : "bg-brand-50/60"}`}
                     >
-                      <Icon size={16} className={`shrink-0 mt-0.5 ${n.read ? "text-ink-300" : "text-brand-600"}`} />
+                      {n.actor ? (
+                        <Avatar name={nameOf(n.actor)} avatarUrl={n.actor.avatarUrl} />
+                      ) : (
+                        <Icon size={16} className={`shrink-0 mt-0.5 ${n.read ? "text-ink-300" : "text-brand-600"}`} />
+                      )}
                       <span className="min-w-0 flex-1">
                         <span className={`block text-sm ${n.read ? "text-ink-700" : "text-ink-900 font-medium"}`}>{n.message}</span>
-                        <span className="block text-xs text-ink-500 truncate">{n.title}</span>
+                        {n.title && <span className="block text-xs text-ink-500 truncate">{n.title}</span>}
                         <span className="block text-xs text-ink-400 mt-0.5">{timeAgo(n.updatedAt)}</span>
                       </span>
                       {!n.read && <span className="w-2 h-2 rounded-full bg-brand-600 shrink-0 mt-1.5" aria-label="Unread" />}
