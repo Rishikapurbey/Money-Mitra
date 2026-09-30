@@ -24,7 +24,7 @@ const appUrl = () => (process.env.APP_URL ?? "http://127.0.0.1:5173").replace(/\
 
 function replyEmail(title: string, postId: string) {
   const link = `${appUrl()}/discuss/${postId}`;
-  const settings = `${appUrl()}/settings`;
+  const settings = `${appUrl()}/settings/notifications`;
   const text = [
     "Someone replied to your question on Money Mitra:",
     `"${title}"`,

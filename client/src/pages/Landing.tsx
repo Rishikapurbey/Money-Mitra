@@ -21,6 +21,7 @@ import { useInstallPrompt } from "../lib/installPrompt";
 import { CALCULATORS } from "../lib/calculators";
 import { CALCULATOR_ICONS } from "../lib/calculatorIcons";
 import { useTitle } from "../lib/useTitle";
+import { faqs } from "../lib/faqs";
 
 // Illustrative figures for the product previews; not real user data
 function MiniBalance() {
@@ -196,28 +197,6 @@ const promises = [
 
 const previewTerms = ["sip", "credit-score", "emergency-fund", "old-vs-new-tax-regime"];
 
-const faqs = [
-  {
-    q: "Is Money Mitra free?",
-    a: "Yes. Tracking, budgets, goals, Learn and Discuss are all free to use.",
-  },
-  {
-    q: "Do I need to connect my bank account?",
-    a: "No. You add transactions yourself, and we never ask for your bank login or card details.",
-  },
-  {
-    q: "Is my data safe?",
-    a: "Your transactions, budgets and goals are private to your account. Passwords are stored securely hashed, never in plain text. We don't show ads and we don't sell your data.",
-  },
-  {
-    q: "Can other people see who I am in Discuss?",
-    a: "Only if you choose to show your username. When you post or reply anonymously, other users never see your name. Your identity is kept privately so we can moderate abuse.",
-  },
-  {
-    q: "Is this financial advice?",
-    a: "No. Money Mitra is for education and personal tracking. For decisions about your own situation, especially tax or investments, consider a qualified adviser.",
-  },
-];
 
 function Landing() {
   useTitle();

@@ -16,7 +16,7 @@ const smallButton = "px-3 py-1.5 rounded-lg text-sm font-medium transition disab
 const primary = `${smallButton} bg-brand-600 text-white hover:bg-brand-700`;
 const quiet = `${smallButton} text-ink-500 hover:text-ink-900`;
 
-// Settings: add, rename, merge and delete the categories used across the app
+// Add, rename, merge and delete the categories used across the app (shown in Settings)
 function CategoriesCard() {
   const { categories, loaded, failed, reload } = useCategories();
   const [type, setType] = useState<"expense" | "income">("expense");
@@ -225,13 +225,7 @@ function CategoriesCard() {
 
   return (
     <section className="bg-surface border border-line rounded-2xl p-6">
-      <h2 className="font-semibold text-ink-900">Categories</h2>
-      <p className="mt-1 text-sm text-ink-500">
-        Offered when you add a transaction. Renaming or merging also updates your past entries, budgets and recurring
-        transactions.
-      </p>
-
-      <div className="mt-5 space-y-4">
+      <div className="space-y-4">
         <div role="tablist" aria-label="Category type" className="grid grid-cols-2 p-1 bg-ink-100 rounded-xl text-sm font-medium">
           {(["expense", "income"] as const).map((t) => (
             <button

@@ -26,6 +26,12 @@ export async function changePassword(userId: string, currentPassword: string, ne
   return signToken(user);
 }
 
+// Every existing login stops working; returns a fresh token so this device stays logged in
+export async function logoutEverywhere(userId: string) {
+  const user = await prisma.user.update({ where: { id: userId }, data: { tokenVersion: { increment: 1 } } });
+  return signToken(user);
+}
+
 export async function changeUsername(userId: string, username: string) {
   const taken = await prisma.user.findFirst({
     where: { username: { equals: username, mode: "insensitive" }, NOT: { id: userId } },

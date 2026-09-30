@@ -3,11 +3,13 @@ interface Email {
   subject: string;
   html: string;
   text: string;
+  // Where replies go, e.g. the user who sent feedback
+  replyTo?: string | undefined;
 }
 
 // Sends through Brevo's API when BREVO_API_KEY is set. Without it (local development)
 // the email is printed to the server console instead, so flows can be tested offline.
-export async function sendEmail({ to, subject, html, text }: Email) {
+export async function sendEmail({ to, subject, html, text, replyTo }: Email) {
   const apiKey = process.env.BREVO_API_KEY;
   const from = process.env.EMAIL_FROM;
   if (!apiKey || !from) {
@@ -20,6 +22,7 @@ export async function sendEmail({ to, subject, html, text }: Email) {
     body: JSON.stringify({
       sender: { name: "Money Mitra", email: from },
       to: [{ email: to }],
+      ...(replyTo && { replyTo: { email: replyTo } }),
       subject,
       htmlContent: html,
       textContent: text,

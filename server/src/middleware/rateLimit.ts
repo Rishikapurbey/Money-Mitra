@@ -28,3 +28,5 @@ export const resetPasswordLimiter = limiter(15, 10, "Too many attempts. Please t
 export const reportLimiter = limiter(60, 20, "You've sent a lot of reports. Please try again later.");
 
 export const postLimiter = limiter(10, 30, "You're posting very quickly. Please wait a few minutes and try again.");
+
+export const feedbackLimiter = limiter(60, 5, "You've sent a lot of feedback recently. Please try again in an hour.");

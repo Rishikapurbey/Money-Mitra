@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
 import { accountLimiter } from "../../middleware/rateLimit";
 import { passwordProblem, text, usernameProblem } from "../../lib/validation";
-import { changePassword, changeUsername, deleteAccount, exportData, setEmailPreferences } from "./account.service";
+import { changePassword, changeUsername, deleteAccount, exportData, logoutEverywhere, setEmailPreferences } from "./account.service";
 
 const router = Router();
 
@@ -18,6 +18,11 @@ router.put("/password", authMiddleware, accountLimiter, async (req: AuthRequest,
   if (current === next) return res.status(400).json({ error: "Your new password must be different" });
   const token = await changePassword(req.userId, current, next);
   res.status(200).json({ token });
+});
+
+router.post("/logout-everywhere", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  res.status(200).json({ token: await logoutEverywhere(req.userId) });
 });
 
 router.put("/username", authMiddleware, async (req: AuthRequest, res) => {
