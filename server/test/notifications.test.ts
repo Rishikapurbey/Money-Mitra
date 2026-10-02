@@ -106,9 +106,10 @@ describe("reading notifications", () => {
 
 describe("reply emails", () => {
   it("emails the asker at most once an hour per question, and respects the setting", async () => {
-    vi.mocked(sendEmail).mockClear();
     const asker = await createUser("mailme");
     const other = await createUser("other");
+    const quiet = await createUser("quiet");
+    vi.mocked(sendEmail).mockClear();
     const postId = await ask(asker.auth, "Question <with> html");
     await reply(other.auth, postId);
     await api().post("/api/notifications/read-all").set("Authorization", asker.auth);
@@ -119,7 +120,6 @@ describe("reply emails", () => {
     expect(emails[0].to).toBe(asker.email);
     expect(emails[0].html).toContain("Question &lt;with&gt; html");
 
-    const quiet = await createUser("quiet");
     await api().put("/api/account/email-preferences").set("Authorization", quiet.auth).send({ emailReplies: false }).expect(200);
     const quietPost = await ask(quiet.auth);
     await reply(other.auth, quietPost);

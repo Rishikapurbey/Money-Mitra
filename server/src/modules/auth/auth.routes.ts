@@ -3,8 +3,9 @@ import { signupUser, loginUser } from "./auth.service";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
 import prisma from "../../db/prisma";
 import { avatarUrl } from "../../lib/identity";
-import { forgotPasswordLimiter, loginLimiter, resetPasswordLimiter, signupLimiter } from "../../middleware/rateLimit";
+import { forgotPasswordLimiter, loginLimiter, resetPasswordLimiter, signupLimiter, verifyEmailLimiter, resendVerificationLimiter } from "../../middleware/rateLimit";
 import { requestPasswordReset, resetPassword } from "./passwordReset.service";
+import { sendVerificationEmail, verifyEmail } from "./emailVerification.service";
 import { text, emailProblem, usernameProblem, passwordProblem } from "../../lib/validation";
 
 const router = Router();
@@ -23,6 +24,7 @@ router.post("/signup", signupLimiter, async (req, res) => {
   if (problem) return res.status(400).json({ error: problem });
 
   const user = await signupUser(email, username, password);
+  await sendVerificationEmail(user.id);
   res.status(201).json({ user });
 });
 
@@ -56,6 +58,19 @@ router.post("/reset-password", resetPasswordLimiter, async (req, res) => {
   res.status(200).json({ success: true });
 });
 
+router.post("/verify-email", verifyEmailLimiter, async (req, res) => {
+  const token = text(req.body.token);
+  if (!token) return res.status(400).json({ error: "This link is invalid or has expired. Log in and send yourself a new one." });
+  await verifyEmail(token);
+  res.status(200).json({ success: true });
+});
+
+router.post("/resend-verification", authMiddleware, resendVerificationLimiter, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  await sendVerificationEmail(req.userId);
+  res.status(200).json({ message: "We've sent a new link. Please check your inbox." });
+});
+
 router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -66,6 +81,7 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
     select: {
       id: true,
       email: true,
+      emailVerifiedAt: true,
       username: true,
       createdAt: true,
       emailReplies: true,
@@ -81,7 +97,7 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
     return res.status(404).json({ error: "User not found" });
   }
 
-  const { avatarUpdatedAt, ...rest } = user;
-  res.status(200).json({ user: { ...rest, avatarUrl: avatarUrl({ username: user.username, avatarUpdatedAt }) } });
+  const { avatarUpdatedAt, emailVerifiedAt, ...rest } = user;
+  res.status(200).json({ user: { ...rest, emailVerified: emailVerifiedAt !== null, avatarUrl: avatarUrl({ username: user.username, avatarUpdatedAt }) } });
 });
 export default router;

@@ -3,6 +3,7 @@ import api from "./api";
 // The logged-in user, from /auth/me
 export interface Me {
   email: string;
+  emailVerified: boolean;
   username: string;
   createdAt: string;
   emailReplies: boolean;

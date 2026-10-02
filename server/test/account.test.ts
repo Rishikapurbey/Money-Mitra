@@ -15,8 +15,8 @@ const lastResetToken = () => {
 
 describe("password reset", () => {
   it("answers the same way whether or not the account exists", async () => {
-    vi.mocked(sendEmail).mockClear();
     const user = await createUser("reset");
+    vi.mocked(sendEmail).mockClear();
     const known = await api().post("/api/auth/forgot-password").send({ email: user.email });
     const unknown = await api().post("/api/auth/forgot-password").send({ email: "nobody@example.com" });
     expect(known.status).toBe(200);

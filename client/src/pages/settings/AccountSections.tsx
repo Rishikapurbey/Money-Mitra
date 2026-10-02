@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertTriangle, ArrowRight, Camera, LogOut } from "lucide-react";
+import { AlertTriangle, ArrowRight, Camera, CheckCircle2, LogOut } from "lucide-react";
 import api from "../../lib/api";
 import { nameOf } from "../../lib/me";
 import { preparePhoto } from "../../lib/photo";
@@ -268,6 +268,12 @@ export function SecuritySection() {
       <SectionHeader title="Login & security" description="Your email, password and where you're logged in." />
       <Panel title="Email">
         <input value={me?.email ?? ""} disabled aria-label="Email" className={`${inputClass} w-full bg-canvas text-ink-500`} />
+        {me && (
+          <p className={`mt-2 flex items-center gap-1.5 text-sm font-medium ${me.emailVerified ? "text-gain" : "text-warn"}`}>
+            {me.emailVerified ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
+            {me.emailVerified ? "Confirmed" : "Not confirmed yet. Use the link we emailed you, or send a new one from the banner above."}
+          </p>
+        )}
         <p className="mt-2 text-xs text-ink-500">Used to log in and to reset your password. It's never shown to other people.</p>
       </Panel>
 

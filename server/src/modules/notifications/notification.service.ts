@@ -54,7 +54,8 @@ function replyEmail(title: string, postId: string) {
 // Emails the asker about a reply, at most once an hour per question, if they allow it
 async function maybeEmailAsker(notificationId: string, userId: string, postId: string, title: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || !user.emailReplies || user.username === DELETED_USERNAME) return;
+  // Only to confirmed addresses, so a mistyped email never receives someone's activity
+  if (!user || !user.emailReplies || !user.emailVerifiedAt || user.username === DELETED_USERNAME) return;
   const recent = await prisma.notification.findFirst({
     where: { userId, postId, kind: "reply_to_question", emailedAt: { gte: new Date(Date.now() - EMAIL_GAP_MS) } },
   });

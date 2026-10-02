@@ -13,6 +13,7 @@ import {
   report,
   toggleHelpful,
 } from "./post.service";
+import { requireVerifiedEmail } from "../auth/emailVerification.service";
 
 const router = Router();
 
@@ -39,6 +40,7 @@ router.get("/:id", authMiddleware, async (req: AuthRequest, res) => {
 
 router.post("/", authMiddleware, postLimiter, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  await requireVerifiedEmail(req.userId);
   const title = text(req.body.title);
   const body = text(req.body.body);
   const topic = text(req.body.topic);
@@ -61,6 +63,7 @@ router.delete("/:id", authMiddleware, async (req: AuthRequest, res) => {
 
 router.post("/:id/replies", authMiddleware, postLimiter, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  await requireVerifiedEmail(req.userId);
   const body = text(req.body.body);
   if (!body || body.length > 3000) {
     return res.status(400).json({ error: "Reply must be between 1 and 3000 characters" });

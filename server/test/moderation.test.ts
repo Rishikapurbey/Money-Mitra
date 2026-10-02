@@ -89,9 +89,9 @@ describe("reports", () => {
     const detail = (await api().get(`/api/posts/${postId}`).set("Authorization", viewer.auth)).body.post;
     expect(detail).toMatchObject({ hidden: true, title: "", body: "", author: null });
 
-    const emails = vi.mocked(sendEmail).mock.calls.map((c) => c[0]);
+    // Signups in between send confirmation emails; only the admin's matter here
+    const emails = vi.mocked(sendEmail).mock.calls.map((c) => c[0]).filter((e) => e.to === "admin@example.com");
     expect(emails).toHaveLength(3);
-    expect(emails[0].to).toBe("admin@example.com");
     expect(emails[2].html).toContain("&lt;b&gt;Buy cheap coins now&lt;/b&gt;");
     expect(emails[2].html).not.toContain("<b>Buy cheap");
   });

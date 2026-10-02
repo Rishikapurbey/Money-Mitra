@@ -16,6 +16,7 @@ import FollowRequests from "./pages/FollowRequests";
 import SettingsLayout, { SettingsSection } from "./pages/settings/SettingsLayout";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import VerifyEmail from "./pages/VerifyEmail";
 import AppLayout from "./components/AppLayout";
 import PublicLayout from "./components/PublicLayout";
 import ScrollManager from "./components/ScrollManager";
@@ -53,6 +54,7 @@ function App() {
           {/* Open to everyone: a reset link may be opened on a browser that's still logged in */}
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route element={<RequireAuth />}>
             <Route element={<AppLayout />}>
               <Route path="/home" element={<Home />} />

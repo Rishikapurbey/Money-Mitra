@@ -14,6 +14,7 @@ import { announceDataChange } from "../lib/dataEvents";
 import { nameOf } from "../lib/me";
 import type { Me } from "../lib/me";
 import Avatar from "./Avatar";
+import VerifyEmailBanner from "./VerifyEmailBanner";
 
 export interface AppContext {
   // null until loaded
@@ -176,6 +177,8 @@ function AppLayout() {
           </div>
         </div>
       </header>
+
+      {me && !me.emailVerified && <VerifyEmailBanner email={me.email} />}
 
       <Outlet context={{ me, updateMe } satisfies AppContext} />
 

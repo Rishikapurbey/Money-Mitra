@@ -21,6 +21,8 @@ model User {
   email              String                 @unique
   username           String                 @unique
   passwordHash       String
+  // When the user confirmed they own the email; null until then
+  emailVerifiedAt    DateTime?
   // Bumped on password change or reset; logins issued before it stop working
   tokenVersion       Int                    @default(0)
   // Email me when someone replies to my question
@@ -41,6 +43,7 @@ model User {
   budgets            Budget[]
   goals              Goal[]
   passwordResets     PasswordReset[]
+  emailVerifications EmailVerification[]
   replyVotes         ReplyVote[]
   reports            Report[]
   notifications      Notification[]         @relation("recipient")
@@ -136,6 +139,19 @@ model Goal {
 // A one-time password reset link. Only a SHA-256 hash of the token is stored,
 // so a database leak can't be used to reset anyone's password.
 model PasswordReset {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// A link sent to confirm the user owns their email; only the hash of the token is stored
+model EmailVerification {
   id        String    @id @default(cuid())
   tokenHash String    @unique
   expiresAt DateTime
