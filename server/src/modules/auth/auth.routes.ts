@@ -5,7 +5,7 @@ import prisma from "../../db/prisma";
 import { avatarUrl } from "../../lib/identity";
 import { forgotPasswordLimiter, loginLimiter, resetPasswordLimiter, signupLimiter, verifyEmailLimiter, resendVerificationLimiter } from "../../middleware/rateLimit";
 import { requestPasswordReset, resetPassword } from "./passwordReset.service";
-import { sendVerificationEmail, verifyEmail } from "./emailVerification.service";
+import { pendingEmail, sendVerificationEmail, verifyEmail } from "./emailVerification.service";
 import { text, emailProblem, usernameProblem, passwordProblem } from "../../lib/validation";
 
 const router = Router();
@@ -61,8 +61,8 @@ router.post("/reset-password", resetPasswordLimiter, async (req, res) => {
 router.post("/verify-email", verifyEmailLimiter, async (req, res) => {
   const token = text(req.body.token);
   if (!token) return res.status(400).json({ error: "This link is invalid or has expired. Log in and send yourself a new one." });
-  await verifyEmail(token);
-  res.status(200).json({ success: true });
+  const { changedTo } = await verifyEmail(token);
+  res.status(200).json({ success: true, changedTo });
 });
 
 router.post("/resend-verification", authMiddleware, resendVerificationLimiter, async (req: AuthRequest, res) => {
@@ -98,6 +98,6 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
   }
 
   const { avatarUpdatedAt, emailVerifiedAt, ...rest } = user;
-  res.status(200).json({ user: { ...rest, emailVerified: emailVerifiedAt !== null, avatarUrl: avatarUrl({ username: user.username, avatarUpdatedAt }) } });
+  res.status(200).json({ user: { ...rest, emailVerified: emailVerifiedAt !== null, pendingEmail: await pendingEmail(user.id), avatarUrl: avatarUrl({ username: user.username, avatarUpdatedAt }) } });
 });
 export default router;

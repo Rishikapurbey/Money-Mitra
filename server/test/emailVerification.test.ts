@@ -79,3 +79,76 @@ describe("email verification", () => {
     expect(vi.mocked(sendEmail)).not.toHaveBeenCalled();
   });
 });
+
+describe("changing email", () => {
+  const change = (auth: string, email: string, password = "Password123") =>
+    api().put("/api/account/email").set("Authorization", auth).send({ email, password });
+
+  it("needs the right password, a new address and one nobody else uses", async () => {
+    const user = await createUser("changer");
+    const other = await createUser("taken");
+    expect((await change(user.auth, "fresh@example.com", "Wrong12345")).status).toBe(400);
+    expect((await change(user.auth, user.email.toUpperCase())).status).toBe(400);
+    expect((await change(user.auth, "not-an-email")).status).toBe(400);
+    const taken = await change(user.auth, other.email.toUpperCase());
+    expect(taken.status).toBe(409);
+    expect(taken.body.error).toMatch(/already used/);
+  });
+
+  it("keeps the old email until the new one is confirmed, then tells the old address", async () => {
+    const user = await createUser("mover", { verified: false });
+    vi.mocked(sendEmail).mockClear();
+    await change(user.auth, "Mover.New@Example.com").expect(200);
+
+    const sent = vi.mocked(sendEmail).mock.calls[0][0];
+    expect(sent.to).toBe("mover.new@example.com");
+    expect((await me(user.auth)).email).toBe(user.email);
+    expect((await me(user.auth)).pendingEmail).toBe("mover.new@example.com");
+    await api().post("/api/auth/login").send({ email: user.email, password: user.password }).expect(200);
+
+    const token = lastToken();
+    const res = await api().post("/api/auth/verify-email").send({ token }).expect(200);
+    expect(res.body.changedTo).toBe("mover.new@example.com");
+    const after = await me(user.auth);
+    expect(after).toMatchObject({ email: "mover.new@example.com", emailVerified: true, pendingEmail: null });
+
+    const notice = vi.mocked(sendEmail).mock.calls[1][0];
+    expect(notice.to).toBe(user.email);
+    expect(notice.text).toContain("m•••@example.com");
+    expect(notice.text).not.toContain("mover.new@example.com");
+
+    await api().post("/api/auth/login").send({ email: "mover.new@example.com", password: user.password }).expect(200);
+    await api().post("/api/auth/login").send({ email: user.email, password: user.password }).expect(401);
+    // Opening the link again still shows success
+    await api().post("/api/auth/verify-email").send({ token }).expect(200);
+  });
+
+  it("lets a newer request or a cancel replace the earlier link", async () => {
+    const user = await createUser("switcher");
+    await change(user.auth, "first@example.com").expect(200);
+    const first = lastToken();
+    await change(user.auth, "second@example.com").expect(200);
+    await api().post("/api/auth/verify-email").send({ token: first }).expect(400);
+    expect((await me(user.auth)).pendingEmail).toBe("second@example.com");
+
+    vi.mocked(sendEmail).mockClear();
+    await api().post("/api/account/email/resend").set("Authorization", user.auth).expect(200);
+    expect(vi.mocked(sendEmail).mock.calls[0][0].to).toBe("second@example.com");
+    const resent = lastToken();
+
+    await api().delete("/api/account/email/pending").set("Authorization", user.auth).expect(200);
+    expect((await me(user.auth)).pendingEmail).toBe(null);
+    await api().post("/api/auth/verify-email").send({ token: resent }).expect(400);
+    await api().post("/api/account/email/resend").set("Authorization", user.auth).expect(404);
+    expect((await me(user.auth)).email).toBe(user.email);
+  });
+
+  it("refuses the change if someone took the address in the meantime", async () => {
+    const user = await createUser("slow");
+    await change(user.auth, "race@example.com").expect(200);
+    const token = lastToken();
+    await api().post("/api/auth/signup").send({ email: "race@example.com", username: "race_winner", password: "Password123" }).expect(201);
+    await api().post("/api/auth/verify-email").send({ token }).expect(409);
+    expect((await me(user.auth)).email).toBe(user.email);
+  });
+});

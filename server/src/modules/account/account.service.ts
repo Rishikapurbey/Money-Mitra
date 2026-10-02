@@ -5,6 +5,7 @@ import { HttpError } from "../../lib/httpError";
 import { DELETED_USERNAME } from "../../lib/validation";
 import { signToken } from "../../lib/tokens";
 import { avatarUrl } from "../../lib/identity";
+import { requestEmailChange } from "../auth/emailVerification.service";
 
 async function verifyPassword(userId: string, password: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -14,6 +15,12 @@ async function verifyPassword(userId: string, password: string) {
     throw new HttpError(400, "Your password is incorrect");
   }
   return user;
+}
+
+// Sends a confirm link to the new address; the email only changes once it's opened
+export async function changeEmail(userId: string, password: string, newEmail: string) {
+  const user = await verifyPassword(userId, password);
+  await requestEmailChange(user, newEmail);
 }
 
 // Logs out every other session, and returns a fresh token so this device stays logged in

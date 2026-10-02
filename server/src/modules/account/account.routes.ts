@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
-import { accountLimiter, photoLimiter } from "../../middleware/rateLimit";
-import { passwordProblem, text, usernameProblem } from "../../lib/validation";
-import { changePassword, changeUsername, deleteAccount, exportData, logoutEverywhere, setEmailPreferences } from "./account.service";
+import { accountLimiter, emailChangeLimiter, photoLimiter, resendVerificationLimiter } from "../../middleware/rateLimit";
+import { emailProblem, passwordProblem, text, usernameProblem } from "../../lib/validation";
+import { changeEmail, changePassword, changeUsername, deleteAccount, exportData, logoutEverywhere, setEmailPreferences } from "./account.service";
 
 import {
   MAX_BIO,
@@ -13,6 +13,7 @@ import {
   updatePrivacy,
   updateProfile,
 } from "../profiles/profile.service";
+import { cancelEmailChange, resendEmailChange } from "../auth/emailVerification.service";
 
 const router = Router();
 
@@ -28,6 +29,29 @@ router.put("/password", authMiddleware, accountLimiter, async (req: AuthRequest,
   if (current === next) return res.status(400).json({ error: "Your new password must be different" });
   const token = await changePassword(req.userId, current, next);
   res.status(200).json({ token });
+});
+
+router.put("/email", authMiddleware, emailChangeLimiter, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  const email = text(req.body.email).toLowerCase();
+  const current = password(req.body.password);
+  const problem = emailProblem(email);
+  if (problem) return res.status(400).json({ error: problem });
+  if (!current) return res.status(400).json({ error: "Enter your current password" });
+  await changeEmail(req.userId, current, email);
+  res.status(200).json({ pendingEmail: email });
+});
+
+router.post("/email/resend", authMiddleware, resendVerificationLimiter, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  await resendEmailChange(req.userId);
+  res.status(200).json({ message: "We've sent a new link. Please check your inbox." });
+});
+
+router.delete("/email/pending", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  await cancelEmailChange(req.userId);
+  res.status(200).json({ success: true });
 });
 
 router.post("/logout-everywhere", authMiddleware, async (req: AuthRequest, res) => {

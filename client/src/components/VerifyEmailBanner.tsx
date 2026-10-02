@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { MailCheck } from "lucide-react";
 import { isAxiosError } from "axios";
 import api from "../lib/api";
@@ -37,6 +38,9 @@ function VerifyEmailBanner({ email }: { email: string }) {
         >
           {sending ? "Sending…" : "Send a new link"}
         </button>
+        <Link to="/settings/security" className="font-medium text-ink-500 hover:text-ink-900">
+          Wrong address? Change it
+        </Link>
       </div>
     </div>
   );

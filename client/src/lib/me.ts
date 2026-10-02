@@ -4,6 +4,8 @@ import api from "./api";
 export interface Me {
   email: string;
   emailVerified: boolean;
+  // A new address waiting to be confirmed
+  pendingEmail: string | null;
   username: string;
   createdAt: string;
   emailReplies: boolean;

@@ -154,6 +154,8 @@ model PasswordReset {
 model EmailVerification {
   id        String    @id @default(cuid())
   tokenHash String    @unique
+  // Set when the link confirms a change to this new address; null for confirming the signup email
+  email     String?
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())

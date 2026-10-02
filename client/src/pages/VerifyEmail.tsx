@@ -14,6 +14,7 @@ function VerifyEmail() {
   const token = searchParams.get("token") ?? "";
   const [state, setState] = useState<"checking" | "done" | "failed">(token ? "checking" : "failed");
   const [error, setError] = useState("");
+  const [changedTo, setChangedTo] = useState<string | null>(null);
   // React runs effects twice in development; the link should only be sent once
   const sent = useRef(false);
   const signedIn = Boolean(localStorage.getItem("token"));
@@ -23,7 +24,10 @@ function VerifyEmail() {
     sent.current = true;
     api
       .post("/auth/verify-email", { token })
-      .then(() => setState("done"))
+      .then((res) => {
+        setChangedTo(res.data.changedTo);
+        setState("done");
+      })
       .catch((err) => {
         setError(
           isAxiosError(err) && !err.response
@@ -54,10 +58,13 @@ function VerifyEmail() {
 
   if (state === "done") {
     return (
-      <AuthLayout title="Email confirmed" subtitle="Thanks. You can now post in Discuss and get reply emails.">
+      <AuthLayout
+        title={changedTo ? "Email changed" : "Email confirmed"}
+        subtitle={changedTo ? "From now on, log in with your new email address." : "Thanks. You can now post in Discuss and get reply emails."}
+      >
         <div className="space-y-4">
           <p className="flex items-center gap-2 text-sm text-gain font-medium">
-            <CheckCircle2 size={16} /> Your email address is confirmed.
+            <CheckCircle2 size={16} /> {changedTo ? `Your email is now ${changedTo}.` : "Your email address is confirmed."}
           </p>
           {next}
         </div>

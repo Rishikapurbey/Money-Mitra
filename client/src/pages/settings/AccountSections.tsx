@@ -226,8 +226,139 @@ export function ProfileSection() {
   );
 }
 
+// The account's email, its confirmation status, and changing it
+function EmailPanel() {
+  const { me, updateMe } = useSettings();
+  const toast = useToast();
+  const [editing, setEditing] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [state, setState] = useState(idle);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setState({ busy: true, error: "", success: "" });
+    try {
+      const res = await api.put("/account/email", { email, password });
+      updateMe({ pendingEmail: res.data.pendingEmail });
+      setEditing(false);
+      setEmail("");
+      setPassword("");
+      setState(idle);
+    } catch (err) {
+      setState({ busy: false, error: errorMessage(err, "We couldn't start the change."), success: "" });
+    }
+  };
+
+  const resend = async () => {
+    setState({ busy: true, error: "", success: "" });
+    try {
+      const res = await api.post("/account/email/resend");
+      setState(idle);
+      toast({ message: res.data.message });
+    } catch (err) {
+      setState({ busy: false, error: errorMessage(err, "We couldn't send the link."), success: "" });
+    }
+  };
+
+  const cancel = async () => {
+    setState({ busy: true, error: "", success: "" });
+    try {
+      await api.delete("/account/email/pending");
+      updateMe({ pendingEmail: null });
+      setState(idle);
+    } catch (err) {
+      setState({ busy: false, error: errorMessage(err, "We couldn't cancel the change."), success: "" });
+    }
+  };
+
+  return (
+    <Panel title="Email">
+      <input value={me?.email ?? ""} disabled aria-label="Email" className={`${inputClass} w-full bg-canvas text-ink-500`} />
+      {me && (
+        <p className={`mt-2 flex items-center gap-1.5 text-sm font-medium ${me.emailVerified ? "text-gain" : "text-warn"}`}>
+          {me.emailVerified ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
+          {me.emailVerified ? "Confirmed" : "Not confirmed yet. Use the link we emailed you, or send a new one from the banner above."}
+        </p>
+      )}
+      <p className="mt-2 text-xs text-ink-500">Used to log in and to reset your password. It's never shown to other people.</p>
+
+      {me?.pendingEmail && (
+        <div className="mt-4 rounded-xl bg-brand-50 border border-brand-100 px-4 py-3 text-sm">
+          <p className="text-ink-700">
+            Waiting for you to confirm <span className="font-medium text-ink-900">{me.pendingEmail}</span>. Open the link we sent
+            there. Until then, keep logging in with your current email.
+          </p>
+          <div className="mt-2 flex gap-4">
+            <button onClick={resend} disabled={state.busy} className="font-medium text-brand-700 hover:underline underline-offset-2 disabled:opacity-60">
+              Send a new link
+            </button>
+            <button onClick={cancel} disabled={state.busy} className="font-medium text-ink-500 hover:text-ink-900 disabled:opacity-60">
+              Cancel change
+            </button>
+          </div>
+        </div>
+      )}
+
+      {editing ? (
+        <form onSubmit={submit} className="mt-5 space-y-4">
+          <label className="block">
+            <span className="text-sm font-medium text-ink-700">New email</span>
+            <input
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={`${inputClass} w-full mt-1.5`}
+              required
+            />
+          </label>
+          <label className="block">
+            <span className="text-sm font-medium text-ink-700">Current password</span>
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={`${inputClass} w-full mt-1.5`}
+              required
+            />
+          </label>
+          <p className="text-xs text-ink-500">We'll send a link to the new address. Your email changes once you open it.</p>
+          <Status error={state.error} success="" />
+          <div className="flex flex-wrap gap-3">
+            <button type="submit" disabled={state.busy} className={primaryButton}>
+              {state.busy ? "Sending…" : "Send confirmation link"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(false);
+                setState(idle);
+              }}
+              className={secondaryButton}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <>
+          {state.error && (
+            <div className="mt-4">
+              <Status error={state.error} success="" />
+            </div>
+          )}
+          <button onClick={() => setEditing(true)} className={`${secondaryButton} mt-5`}>
+            Change email
+          </button>
+        </>
+      )}
+    </Panel>
+  );
+}
+
 export function SecuritySection() {
-  const { me } = useSettings();
   const toast = useToast();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -266,16 +397,7 @@ export function SecuritySection() {
   return (
     <>
       <SectionHeader title="Login & security" description="Your email, password and where you're logged in." />
-      <Panel title="Email">
-        <input value={me?.email ?? ""} disabled aria-label="Email" className={`${inputClass} w-full bg-canvas text-ink-500`} />
-        {me && (
-          <p className={`mt-2 flex items-center gap-1.5 text-sm font-medium ${me.emailVerified ? "text-gain" : "text-warn"}`}>
-            {me.emailVerified ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
-            {me.emailVerified ? "Confirmed" : "Not confirmed yet. Use the link we emailed you, or send a new one from the banner above."}
-          </p>
-        )}
-        <p className="mt-2 text-xs text-ink-500">Used to log in and to reset your password. It's never shown to other people.</p>
-      </Panel>
+      <EmailPanel />
 
       <Panel title="Change password">
         <form onSubmit={savePassword} className="space-y-4">
