@@ -2,7 +2,8 @@ import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
 import { accountLimiter, emailChangeLimiter, photoLimiter, resendVerificationLimiter } from "../../middleware/rateLimit";
 import { emailProblem, passwordProblem, text, usernameProblem } from "../../lib/validation";
-import { changeEmail, changePassword, changeUsername, deleteAccount, exportData, logoutEverywhere, setEmailPreferences } from "./account.service";
+import { changeEmail, changePassword, changeUsername, deleteAccount, exportData, logoutEverywhere, setNotificationPreferences } from "./account.service";
+import type { NotificationPreferences } from "./account.service";
 
 import {
   MAX_BIO,
@@ -106,13 +107,18 @@ router.put("/privacy", authMiddleware, async (req: AuthRequest, res) => {
   res.status(200).json(privacy);
 });
 
+// Named before budget alerts existed; covers every notification setting
 router.put("/email-preferences", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
-  if (typeof req.body.emailReplies !== "boolean") {
-    return res.status(400).json({ error: "emailReplies must be true or false" });
+  const changes: NotificationPreferences = {};
+  for (const key of ["emailReplies", "budgetAlerts", "emailBudgetAlerts"] as const) {
+    const value = req.body[key];
+    if (value === undefined) continue;
+    if (typeof value !== "boolean") return res.status(400).json({ error: `${key} must be true or false` });
+    changes[key] = value;
   }
-  const preferences = await setEmailPreferences(req.userId, req.body.emailReplies);
-  res.status(200).json(preferences);
+  if (Object.keys(changes).length === 0) return res.status(400).json({ error: "Nothing to change" });
+  res.status(200).json(await setNotificationPreferences(req.userId, changes));
 });
 
 router.get("/export", authMiddleware, async (req: AuthRequest, res) => {

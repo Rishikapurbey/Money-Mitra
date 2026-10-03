@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
+import { checkBudget } from "../budgets/budgetAlert.service";
 import {
   createTransaction,
   getTransactions,
@@ -72,6 +73,16 @@ function parseSearch(query: Record<string, unknown>): TransactionSearch | string
   return { range, q: q || undefined, type, category: category || undefined, min, max };
 }
 
+// The client's Date.getTimezoneOffset(), so "this month" means the user's month; UTC if missing
+function parseTzOffset(value: unknown) {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) && Math.abs(n) <= 14 * 60 ? n : 0;
+}
+
+// Expenses can push a budget past 80% or 100%; the alert, if any, is returned for a toast
+const budgetAlertFor = (userId: string, t: { type: string; category: string; date: Date }, tzOffset: unknown) =>
+  t.type === "expense" ? checkBudget(userId, t.category, parseTzOffset(tzOffset), t.date) : Promise.resolve(null);
+
 router.post("/", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   const input = parseTransaction(req.body);
@@ -80,7 +91,8 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
   if (date === null) return res.status(400).json({ error: "Invalid date" });
   const { amount, type, category, note } = input;
   const transaction = await createTransaction(req.userId, amount, type, category, note, date);
-  res.status(201).json({ transaction });
+  const budgetAlert = await budgetAlertFor(req.userId, transaction, req.body.tzOffset);
+  res.status(201).json({ transaction, budgetAlert });
 });
 
 router.get("/", authMiddleware, async (req: AuthRequest, res) => {
@@ -151,7 +163,8 @@ router.put("/:id", authMiddleware, async (req: AuthRequest, res) => {
   const date = parseDate(req.body.date);
   if (date === null) return res.status(400).json({ error: "Invalid date" });
   const transaction = await updateTransaction(req.userId, id, { ...input, date });
-  res.status(200).json({ transaction });
+  const budgetAlert = await budgetAlertFor(req.userId, transaction, req.body.tzOffset);
+  res.status(200).json({ transaction, budgetAlert });
 });
 
 export default router;

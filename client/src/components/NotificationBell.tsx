@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bell, EyeOff, MessageCircle, ThumbsUp, UserCheck, UserPlus } from "lucide-react";
+import { Bell, CircleAlert, EyeOff, MessageCircle, PiggyBank, ThumbsUp, UserCheck, UserPlus } from "lucide-react";
 import api from "../lib/api";
 import { timeAgo } from "../lib/discuss";
 import { announceNotificationsChange, onNotificationsChange } from "../lib/dataEvents";
@@ -21,6 +21,8 @@ const ICONS = {
   new_follower: UserPlus,
   follow_accepted: UserCheck,
   followed_post: MessageCircle,
+  budget_near: PiggyBank,
+  budget_over: CircleAlert,
 };
 
 // The bell in the header: an unread count that refreshes on navigation and every minute,
@@ -127,7 +129,7 @@ function NotificationBell() {
             <div className="px-4 py-8 text-center">
               <Bell size={22} className="mx-auto text-ink-300" />
               <p className="mt-2 text-sm text-ink-500">
-                Nothing yet. You'll hear here when someone replies to you, finds your answers helpful or follows you.
+                Nothing yet. You'll hear here when someone replies to you or follows you, and when you're close to a budget.
               </p>
             </div>
           ) : (

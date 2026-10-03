@@ -157,6 +157,8 @@ function message(kind: string, count: number, actor: string) {
   }
 }
 
+const isBudget = (kind: string) => kind === "budget_near" || kind === "budget_over";
+
 export async function listNotifications(userId: string) {
   const [items, unread] = await Promise.all([
     prisma.notification.findMany({
@@ -172,8 +174,9 @@ export async function listNotifications(userId: string) {
     notifications: items.map((n) => ({
       id: n.id,
       kind: n.kind,
-      message: message(n.kind, n.count, n.actor ? n.actor.displayName || n.actor.username : "Someone"),
-      title: n.title,
+      // A budget alert's whole message is stored as its title
+      message: isBudget(n.kind) ? n.title : message(n.kind, n.count, n.actor ? n.actor.displayName || n.actor.username : "Someone"),
+      title: isBudget(n.kind) ? "" : n.title,
       postId: n.postId,
       actor: n.actor ? identity(n.actor) : null,
       read: n.readAt !== null,

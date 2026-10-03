@@ -2,6 +2,7 @@ import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
 import { rememberCategory } from "../categories/category.service";
 import { dueOccurrences, firstOnOrAfter, nextAfter, occurrenceIn, toLocalDate } from "./recurrence";
+import { checkBudget } from "../budgets/budgetAlert.service";
 
 export interface RecurringInput {
   amount: number;
@@ -96,7 +97,11 @@ export async function catchUp(userId: string, now = new Date()) {
       });
       return due.length;
     });
-    if (created > 0) added.push({ category: rule.category, count: created });
+    if (created > 0) {
+      added.push({ category: rule.category, count: created });
+      const latest = due[due.length - 1];
+      if (rule.type === "expense" && latest) await checkBudget(userId, rule.category, rule.tzOffset, latest, now);
+    }
   }
   return added;
 }

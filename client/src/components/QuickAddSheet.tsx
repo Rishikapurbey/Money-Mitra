@@ -5,6 +5,7 @@ import { inputClass, formatINR } from "../lib/ui";
 import { toInputDate, transactionTimestamp } from "../lib/dates";
 import { useToast } from "../lib/toast";
 import { quickPicks, useCategories } from "../lib/categories";
+import { withBudgetAlert } from "../lib/budgetAlerts";
 
 interface QuickAddSheetProps {
   type: "expense" | "income";
@@ -41,8 +42,16 @@ function QuickAddSheet({ type: initialType, recentCategories, onClose, onSaved }
     setError("");
     try {
       const value = parseFloat(amount);
-      await api.post("/transactions", { amount: value, type, category, note, date: transactionTimestamp(date) });
-      toast({ message: `${type === "income" ? "Income" : "Expense"} of ${formatINR(value)} added` });
+      const res = await api.post("/transactions", {
+        amount: value,
+        type,
+        category,
+        note,
+        date: transactionTimestamp(date),
+        tzOffset: new Date().getTimezoneOffset(),
+      });
+      const saved = `${type === "income" ? "Income" : "Expense"} of ${formatINR(value)} added`;
+      toast({ message: withBudgetAlert(saved, res.data.budgetAlert) });
       onSaved();
       onClose();
     } catch {

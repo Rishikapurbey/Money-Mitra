@@ -27,6 +27,10 @@ model User {
   tokenVersion       Int                    @default(0)
   // Email me when someone replies to my question
   emailReplies       Boolean                @default(true)
+  // Tell me in the app when I reach 80% or 100% of a budget
+  budgetAlerts       Boolean                @default(true)
+  // Also email those budget alerts
+  emailBudgetAlerts  Boolean                @default(false)
   // Public profile: shown instead of the username where set
   displayName        String?
   bio                String?
@@ -44,6 +48,7 @@ model User {
   goals              Goal[]
   passwordResets     PasswordReset[]
   emailVerifications EmailVerification[]
+  budgetAlertsSent   BudgetAlert[]
   replyVotes         ReplyVote[]
   reports            Report[]
   notifications      Notification[]         @relation("recipient")
@@ -125,6 +130,20 @@ model Budget {
   @@unique([userId, category])
 }
 
+// A budget alert already given, so each level (80 or 100) fires at most once per category per month
+model BudgetAlert {
+  id        String   @id @default(cuid())
+  category  String
+  // The user's local month, e.g. "2026-10"
+  month     String
+  level     Int
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category, month, level])
+}
+
 model Goal {
   id           String    @id @default(cuid())
   name         String
@@ -198,10 +217,11 @@ model Report {
 model Notification {
   id        String    @id @default(cuid())
   // reply_to_question | reply_in_thread | helpful | post_hidden | reply_hidden
-  // | follow_request | new_follower | follow_accepted | followed_post
+  // | follow_request | new_follower | follow_accepted | followed_post | budget_near | budget_over
   kind      String
   count     Int       @default(1)
-  // Question title at the time, so the notification still reads well if the title changes
+  // Question title at the time, so the notification still reads well if the title changes;
+  // for budget alerts, the whole message
   title     String
   readAt    DateTime?
   // When an email went out for this notification, used to send at most one per hour per question

@@ -15,6 +15,8 @@ import { ordinal } from "../lib/recurring";
 import { quickPicks, useCategories } from "../lib/categories";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { AlertCircle, TrendingUp, TrendingDown, Wallet2, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { withBudgetAlert } from "../lib/budgetAlerts";
+import type { BudgetAlert } from "../lib/budgetAlerts";
 
 const COLORS = [1, 2, 3, 4, 5, 6].map((n) => `var(--color-chart-${n})`);
 
@@ -117,13 +119,16 @@ function Tracker() {
     if (editingOriginalDate && toInputDate(new Date(editingOriginalDate)) === date) when = editingOriginalDate;
     else when = transactionTimestamp(date);
 
-    const body = { amount: parseFloat(amount), type, category, note, date: when };
+    const body = { amount: parseFloat(amount), type, category, note, date: when, tzOffset: new Date().getTimezoneOffset() };
     let createdId: string | null = null;
+    let budgetAlert: BudgetAlert | null;
     try {
       if (editingId) {
-        await api.put(`/transactions/${editingId}`, body);
+        budgetAlert = (await api.put(`/transactions/${editingId}`, body)).data.budgetAlert;
       } else {
-        createdId = (await api.post("/transactions", body)).data.transaction.id;
+        const res = await api.post("/transactions", body);
+        createdId = res.data.transaction.id;
+        budgetAlert = res.data.budgetAlert;
       }
     } catch {
       setError("We couldn't save that transaction. Please try again.");
@@ -158,15 +163,14 @@ function Tracker() {
     const otherMonth = targetMonth.getTime() !== month.getTime();
     if (otherMonth) setMonth(targetMonth);
     else loadData();
-    toast({
-      message: wasEditing
-        ? "Changes saved"
-        : repeating
-          ? `${savedCategory} added. It will repeat on the ${ordinal(repeatDay)} of every month.`
-          : otherMonth
-            ? `Transaction added to ${monthName(targetMonth)}`
-            : "Transaction added",
-    });
+    const saved = wasEditing
+      ? "Changes saved"
+      : repeating
+        ? `${savedCategory} added. It will repeat on the ${ordinal(repeatDay)} of every month.`
+        : otherMonth
+          ? `Transaction added to ${monthName(targetMonth)}`
+          : "Transaction added";
+    toast({ message: withBudgetAlert(saved, budgetAlert) });
   };
 
   const handleEdit = (t: Transaction) => {
@@ -195,7 +199,14 @@ function Tracker() {
         label: "Undo",
         onClick: async () => {
           try {
-            await api.post("/transactions", { amount: t.amount, type: t.type, category: t.category, note: t.note, date: t.date });
+            await api.post("/transactions", {
+              amount: t.amount,
+              type: t.type,
+              category: t.category,
+              note: t.note,
+              date: t.date,
+              tzOffset: new Date().getTimezoneOffset(),
+            });
             loadData();
             toast({ message: "Transaction restored" });
           } catch {

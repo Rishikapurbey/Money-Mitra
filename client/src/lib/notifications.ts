@@ -11,9 +11,11 @@ export interface AppNotification {
     | "follow_request"
     | "new_follower"
     | "follow_accepted"
-    | "followed_post";
+    | "followed_post"
+    | "budget_near"
+    | "budget_over";
   message: string;
-  // The question's title; empty for follow notifications
+  // The question's title; empty for follow and budget notifications
   title: string;
   postId: string | null;
   // Who it's about, for follow notifications and new questions from people you follow
@@ -25,6 +27,7 @@ export interface AppNotification {
 // Where a notification leads when opened
 export function notificationLink(n: AppNotification) {
   if (n.kind === "follow_request") return "/follow-requests";
+  if (n.kind === "budget_near" || n.kind === "budget_over") return "/tracker";
   if (n.postId) return `/discuss/${n.postId}`;
   if (n.actor) return `/u/${n.actor.username}`;
   return "/discuss";

@@ -34,40 +34,73 @@ export function AppearanceSection() {
   );
 }
 
+type NotificationSetting = "emailReplies" | "budgetAlerts" | "emailBudgetAlerts";
+
+const SAVED: Record<NotificationSetting, [on: string, off: string]> = {
+  emailReplies: ["Reply emails turned on", "Reply emails turned off"],
+  budgetAlerts: ["Budget alerts turned on", "Budget alerts turned off"],
+  emailBudgetAlerts: ["Budget alert emails turned on", "Budget alert emails turned off"],
+};
+
 export function NotificationsSection() {
   const { me, updateMe } = useSettings();
   const [state, setState] = useState(idle);
 
-  const save = async (value: boolean) => {
-    updateMe({ emailReplies: value });
+  const save = async (key: NotificationSetting, value: boolean) => {
+    updateMe({ [key]: value });
     setState({ busy: true, error: "", success: "" });
     try {
-      await api.put("/account/email-preferences", { emailReplies: value });
-      setState({ busy: false, error: "", success: value ? "Reply emails turned on" : "Reply emails turned off" });
+      await api.put("/account/email-preferences", { [key]: value });
+      setState({ busy: false, error: "", success: SAVED[key][value ? 0 : 1] });
     } catch (err) {
-      updateMe({ emailReplies: !value });
+      updateMe({ [key]: !value });
       setState({ busy: false, error: errorMessage(err, "We couldn't save that setting."), success: "" });
     }
   };
+
+  const disabled = !me || state.busy;
 
   return (
     <>
       <SectionHeader
         title="Notifications"
-        description="Notifications always appear under the bell in the app. Choose whether you also get emails."
+        description="Activity in Discuss always appears under the bell in the app. Choose what else you'd like to hear about."
       />
-      <Panel title="Email">
+      <Panel title="In the app">
         <Toggle
-          label="Replies to my questions"
-          description="An email when someone answers a question you asked, at most once an hour per question."
-          checked={me?.emailReplies ?? false}
-          disabled={!me || state.busy}
-          onChange={save}
+          label="Budget alerts"
+          description="A note under the bell when you've used 80% of a monthly budget, and again if you go over. At most once each per budget per month."
+          checked={me?.budgetAlerts ?? false}
+          disabled={disabled}
+          onChange={(value) => save("budgetAlerts", value)}
         />
-        <div className="mt-3">
-          <Status {...state} />
-        </div>
       </Panel>
+      <Panel title="Email">
+        <div className="space-y-5">
+          <Toggle
+            label="Replies to my questions"
+            description="An email when someone answers a question you asked, at most once an hour per question."
+            checked={me?.emailReplies ?? false}
+            disabled={disabled}
+            onChange={(value) => save("emailReplies", value)}
+          />
+          <Toggle
+            label="Budget alerts"
+            description={
+              me?.budgetAlerts === false
+                ? "Turn on budget alerts above to get these by email too."
+                : "The same budget alerts, also sent to your email."
+            }
+            checked={(me?.budgetAlerts ?? false) && (me?.emailBudgetAlerts ?? false)}
+            disabled={disabled || me?.budgetAlerts === false}
+            onChange={(value) => save("emailBudgetAlerts", value)}
+          />
+        </div>
+        {me && !me.emailVerified && (
+          <p className="mt-4 text-sm text-warn">Emails only go out once you've confirmed your email address.</p>
+        )}
+      </Panel>
+      <Status {...state} />
     </>
   );
 }

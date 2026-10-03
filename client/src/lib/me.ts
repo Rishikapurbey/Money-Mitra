@@ -9,6 +9,8 @@ export interface Me {
   username: string;
   createdAt: string;
   emailReplies: boolean;
+  budgetAlerts: boolean;
+  emailBudgetAlerts: boolean;
   displayName: string | null;
   bio: string | null;
   isPrivate: boolean;

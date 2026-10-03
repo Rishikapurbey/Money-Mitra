@@ -10,7 +10,7 @@ import NotificationBell from "./NotificationBell";
 import ThemeToggle from "./ThemeToggle";
 import { useInstallPrompt } from "../lib/installPrompt";
 import { useToast } from "../lib/toast";
-import { announceDataChange } from "../lib/dataEvents";
+import { announceDataChange, announceNotificationsChange } from "../lib/dataEvents";
 import { nameOf } from "../lib/me";
 import type { Me } from "../lib/me";
 import Avatar from "./Avatar";
@@ -65,6 +65,8 @@ function AppLayout() {
           message: `${total} recurring transaction${total === 1 ? " was" : "s were"} added: ${added.map((a) => a.category).join(", ")}`,
         });
         announceDataChange();
+        // Recurring expenses can set off budget alerts
+        announceNotificationsChange();
       })
       .catch(() => {});
   }, [toast]);
