@@ -20,6 +20,8 @@ export interface Reply {
   hidden: boolean;
   helpfulCount: number;
   votedByMe: boolean;
+  // The asker marked this reply as the answer
+  accepted: boolean;
 }
 
 export interface Post {
@@ -34,6 +36,8 @@ export interface Post {
   isMine: boolean;
   replyCount?: number;
   replies?: Reply[];
+  // Has an accepted answer
+  answered?: boolean;
   hidden: boolean;
 }
 

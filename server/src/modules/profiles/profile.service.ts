@@ -53,6 +53,7 @@ export async function getProfile(viewerId: string, username: string) {
         body: true,
         createdAt: true,
         post: { select: { id: true, title: true, _count: { select: { reports: true } } } },
+        acceptedFor: { select: { id: true } },
         _count: { select: { votes: true, reports: true } },
       },
     }),
@@ -68,6 +69,7 @@ export async function getProfile(viewerId: string, username: string) {
       questionCount: questions.length,
       replyCount: answers.length,
       helpfulCount: answers.reduce((sum, r) => sum + r._count.votes, 0),
+      acceptedCount: answers.filter((r) => r.acceptedFor).length,
       questions: questions.slice(0, RECENT).map((p) => ({
         id: p.id,
         title: p.title,
@@ -80,6 +82,7 @@ export async function getProfile(viewerId: string, username: string) {
         body: r.body,
         createdAt: r.createdAt,
         helpfulCount: r._count.votes,
+        accepted: r.acceptedFor !== null,
         postId: r.post.id,
         postTitle: r.post.title,
       })),

@@ -23,6 +23,8 @@ export interface ProfileReply {
   body: string;
   createdAt: string;
   helpfulCount: number;
+  // Marked as the answer by the person who asked
+  accepted: boolean;
   postId: string;
   postTitle: string;
 }
@@ -47,6 +49,7 @@ export interface Profile {
     questionCount: number;
     replyCount: number;
     helpfulCount: number;
+    acceptedCount: number;
     questions: ProfileQuestion[];
     replies: ProfileReply[];
   } | null;

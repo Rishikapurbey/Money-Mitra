@@ -3,7 +3,7 @@ import { HttpError } from "../../lib/httpError";
 import { DELETED_USERNAME } from "../../lib/validation";
 import { sendEmail } from "../../lib/email";
 import { escapeHtml } from "../../lib/html";
-import { notifyFollowersOfPost, notifyHelpful, notifyHidden, notifyReply } from "../notifications/notification.service";
+import { notifyAccepted, notifyFollowersOfPost, notifyHelpful, notifyHidden, notifyReply } from "../notifications/notification.service";
 import { identity, identitySelect } from "../../lib/identity";
 
 // Notifications are secondary: a problem sending one must never undo the action that caused it
@@ -54,10 +54,24 @@ function hideIfReported<T extends { body: string; author: string | null }>(item:
 
 const authorSelect = { author: { select: identitySelect } };
 
+const contains = (q: string) => ({ contains: q, mode: "insensitive" as const });
+
+// Questions with a reply matching the search. Replies hidden after reports never count, so a
+// search can't be used to find out what a hidden reply said.
+async function postsWithMatchingReply(q: string) {
+  const replies = await prisma.reply.findMany({
+    where: { body: contains(q) },
+    select: { postId: true, _count: { select: { reports: true } } },
+  });
+  return [...new Set(replies.filter((r) => r._count.reports < HIDE_AFTER_REPORTS).map((r) => r.postId))];
+}
+
 export async function listPosts(
   viewerId: string,
-  options: { topic?: string | undefined; unanswered?: boolean; following?: boolean } = {}
+  options: { topic?: string | undefined; unanswered?: boolean; following?: boolean; q?: string | undefined } = {}
 ) {
+  const q = options.q?.trim();
+  const replyMatches = q ? await postsWithMatchingReply(q) : [];
   const posts = await prisma.post.findMany({
     where: {
       ...(options.topic && { topic: options.topic }),
@@ -67,6 +81,7 @@ export async function listPosts(
         isAnonymous: false,
         author: { followers: { some: { followerId: viewerId, status: "accepted" } } },
       }),
+      ...(q && { OR: [{ title: contains(q) }, { body: contains(q) }, { id: { in: replyMatches } }] }),
     },
     orderBy: { createdAt: "desc" },
     include: { ...authorSelect, _count: { select: { replies: true, reports: true } } },
@@ -74,7 +89,12 @@ export async function listPosts(
   // Hidden questions are left out of the list entirely
   return posts
     .filter((p) => p._count.reports < HIDE_AFTER_REPORTS)
-    .map(({ _count, ...post }) => ({ ...present(post, viewerId), replyCount: _count.replies, hidden: false }));
+    .map(({ _count, acceptedReplyId, ...post }) => ({
+      ...present(post, viewerId),
+      replyCount: _count.replies,
+      answered: acceptedReplyId !== null,
+      hidden: false,
+    }));
 }
 
 export async function getPost(viewerId: string, id: string) {
@@ -95,18 +115,112 @@ export async function getPost(viewerId: string, id: string) {
   });
   if (!post) return null;
 
-  const { replies, _count, ...rest } = post;
+  const { replies, _count, acceptedReplyId, ...rest } = post;
   const presentedReplies = replies
-    .map(({ _count: counts, votes, ...reply }) => ({
-      ...hideIfReported(present(reply, viewerId), counts.reports),
-      helpfulCount: counts.votes,
-      votedByMe: votes.length > 0,
-    }))
-    // Most helpful first; ties keep the order they were posted in
-    .sort((a, b) => b.helpfulCount - a.helpfulCount || a.createdAt.getTime() - b.createdAt.getTime());
+    .map(({ _count: counts, votes, ...reply }) => {
+      const presented = hideIfReported(present(reply, viewerId), counts.reports);
+      return {
+        ...presented,
+        helpfulCount: counts.votes,
+        votedByMe: votes.length > 0,
+        // A hidden reply never shows as the answer
+        accepted: reply.id === acceptedReplyId && !presented.hidden,
+      };
+    })
+    // The accepted answer first, then the most helpful; ties keep the order they were posted in
+    .sort(
+      (a, b) =>
+        Number(b.accepted) - Number(a.accepted) ||
+        b.helpfulCount - a.helpfulCount ||
+        a.createdAt.getTime() - b.createdAt.getTime()
+    );
 
   const hiddenPost = hideIfReported(present(rest, viewerId), _count.reports);
-  return { ...hiddenPost, title: hiddenPost.hidden ? "" : rest.title, replies: presentedReplies };
+  const answered = presentedReplies.some((r) => r.accepted);
+  return { ...hiddenPost, title: hiddenPost.hidden ? "" : rest.title, answered, replies: presentedReplies };
+}
+
+// The asker marks one reply as the answer, or clears it with null. Works on anonymous questions too,
+// since only the asker can do it and nothing about them is shown.
+export async function acceptAnswer(userId: string, postId: string, replyId: string | null) {
+  const post = await prisma.post.findUnique({ where: { id: postId } });
+  if (!post || post.authorId !== userId) throw new HttpError(404, "Post not found");
+  if (replyId === null) {
+    await prisma.post.update({ where: { id: postId }, data: { acceptedReplyId: null } });
+    return { acceptedReplyId: null };
+  }
+  const reply = await prisma.reply.findUnique({ where: { id: replyId }, include: { _count: { select: { reports: true } } } });
+  if (!reply || reply.postId !== postId || reply._count.reports >= HIDE_AFTER_REPORTS) {
+    throw new HttpError(404, "Reply not found");
+  }
+  await prisma.post.update({ where: { id: postId }, data: { acceptedReplyId: replyId } });
+  if (post.acceptedReplyId !== replyId && reply.authorId !== userId) {
+    await safely(() => notifyAccepted(reply.authorId, postId, post.title, replyId));
+  }
+  return { acceptedReplyId: replyId };
+}
+
+// Everything the user has posted, anonymous or not, since only they see this
+export async function getActivity(userId: string) {
+  const [posts, replies, questionCount, replyCount, helpfulCount, acceptedCount] = await Promise.all([
+    prisma.post.findMany({
+      where: { authorId: userId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        title: true,
+        topic: true,
+        isAnonymous: true,
+        createdAt: true,
+        acceptedReplyId: true,
+        _count: { select: { replies: true, reports: true } },
+      },
+    }),
+    prisma.reply.findMany({
+      where: { authorId: userId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        body: true,
+        isAnonymous: true,
+        createdAt: true,
+        post: { select: { id: true, title: true, _count: { select: { reports: true } } } },
+        acceptedFor: { select: { id: true } },
+        _count: { select: { votes: true, reports: true } },
+      },
+    }),
+    prisma.post.count({ where: { authorId: userId } }),
+    prisma.reply.count({ where: { authorId: userId } }),
+    prisma.replyVote.count({ where: { reply: { authorId: userId } } }),
+    prisma.post.count({ where: { acceptedReply: { authorId: userId } } }),
+  ]);
+  return {
+    totals: { questions: questionCount, replies: replyCount, helpful: helpfulCount, accepted: acceptedCount },
+    questions: posts.map((p) => ({
+      id: p.id,
+      title: p.title,
+      topic: p.topic,
+      isAnonymous: p.isAnonymous,
+      createdAt: p.createdAt,
+      replyCount: p._count.replies,
+      answered: p.acceptedReplyId !== null,
+      hidden: p._count.reports >= HIDE_AFTER_REPORTS,
+    })),
+    replies: replies.map((r) => ({
+      id: r.id,
+      body: r.body.slice(0, 200),
+      isAnonymous: r.isAnonymous,
+      createdAt: r.createdAt,
+      postId: r.post.id,
+      // A question hidden after reports keeps its title out of view, as everywhere else
+      postTitle: r.post._count.reports >= HIDE_AFTER_REPORTS ? "" : r.post.title,
+      helpfulCount: r._count.votes,
+      accepted: r.acceptedFor !== null,
+      hidden: r._count.reports >= HIDE_AFTER_REPORTS,
+    })),
+  };
 }
 
 export async function createPost(
@@ -115,7 +229,8 @@ export async function createPost(
 ) {
   const post = await prisma.post.create({ data: { ...data, authorId }, include: authorSelect });
   if (!data.isAnonymous) await safely(() => notifyFollowersOfPost(authorId, post.id, post.title));
-  return { ...present(post, authorId), replyCount: 0, hidden: false };
+  const { acceptedReplyId: _, ...created } = post;
+  return { ...present(created, authorId), replyCount: 0, answered: false, hidden: false };
 }
 
 export async function deletePost(userId: string, id: string) {
@@ -129,7 +244,7 @@ export async function createReply(authorId: string, postId: string, data: { body
   if (!post) throw new HttpError(404, "Post not found");
   const reply = await prisma.reply.create({ data: { ...data, postId, authorId }, include: authorSelect });
   await safely(() => notifyReply(postId, authorId));
-  return { ...present(reply, authorId), hidden: false, helpfulCount: 0, votedByMe: false };
+  return { ...present(reply, authorId), hidden: false, helpfulCount: 0, votedByMe: false, accepted: false };
 }
 
 export async function deleteReply(userId: string, postId: string, id: string) {

@@ -106,17 +106,20 @@ model Import {
 // Anonymous posts and replies still store the real author for moderation;
 // the API hides the author's identity from other users.
 model Post {
-  id            String         @id @default(cuid())
-  title         String
-  body          String
-  topic         String
-  isAnonymous   Boolean        @default(false)
-  createdAt     DateTime       @default(now())
-  authorId      String
-  author        User           @relation(fields: [authorId], references: [id])
-  replies       Reply[]
-  reports       Report[]
-  notifications Notification[]
+  id              String         @id @default(cuid())
+  title           String
+  body            String
+  topic           String
+  isAnonymous     Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  authorId        String
+  author          User           @relation(fields: [authorId], references: [id])
+  replies         Reply[]        @relation("PostReplies")
+  // The reply the asker marked as the answer; cleared if that reply is deleted
+  acceptedReplyId String?        @unique
+  acceptedReply   Reply?         @relation("AcceptedAnswer", fields: [acceptedReplyId], references: [id], onDelete: SetNull)
+  reports         Report[]
+  notifications   Notification[]
 
   @@index([createdAt])
 }
@@ -127,7 +130,8 @@ model Reply {
   isAnonymous   Boolean        @default(false)
   createdAt     DateTime       @default(now())
   postId        String
-  post          Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post          Post           @relation("PostReplies", fields: [postId], references: [id], onDelete: Cascade)
+  acceptedFor   Post?          @relation("AcceptedAnswer")
   authorId      String
   author        User           @relation(fields: [authorId], references: [id])
   votes         ReplyVote[]
@@ -237,6 +241,7 @@ model Notification {
   id        String    @id @default(cuid())
   // reply_to_question | reply_in_thread | helpful | post_hidden | reply_hidden
   // | follow_request | new_follower | follow_accepted | followed_post | budget_near | budget_over | recap_ready
+  // | answer_accepted
   kind      String
   count     Int       @default(1)
   // Question title at the time, so the notification still reads well if the title changes;

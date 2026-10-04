@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { isAxiosError } from "axios";
-import { ArrowLeft, ArrowRight, BookOpen, Trash2, AlertCircle, ThumbsUp, Award, EyeOff } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Trash2, AlertCircle, ThumbsUp, Award, EyeOff, CheckCircle2 } from "lucide-react";
 import api from "../lib/api";
 import { timeAgo, discussInputClass } from "../lib/discuss";
 import type { Post } from "../lib/discuss";
@@ -123,6 +123,24 @@ function DiscussPost() {
     }
   };
 
+  // The asker marks a reply as the answer, or clears it with null
+  const handleAccept = async (replyId: string | null) => {
+    try {
+      const { acceptedReplyId } = (await api.put(`/posts/${id}/accepted`, { replyId })).data;
+      setPost(
+        (current) =>
+          current && {
+            ...current,
+            answered: acceptedReplyId !== null,
+            replies: current.replies?.map((r) => ({ ...r, accepted: r.id === acceptedReplyId })),
+          }
+      );
+      toast({ message: acceptedReplyId ? "Marked as the answer" : "Answer removed" });
+    } catch (err) {
+      setError((isAxiosError(err) && err.response?.data?.error) || "We couldn't update the answer. Please try again.");
+    }
+  };
+
   const hideReply = (replyId: string) =>
     setPost((current) =>
       current && {
@@ -175,6 +193,9 @@ function DiscussPost() {
   }
 
   const replies = post?.replies ?? [];
+  // "Most helpful" goes on the top reply after the accepted answer, when it has votes
+  const mostHelpful = replies.find((r) => !r.accepted && !r.hidden);
+  const showMostHelpful = mostHelpful && mostHelpful.helpfulCount > 0 && replies.length > 1 ? mostHelpful.id : null;
 
   const relatedTerms = post
     ? (TERMS.some((t) => t.topic === post.topic) ? TERMS.filter((t) => t.topic === post.topic) : TERMS.filter((t) => t.level === "Basics")).slice(0, 4)
@@ -256,7 +277,14 @@ function DiscussPost() {
         <>
           <article className="bg-surface border border-line rounded-2xl p-6">
             <div className="flex items-start justify-between gap-4">
-              <span className="text-xs font-medium text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md">{post.topic}</span>
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md">{post.topic}</span>
+                {post.answered && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-gain bg-gain-soft px-2 py-0.5 rounded-md">
+                    <CheckCircle2 size={13} /> Answered
+                  </span>
+                )}
+              </span>
               {post.isMine &&
                 (confirming === "post" ? (
                   <span className="flex items-center gap-2 text-sm">
@@ -293,17 +321,23 @@ function DiscussPost() {
               <p className="text-sm text-ink-500">No replies yet. Share what you know.</p>
             ) : (
               <ul className="bg-surface border border-line rounded-2xl divide-y divide-line">
-                {replies.map((r, index) =>
+                {replies.map((r) =>
                   r.hidden ? (
                     <li key={r.id} className="p-5 flex items-center gap-2 text-sm text-ink-400">
                       <EyeOff size={15} /> This reply has been hidden after reports from the community.
                     </li>
                   ) : (
-                    <li key={r.id} className="p-5">
-                      {index === 0 && r.helpfulCount > 0 && replies.length > 1 && (
-                        <p className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md">
-                          <Award size={13} /> Most helpful
+                    <li key={r.id} className={`p-5 ${r.accepted ? "bg-gain-soft/40 first:rounded-t-2xl" : ""}`}>
+                      {r.accepted ? (
+                        <p className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-gain bg-gain-soft px-2 py-0.5 rounded-md">
+                          <CheckCircle2 size={13} /> Accepted answer
                         </p>
+                      ) : (
+                        showMostHelpful === r.id && (
+                          <p className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md">
+                            <Award size={13} /> Most helpful
+                          </p>
+                        )
                       )}
                       <div className="flex items-center justify-between gap-4">
                         <p className="text-xs text-ink-500">
@@ -354,6 +388,19 @@ function DiscussPost() {
                             <ReportButton path={`/posts/${post.id}/replies/${r.id}`} onHidden={() => hideReply(r.id)} />
                           </>
                         )}
+                        {post.isMine &&
+                          (r.accepted ? (
+                            <button onClick={() => handleAccept(null)} className="text-xs font-medium text-ink-500 hover:text-ink-900 transition">
+                              Remove as answer
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleAccept(r.id)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border border-line text-ink-500 hover:border-gain hover:text-gain transition"
+                            >
+                              <CheckCircle2 size={13} /> Mark as answer
+                            </button>
+                          ))}
                       </div>
                     </li>
                   )

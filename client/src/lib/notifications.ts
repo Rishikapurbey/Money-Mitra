@@ -14,7 +14,8 @@ export interface AppNotification {
     | "followed_post"
     | "budget_near"
     | "budget_over"
-    | "recap_ready";
+    | "recap_ready"
+    | "answer_accepted";
   message: string;
   // The question's title; empty for follow, budget and recap notifications
   title: string;

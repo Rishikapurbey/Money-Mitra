@@ -285,6 +285,11 @@ function Profile() {
                   <p className="mt-1.5 text-sm text-ink-700 line-clamp-3">{r.body}</p>
                   <p className="mt-1.5 flex items-center gap-3 text-xs text-ink-500">
                     {timeAgo(r.createdAt)}
+                    {r.accepted && (
+                      <span className="flex items-center gap-1 font-medium text-gain">
+                        <CheckCircle2 size={13} /> Accepted answer
+                      </span>
+                    )}
                     {r.helpfulCount > 0 && (
                       <span className="flex items-center gap-1">
                         <ThumbsUp size={13} /> {r.helpfulCount} found this helpful
@@ -355,6 +360,7 @@ function Profile() {
           { icon: HelpCircle, value: activity.questionCount, label: activity.questionCount === 1 ? "question asked" : "questions asked" },
           { icon: MessageCircle, value: activity.replyCount, label: activity.replyCount === 1 ? "reply given" : "replies given" },
           { icon: ThumbsUp, value: activity.helpfulCount, label: activity.helpfulCount === 1 ? "helpful vote received" : "helpful votes received" },
+          { icon: CheckCircle2, value: activity.acceptedCount, label: activity.acceptedCount === 1 ? "accepted answer" : "accepted answers" },
         ].map(({ icon: Icon, value, label }) => (
           <li key={label} className="flex items-center gap-3">
             <span className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">

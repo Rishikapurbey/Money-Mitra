@@ -4,10 +4,12 @@ import { postLimiter, reportLimiter } from "../../middleware/rateLimit";
 import {
   REPORT_REASONS,
   TOPICS,
+  acceptAnswer,
   createPost,
   createReply,
   deletePost,
   deleteReply,
+  getActivity,
   getPost,
   listPosts,
   report,
@@ -23,12 +25,21 @@ router.get("/", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   const topic = text(req.query.topic);
   if (topic && !TOPICS.includes(topic)) return res.status(400).json({ error: "Unknown topic" });
+  const q = text(req.query.q);
+  if (q.length > 100) return res.status(400).json({ error: "Search can be up to 100 characters" });
   const posts = await listPosts(req.userId, {
     topic: topic || undefined,
     unanswered: req.query.unanswered === "1",
     following: req.query.following === "1",
+    q: q || undefined,
   });
   res.status(200).json({ posts });
+});
+
+// The viewer's own questions and replies; before /:id so "activity" isn't read as a post id
+router.get("/activity", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  res.status(200).json(await getActivity(req.userId));
 });
 
 router.get("/:id", authMiddleware, async (req: AuthRequest, res) => {
@@ -91,6 +102,14 @@ const reasonKey = (value: unknown) => {
   const key = text(value);
   return key in REPORT_REASONS ? key : null;
 };
+
+// The asker picks the reply that answered the question, or clears it with { replyId: null }
+router.put("/:id/accepted", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  const replyId = req.body.replyId;
+  if (replyId !== null && typeof replyId !== "string") return res.status(400).json({ error: "Choose a reply" });
+  res.status(200).json(await acceptAnswer(req.userId, req.params.id as string, replyId));
+});
 
 router.post("/:id/report", authMiddleware, reportLimiter, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });

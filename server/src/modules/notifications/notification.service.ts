@@ -6,7 +6,7 @@ import { escapeHtml } from "../../lib/html";
 import { DELETED_USERNAME } from "../../lib/validation";
 import { identity, identitySelect } from "../../lib/identity";
 
-type Kind = "reply_to_question" | "reply_in_thread" | "helpful" | "post_hidden" | "reply_hidden";
+type Kind = "reply_to_question" | "reply_in_thread" | "helpful" | "post_hidden" | "reply_hidden" | "answer_accepted";
 type PersonKind = "follow_request" | "new_follower" | "follow_accepted";
 
 const EMAIL_GAP_MS = 60 * 60 * 1000;
@@ -99,6 +99,11 @@ export async function notifyHelpful(replyId: string) {
   await upsertNotification(reply.authorId, "helpful", reply.post.id, reply.post.title, replyId);
 }
 
+// The asker marked someone's reply as the answer
+export async function notifyAccepted(replyAuthorId: string, postId: string, title: string, replyId: string) {
+  await upsertNotification(replyAuthorId, "answer_accepted", postId, title, replyId);
+}
+
 // A question or reply crossed the report threshold and is now hidden
 export async function notifyHidden(postId: string, replyId: string | null) {
   const post = await prisma.post.findUnique({ where: { id: postId } });
@@ -153,6 +158,8 @@ function message(kind: string, count: number, actor: string) {
       return "Your question was hidden after reports from the community";
     case "reply_hidden":
       return "Your reply was hidden after reports from the community";
+    case "answer_accepted":
+      return "Your reply was marked as the answer";
     default:
       return "New activity in Discuss";
   }

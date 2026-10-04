@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { isAxiosError } from "axios";
-import { MessageCircle, Plus, AlertCircle, MessagesSquare, X, BookOpen, ArrowRight } from "lucide-react";
+import { MessageCircle, Plus, AlertCircle, MessagesSquare, X, BookOpen, ArrowRight, Search, CheckCircle2 } from "lucide-react";
 import api from "../lib/api";
 import { TOPICS, timeAgo, discussInputClass } from "../lib/discuss";
 import type { Post } from "../lib/discuss";
@@ -11,12 +11,20 @@ import { pageWidth } from "../lib/ui";
 import { useWideLayout } from "../lib/useMediaQuery";
 import { TERMS } from "../lib/learn";
 import Byline from "../components/Byline";
+import MyActivity from "../components/MyActivity";
 import type { AppContext } from "../components/AppLayout";
 
-async function fetchPosts(topic: string, unanswered: boolean, following = false): Promise<Post[] | null> {
+type Feed = "everyone" | "following" | "mine";
+
+async function fetchPosts(topic: string, unanswered: boolean, following = false, q = ""): Promise<Post[] | null> {
   try {
     const res = await api.get("/posts", {
-      params: { ...(topic && { topic }), ...(unanswered && { unanswered: "1" }), ...(following && { following: "1" }) },
+      params: {
+        ...(topic && { topic }),
+        ...(unanswered && { unanswered: "1" }),
+        ...(following && { following: "1" }),
+        ...(q && { q }),
+      },
     });
     return res.data.posts;
   } catch {
@@ -33,8 +41,15 @@ function Discuss() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [topic, setTopic] = useState("");
   const [unanswered, setUnanswered] = useState(false);
-  // Only questions from people you follow
-  const [following, setFollowing] = useState(searchParams.get("feed") === "following");
+  // Everyone's questions, only those from people you follow, or your own activity
+  const [feed, setFeed] = useState<Feed>(() => {
+    const value = searchParams.get("feed");
+    return value === "following" || value === "mine" ? value : "everyone";
+  });
+  const following = feed === "following";
+  // What's typed in the search box, and the search actually run after a pause in typing
+  const [search, setSearch] = useState("");
+  const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [asking, setAsking] = useState(searchParams.get("ask") === "1");
@@ -70,18 +85,30 @@ function Discuss() {
   }, []);
 
   const loadPosts = useCallback(
-    async () => applyPosts(await fetchPosts(topic, unanswered, following)),
-    [topic, unanswered, following, applyPosts]
+    async () => applyPosts(await fetchPosts(topic, unanswered, following, q)),
+    [topic, unanswered, following, q, applyPosts]
   );
+
+  useEffect(() => {
+    const timer = setTimeout(() => setQ(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // Ignore a response that arrives after the user has already changed the filters
   useEffect(() => {
+    if (feed === "mine") return;
     let current = true;
-    fetchPosts(topic, unanswered, following).then((result) => current && applyPosts(result));
+    fetchPosts(topic, unanswered, following, q).then((result) => current && applyPosts(result));
     return () => {
       current = false;
     };
-  }, [topic, unanswered, following, applyPosts]);
+  }, [topic, unanswered, following, q, feed, applyPosts]);
+
+  // Picking a topic from your own activity goes back to everyone's questions
+  const chooseTopic = (t: string) => {
+    setTopic(t);
+    if (feed === "mine") setFeed("everyone");
+  };
 
   const closeForm = () => {
     setAsking(false);
@@ -99,7 +126,7 @@ function Discuss() {
     try {
       const res = await api.post("/posts", { title, body, topic: newTopic, isAnonymous });
       closeForm();
-      if (!following && (!topic || topic === res.data.post.topic)) setPosts((current) => [res.data.post, ...current]);
+      if (feed === "everyone" && !q && (!topic || topic === res.data.post.topic)) setPosts((current) => [res.data.post, ...current]);
       toast({ message: "Question posted" });
     } catch (err) {
       setFormError(
@@ -128,18 +155,21 @@ function Discuss() {
   );
 
   const feedSwitch = (
-    <div role="tablist" aria-label="Show questions from" className="inline-grid grid-cols-2 p-1 bg-ink-100 rounded-xl text-sm font-medium">
-      {[
-        { value: false, label: "Everyone" },
-        { value: true, label: "Following" },
-      ].map((option) => (
+    <div role="tablist" aria-label="Show" className="inline-grid grid-cols-3 p-1 bg-ink-100 rounded-xl text-sm font-medium">
+      {(
+        [
+          { value: "everyone", label: "Everyone" },
+          { value: "following", label: "Following" },
+          { value: "mine", label: "My activity" },
+        ] as const
+      ).map((option) => (
         <button
-          key={option.label}
+          key={option.value}
           role="tab"
-          aria-selected={following === option.value}
-          onClick={() => setFollowing(option.value)}
-          className={`px-5 py-1.5 rounded-lg transition ${
-            following === option.value ? "bg-surface text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-700"
+          aria-selected={feed === option.value}
+          onClick={() => setFeed(option.value)}
+          className={`px-3 sm:px-5 py-1.5 rounded-lg whitespace-nowrap transition ${
+            feed === option.value ? "bg-surface text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-700"
           }`}
         >
           {option.label}
@@ -233,7 +263,7 @@ function Discuss() {
       {["", ...TOPICS].map((t) => (
         <button
           key={t || "all"}
-          onClick={() => setTopic(t)}
+          onClick={() => chooseTopic(t)}
           className={`px-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition ${
             topic === t ? "bg-ink-900 text-surface" : "bg-surface border border-line text-ink-700 hover:border-ink-300"
           }`}
@@ -254,6 +284,30 @@ function Discuss() {
     </div>
   );
 
+  const searchBox = (
+    <div className="relative">
+      <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none" />
+      <input
+        type="search"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        maxLength={100}
+        placeholder="Search questions and replies"
+        aria-label="Search questions and replies"
+        className={`${discussInputClass} !pl-10 !pr-10 [&::-webkit-search-cancel-button]:appearance-none`}
+      />
+      {search && (
+        <button
+          onClick={() => setSearch("")}
+          aria-label="Clear search"
+          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-ink-400 hover:text-ink-900 transition"
+        >
+          <X size={15} />
+        </button>
+      )}
+    </div>
+  );
+
   const errorBanner = error && (
     <div role="alert" className="flex items-center gap-3 bg-loss-soft text-loss px-4 py-3 rounded-xl text-sm">
       <AlertCircle size={18} className="shrink-0" />
@@ -264,7 +318,7 @@ function Discuss() {
     </div>
   );
 
-  const feed = (
+  const list = (
     <>
       {loading ? (
         <div className="space-y-3 animate-pulse">
@@ -278,7 +332,9 @@ function Discuss() {
             <MessageCircle size={22} className="text-brand-600" />
           </div>
           <p className="mt-4 font-medium text-ink-900">
-            {following
+            {q
+              ? `No questions match “${q}”`
+              : following
               ? "Nothing from people you follow yet"
               : unanswered
               ? "Every question has an answer"
@@ -287,7 +343,9 @@ function Discuss() {
                 : "No questions yet"}
           </p>
           <p className="mt-1 text-sm text-ink-500">
-            {following
+            {q
+              ? "Try other words, or ask it yourself. Someone else is probably wondering the same thing."
+              : following
               ? "Open someone's profile by tapping their name, then follow them to see their questions here."
               : unanswered
               ? "Nice work, community. Check back later to help someone new."
@@ -300,7 +358,14 @@ function Discuss() {
             <li key={post.id}>
               {/* The title's link stretches over the whole card; the author's name links to their profile */}
               <article className="relative bg-surface border border-line rounded-2xl p-5 hover:border-ink-300 transition">
-                <span className="text-xs font-medium text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md">{post.topic}</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-medium text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md">{post.topic}</span>
+                  {post.answered && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-gain bg-gain-soft px-2 py-0.5 rounded-md">
+                      <CheckCircle2 size={13} /> Answered
+                    </span>
+                  )}
+                </div>
                 <h2 className="mt-2.5 font-semibold text-ink-900">
                   <Link to={`/discuss/${post.id}`} className="after:absolute after:inset-0 after:rounded-2xl">
                     {post.title}
@@ -329,7 +394,7 @@ function Discuss() {
       {["", ...TOPICS].map((t) => (
         <button
           key={t || "all"}
-          onClick={() => setTopic(t)}
+          onClick={() => chooseTopic(t)}
           aria-current={topic === t ? "page" : undefined}
           className={`w-full text-left px-3 py-2 rounded-xl text-sm transition ${
             topic === t ? "bg-surface border border-line font-semibold text-ink-900 shadow-sm" : "text-ink-700 hover:bg-surface"
@@ -395,8 +460,15 @@ function Discuss() {
             {pageHeader}
             {askForm}
             {feedSwitch}
-            {errorBanner}
-            {feed}
+            {feed === "mine" ? (
+              <MyActivity />
+            ) : (
+              <>
+                {searchBox}
+                {errorBanner}
+                {list}
+              </>
+            )}
           </div>
           {sideRail}
         </div>
@@ -406,9 +478,16 @@ function Discuss() {
           {welcomeBanner}
           {askForm}
           {feedSwitch}
-          {topicChips}
-          {errorBanner}
-          {feed}
+          {feed === "mine" ? (
+            <MyActivity />
+          ) : (
+            <>
+              {searchBox}
+              {topicChips}
+              {errorBanner}
+              {list}
+            </>
+          )}
         </div>
       )}
     </main>
