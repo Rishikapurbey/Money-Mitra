@@ -14,6 +14,7 @@ import { announceDataChange, announceNotificationsChange } from "../lib/dataEven
 import { nameOf } from "../lib/me";
 import type { Me } from "../lib/me";
 import Avatar from "./Avatar";
+import PageBoundary from "./PageBoundary";
 import VerifyEmailBanner from "./VerifyEmailBanner";
 
 export interface AppContext {
@@ -182,7 +183,9 @@ function AppLayout() {
 
       {me && !me.emailVerified && <VerifyEmailBanner email={me.email} />}
 
-      <Outlet context={{ me, updateMe } satisfies AppContext} />
+      <PageBoundary>
+        <Outlet context={{ me, updateMe } satisfies AppContext} />
+      </PageBoundary>
 
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-surface border-t border-line grid grid-cols-5">
         {navItems.map(({ to, label, icon: Icon, soon }) =>

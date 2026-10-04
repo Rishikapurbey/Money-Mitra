@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import PageBoundary from "./PageBoundary";
 import { Menu, X } from "lucide-react";
 import { Logo } from "./Logo";
 import { pageWidth } from "../lib/ui";
@@ -156,7 +157,9 @@ function PublicLayout() {
       </header>
 
       <div className="flex-1">
-        <Outlet />
+        <PageBoundary>
+          <Outlet />
+        </PageBoundary>
       </div>
 
       <footer className="dark-panel bg-ink-950 text-ink-300">
