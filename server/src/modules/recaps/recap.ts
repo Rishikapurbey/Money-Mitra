@@ -19,7 +19,8 @@ export interface RecapInput {
   current: RecapTransaction[];
   previous: RecapTransaction[];
   budgets: { category: string; amount: number }[];
-  goals: { name: string; savedAmount: number; targetAmount: number }[];
+  // `added` is the net amount put into the goal during the month
+  goals: { name: string; savedAmount: number; targetAmount: number; added: number }[];
   monthName: string;
   previousMonthName: string;
 }
@@ -44,7 +45,9 @@ export interface Recap {
   previous: Totals | null;
   categories: { name: string; amount: number; share: number; previous: number; changePct: number | null }[];
   budgets: { category: string; limit: number; spent: number; over: boolean }[];
-  goals: { name: string; savedAmount: number; targetAmount: number; pct: number }[];
+  goals: { name: string; savedAmount: number; targetAmount: number; pct: number; added: number }[];
+  // Net amount put into all goals during the month
+  goalsAdded: number;
   biggestExpense: { amount: number; category: string; note: string | null; date: Date } | null;
   noSpendDays: number;
   daysInMonth: number;
@@ -128,7 +131,9 @@ export function computeRecap(input: RecapInput): Recap {
     savedAmount: g.savedAmount,
     targetAmount: g.targetAmount,
     pct: g.targetAmount > 0 ? Math.min(100, Math.round((g.savedAmount / g.targetAmount) * 100)) : 0,
+    added: round2(g.added),
   }));
+  const goalsAdded = round2(goals.reduce((sum, g) => sum + g.added, 0));
 
   const expenses = current.filter((t) => t.type === "expense");
   const biggest = expenses.reduce<RecapTransaction | null>((top, t) => (!top || t.amount > top.amount ? t : top), null);
@@ -165,6 +170,8 @@ export function computeRecap(input: RecapInput): Recap {
     wentWell = `You saved **${rate}%** of your income, up from ${prevRate}% in ${previousMonthName}.`;
   } else if (budgets.length > 0 && overBudgets.length === 0) {
     wentWell = budgets.length === 1 ? "You stayed **within your budget**." : `You stayed **within all ${budgets.length} budgets**.`;
+  } else if (goalsAdded >= MIN_CHANGE_RUPEES) {
+    wentWell = `You put **${rupees(goalsAdded)}** towards your goals.`;
   } else if (down) {
     wentWell = `You spent **${Math.abs(down.pct)}% less on ${down.name}** than in ${previousMonthName} (${rupees(down.now)} vs ${rupees(down.before)}).`;
   } else if (rate !== null && rate >= 20) {
@@ -207,6 +214,7 @@ export function computeRecap(input: RecapInput): Recap {
     categories,
     budgets,
     goals,
+    goalsAdded,
     biggestExpense: biggest
       ? { amount: biggest.amount, category: biggest.category, note: biggest.note, date: biggest.date }
       : null,

@@ -79,7 +79,16 @@ export async function exportData(userId: string) {
       transactions: { orderBy: { date: "desc" }, select: { amount: true, type: true, category: true, note: true, date: true } },
       categories: { orderBy: { name: "asc" }, select: { name: true, type: true } },
       budgets: { select: { category: true, amount: true, createdAt: true } },
-      goals: { select: { name: true, targetAmount: true, savedAmount: true, targetDate: true, createdAt: true } },
+      goals: {
+        select: {
+          name: true,
+          targetAmount: true,
+          savedAmount: true,
+          targetDate: true,
+          createdAt: true,
+          contributions: { select: { amount: true, createdAt: true }, orderBy: { createdAt: "asc" } },
+        },
+      },
       recurring: { select: { amount: true, type: true, category: true, note: true, dayOfMonth: true, endDate: true, paused: true } },
       posts: { select: { title: true, body: true, topic: true, isAnonymous: true, createdAt: true } },
       replies: { select: { body: true, isAnonymous: true, createdAt: true, post: { select: { title: true } } } },

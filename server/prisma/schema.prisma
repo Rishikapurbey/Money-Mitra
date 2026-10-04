@@ -60,6 +60,7 @@ model User {
   followers          Follow[]               @relation("followed")
   recurring          RecurringTransaction[]
   imports            Import[]
+  goalContributions  GoalContribution[]
   categories         Category[]
   avatar             Avatar?
 }
@@ -168,14 +169,30 @@ model BudgetAlert {
 }
 
 model Goal {
-  id           String    @id @default(cuid())
-  name         String
-  targetAmount Float
-  savedAmount  Float     @default(0)
-  targetDate   DateTime?
-  createdAt    DateTime  @default(now())
-  userId       String
-  user         User      @relation(fields: [userId], references: [id])
+  id            String             @id @default(cuid())
+  name          String
+  targetAmount  Float
+  savedAmount   Float              @default(0)
+  targetDate    DateTime?
+  createdAt     DateTime           @default(now())
+  userId        String
+  user          User               @relation(fields: [userId], references: [id])
+  contributions GoalContribution[]
+}
+
+// Money added to (positive) or withdrawn from (negative) a goal, as actually applied. Goals that had
+// money before this was recorded show the difference as saved before history started.
+model GoalContribution {
+  id        String   @id @default(cuid())
+  amount    Float
+  createdAt DateTime @default(now())
+  goalId    String
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([goalId, createdAt])
+  @@index([userId, createdAt])
 }
 
 // A one-time password reset link. Only a SHA-256 hash of the token is stored,

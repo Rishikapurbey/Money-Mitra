@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
-import { listGoals, createGoal, updateGoal, addToGoal, deleteGoal, GoalInput } from "./goal.service";
+import { listGoals, createGoal, updateGoal, addToGoal, deleteGoal, goalHistory, GoalInput } from "./goal.service";
 
 const router = Router();
 
@@ -48,6 +48,11 @@ router.post("/:id/contributions", authMiddleware, async (req: AuthRequest, res) 
   }
   const goal = await addToGoal(req.userId, req.params.id as string, amount);
   res.status(200).json({ goal });
+});
+
+router.get("/:id/contributions", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  res.status(200).json(await goalHistory(req.userId, req.params.id as string));
 });
 
 router.delete("/:id", authMiddleware, async (req: AuthRequest, res) => {

@@ -8,6 +8,13 @@ import { termBySlug } from "../lib/learn";
 import { useToast } from "../lib/toast";
 import { announceDataChange } from "../lib/dataEvents";
 
+interface GoalHistory {
+  entries: { id: string; amount: number; createdAt: string }[];
+  more: boolean;
+  // Money the goal held before changes were recorded
+  beforeHistory: number;
+}
+
 interface Goal {
   id: string;
   name: string;
@@ -44,7 +51,24 @@ function GoalsCard() {
   const [contributingId, setContributingId] = useState<string | null>(null);
   const [contribution, setContribution] = useState("");
   const [error, setError] = useState("");
+  // The goal whose history is open, and that history once loaded
+  const [historyFor, setHistoryFor] = useState<string | null>(null);
+  const [history, setHistory] = useState<GoalHistory | null>(null);
   const toast = useToast();
+
+  const loadHistory = (id: string) => {
+    setHistory(null);
+    api
+      .get(`/goals/${id}/contributions`)
+      .then((res) => setHistory(res.data))
+      .catch(() => setError("We couldn't load that goal's history."));
+  };
+
+  const toggleHistory = (id: string) => {
+    if (historyFor === id) return setHistoryFor(null);
+    setHistoryFor(id);
+    loadHistory(id);
+  };
 
   useEffect(() => {
     api.get("/goals").then((res) => setGoals(res.data.goals)).catch(() => {
@@ -93,6 +117,7 @@ function GoalsCard() {
       replaceGoal(res.data.goal);
       setContributingId(null);
       setContribution("");
+      if (historyFor === id) loadHistory(id);
       toast({ message: direction === 1 ? `${formatINR(value)} added to ${res.data.goal.name}` : `${formatINR(value)} withdrawn from ${res.data.goal.name}` });
     } catch {
       setError("We couldn't update that goal. Please try again.");
@@ -278,10 +303,44 @@ function GoalsCard() {
                     >
                       Add money
                     </button>
+                    <button onClick={() => toggleHistory(g.id)} aria-expanded={historyFor === g.id} className="text-ink-500 hover:text-ink-900">
+                      {historyFor === g.id ? "Hide history" : "History"}
+                    </button>
                     {learn && (
                       <Link to={`/learn/${learn.slug}`} className="flex items-center gap-1 text-ink-500 hover:text-ink-900">
                         <BookOpen size={12} /> Learn: {learn.term}
                       </Link>
+                    )}
+                  </div>
+                )}
+
+                {historyFor === g.id && (
+                  <div className="mt-3 rounded-xl bg-canvas border border-line px-4 py-3">
+                    {!history ? (
+                      <p className="text-xs text-ink-500">Loading…</p>
+                    ) : history.entries.length === 0 && history.beforeHistory === 0 ? (
+                      <p className="text-xs text-ink-500">Nothing added yet. Money you add or withdraw shows here.</p>
+                    ) : (
+                      <ul className="space-y-1.5 text-xs">
+                        {history.entries.map((e) => (
+                          <li key={e.id} className="flex items-center justify-between gap-3">
+                            <span className="text-ink-500">
+                              {new Date(e.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                            </span>
+                            <span className={`font-medium tabular-nums ${e.amount > 0 ? "text-gain" : "text-ink-700"}`}>
+                              {e.amount > 0 ? "+" : "−"}
+                              {formatINR(Math.abs(e.amount))}
+                            </span>
+                          </li>
+                        ))}
+                        {history.more && <li className="text-ink-400">Showing the latest {history.entries.length}</li>}
+                        {history.beforeHistory > 0 && !history.more && (
+                          <li className="flex items-center justify-between gap-3 border-t border-line pt-1.5">
+                            <span className="text-ink-500">Saved before history started</span>
+                            <span className="font-medium tabular-nums text-ink-700">{formatINR(history.beforeHistory)}</span>
+                          </li>
+                        )}
+                      </ul>
                     )}
                   </div>
                 )}

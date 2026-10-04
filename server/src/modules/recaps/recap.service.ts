@@ -47,15 +47,25 @@ export async function getRecap(userId: string, month: string, tzOffset: number, 
   const bounds = monthBounds(month, tzOffset);
   const prevBounds = monthBounds(shiftMonth(month, -1), tzOffset);
 
-  const [transactions, budgets, goals, earliest] = await Promise.all([
+  const [transactions, budgets, goals, contributions, earliest] = await Promise.all([
     prisma.transaction.findMany({
       where: { userId, date: { gte: prevBounds.from, lt: bounds.to } },
       select: { amount: true, type: true, category: true, note: true, date: true, recurringId: true },
     }),
     prisma.budget.findMany({ where: { userId }, select: { category: true, amount: true } }),
-    prisma.goal.findMany({ where: { userId }, orderBy: { createdAt: "asc" }, select: { name: true, savedAmount: true, targetAmount: true } }),
+    prisma.goal.findMany({
+      where: { userId },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, name: true, savedAmount: true, targetAmount: true },
+    }),
+    prisma.goalContribution.groupBy({
+      by: ["goalId"],
+      where: { userId, createdAt: { gte: bounds.from, lt: bounds.to } },
+      _sum: { amount: true },
+    }),
     firstMonth(userId, tzOffset),
   ]);
+  const addedTo = new Map(contributions.map((c) => [c.goalId, c._sum.amount ?? 0]));
 
   const recap = computeRecap({
     month,
@@ -64,7 +74,7 @@ export async function getRecap(userId: string, month: string, tzOffset: number, 
     current: transactions.filter((t) => t.date >= bounds.from),
     previous: transactions.filter((t) => t.date < bounds.from),
     budgets,
-    goals,
+    goals: goals.map(({ id, ...g }) => ({ ...g, added: addedTo.get(id) ?? 0 })),
     monthName: bounds.name,
     previousMonthName: prevBounds.shortName,
   });

@@ -310,7 +310,20 @@ export default function MonthlyRecap() {
   );
 
   const goals = recap.goals.length > 0 && (
-    <Card title="Your goals today">
+    <Card title="Your goals">
+      {recap.goalsAdded !== 0 && (
+        <p className="mb-4 text-sm text-ink-700">
+          {recap.goalsAdded > 0 ? (
+            <>
+              You put <span className="font-semibold text-ink-900">{formatINR(recap.goalsAdded)}</span> towards your goals in {shortMonth}.
+            </>
+          ) : (
+            <>
+              You took <span className="font-semibold text-ink-900">{formatINR(-recap.goalsAdded)}</span> out of your goals in {shortMonth}.
+            </>
+          )}
+        </p>
+      )}
       <ul className="space-y-3">
         {recap.goals.map((g) => (
           <li key={g.name}>
@@ -323,6 +336,12 @@ export default function MonthlyRecap() {
             <div className="mt-1.5 h-2 rounded-full bg-ink-100 overflow-hidden">
               <div className={`h-full rounded-full ${g.pct >= 100 ? "bg-gain" : "bg-brand-500"}`} style={{ width: `${g.pct}%` }} />
             </div>
+            {g.added !== 0 && (
+              <p className={`mt-1 text-xs ${g.added > 0 ? "text-gain" : "text-ink-500"}`}>
+                {g.added > 0 ? "+" : "−"}
+                {formatINR(Math.abs(g.added))} in {shortMonth}
+              </p>
+            )}
           </li>
         ))}
       </ul>

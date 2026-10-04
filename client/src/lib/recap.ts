@@ -18,7 +18,9 @@ export interface Recap {
   previous: RecapTotals | null;
   categories: { name: string; amount: number; share: number; previous: number; changePct: number | null }[];
   budgets: { category: string; limit: number; spent: number; over: boolean }[];
-  goals: { name: string; savedAmount: number; targetAmount: number; pct: number }[];
+  // `added` is the net amount put into each goal during the month
+  goals: { name: string; savedAmount: number; targetAmount: number; pct: number; added: number }[];
+  goalsAdded: number;
   biggestExpense: { amount: number; category: string; note: string | null; date: string } | null;
   noSpendDays: number;
   daysInMonth: number;
