@@ -54,13 +54,14 @@ export interface NotificationPreferences {
   emailReplies?: boolean;
   budgetAlerts?: boolean;
   emailBudgetAlerts?: boolean;
+  netWorthReminder?: boolean;
 }
 
 export async function setNotificationPreferences(userId: string, changes: NotificationPreferences) {
   return prisma.user.update({
     where: { id: userId },
     data: changes,
-    select: { emailReplies: true, budgetAlerts: true, emailBudgetAlerts: true },
+    select: { emailReplies: true, budgetAlerts: true, emailBudgetAlerts: true, netWorthReminder: true },
   });
 }
 
@@ -90,6 +91,17 @@ export async function exportData(userId: string) {
         },
       },
       recurring: { select: { amount: true, type: true, category: true, note: true, dayOfMonth: true, endDate: true, paused: true } },
+      netWorthItems: {
+        select: {
+          name: true,
+          kind: true,
+          type: true,
+          value: true,
+          archivedAt: true,
+          createdAt: true,
+          values: { select: { value: true, recordedAt: true }, orderBy: { recordedAt: "asc" } },
+        },
+      },
       posts: { select: { title: true, body: true, topic: true, isAnonymous: true, createdAt: true } },
       replies: { select: { body: true, isAnonymous: true, createdAt: true, post: { select: { title: true } } } },
       following: { select: { status: true, createdAt: true, following: { select: { username: true } } } },

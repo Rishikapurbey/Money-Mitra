@@ -16,7 +16,8 @@ export interface AppNotification {
     | "budget_over"
     | "recap_ready"
     | "answer_accepted"
-    | "year_ready";
+    | "year_ready"
+    | "networth_reminder";
   message: string;
   // The question's title; empty for follow, budget and recap notifications
   title: string;
@@ -37,6 +38,7 @@ export function notificationLink(n: AppNotification) {
   if (n.kind === "budget_near" || n.kind === "budget_over") return "/tracker";
   if (n.kind === "recap_ready" && n.month) return `/tracker/recap/${n.month}`;
   if (n.kind === "year_ready" && n.year) return `/tracker/year/${n.year}`;
+  if (n.kind === "networth_reminder") return "/tracker/net-worth";
   if (n.postId) return `/discuss/${n.postId}`;
   if (n.actor) return `/u/${n.actor.username}`;
   return "/discuss";

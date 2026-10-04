@@ -189,7 +189,9 @@ export async function listNotifications(userId: string) {
           ? `Your ${monthBounds(n.title, 0).shortName} recap is ready`
           : n.kind === "year_ready"
             ? `Your ${n.title} in money is ready`
-            : message(n.kind, n.count, n.actor ? n.actor.displayName || n.actor.username : "Someone"),
+            : n.kind === "networth_reminder"
+              ? "Time to update your net worth"
+              : message(n.kind, n.count, n.actor ? n.actor.displayName || n.actor.username : "Someone"),
       title: isBudget(n.kind) || n.kind === "recap_ready" || n.kind === "year_ready" ? "" : n.title,
       month: n.kind === "recap_ready" ? n.title : null,
       year: n.kind === "year_ready" ? n.title : null,

@@ -87,6 +87,7 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
       emailReplies: true,
       budgetAlerts: true,
       emailBudgetAlerts: true,
+      netWorthReminder: true,
       displayName: true,
       bio: true,
       isPrivate: true,

@@ -111,7 +111,7 @@ router.put("/privacy", authMiddleware, async (req: AuthRequest, res) => {
 router.put("/email-preferences", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   const changes: NotificationPreferences = {};
-  for (const key of ["emailReplies", "budgetAlerts", "emailBudgetAlerts"] as const) {
+  for (const key of ["emailReplies", "budgetAlerts", "emailBudgetAlerts", "netWorthReminder"] as const) {
     const value = req.body[key];
     if (value === undefined) continue;
     if (typeof value !== "boolean") return res.status(400).json({ error: `${key} must be true or false` });

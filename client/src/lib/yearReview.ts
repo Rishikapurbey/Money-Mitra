@@ -19,6 +19,8 @@ export interface YearReview {
   noSpendDays: number;
   daysCounted: number;
   highlights: string[];
+  // How net worth moved during the year (so far); null without values from before it
+  netWorth: { start: number; end: number; change: number } | null;
   // The year of the user's first entry, and the next year that has started; null when there isn't one
   firstYear: string | null;
   nextYear: string | null;

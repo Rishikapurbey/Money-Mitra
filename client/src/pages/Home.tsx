@@ -17,11 +17,12 @@ import type { AppContext } from "../components/AppLayout";
 import GettingStarted from "../components/GettingStarted";
 import InsightsCard from "../components/InsightsCard";
 import RecapCard from "../components/RecapCard";
+import NetWorthCard from "../components/NetWorthCard";
 import type { Insight } from "../components/InsightsCard";
 import LearnTipCard from "../components/LearnTipCard";
 import QuickAddSheet from "../components/QuickAddSheet";
 
-const NOT_DISCUSS = new Set<AppNotification["kind"]>(["budget_near", "budget_over", "recap_ready", "year_ready"]);
+const NOT_DISCUSS = new Set<AppNotification["kind"]>(["budget_near", "budget_over", "recap_ready", "year_ready", "networth_reminder"]);
 
 interface Goal {
   id: string;
@@ -400,6 +401,7 @@ function Home() {
           </div>
           <aside className="space-y-6" aria-label="Shortcuts and updates">
             {quickActionsNav}
+            <NetWorthCard />
             {comingUpCard}
             {newInDiscussCard}
             <div className="flex">{tipCard}</div>
@@ -411,6 +413,7 @@ function Home() {
           {glanceCard}
           <RecapCard />
           {quickActionsNav}
+          <NetWorthCard />
           {comingUpCard}
           {newInDiscussCard}
           <div className="flex flex-col md:flex-row gap-6">

@@ -337,8 +337,13 @@ function Tracker() {
   const balanceCard = (
     <section className="dark-panel bg-ink-900 rounded-2xl p-6 sm:p-8 text-white lg:flex lg:items-end lg:justify-between lg:gap-10">
       <div className="min-w-0">
-        <div className="flex items-center gap-2 text-ink-300 text-xs font-medium uppercase tracking-wider">
-          <Wallet2 size={14} /> Balance
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="flex items-center gap-2 text-ink-300 text-xs font-medium uppercase tracking-wider">
+            <Wallet2 size={14} /> Balance
+          </span>
+          <Link to="/tracker/net-worth" className="text-xs font-medium text-brand-300 hover:text-white transition">
+            See your net worth
+          </Link>
         </div>
         <p className="mt-2 text-4xl sm:text-5xl font-semibold tracking-tight tabular-nums">{formatINR(summary.totalBalance)}</p>
         {savingsRate !== null && (

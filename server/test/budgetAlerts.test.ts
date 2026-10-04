@@ -115,7 +115,7 @@ describe("budget alerts", () => {
 
     const emailed = await withBudget("emailed");
     const prefs = await api().put("/api/account/email-preferences").set("Authorization", emailed.auth).send({ emailBudgetAlerts: true }).expect(200);
-    expect(prefs.body).toEqual({ emailReplies: true, budgetAlerts: true, emailBudgetAlerts: true });
+    expect(prefs.body).toEqual({ emailReplies: true, budgetAlerts: true, emailBudgetAlerts: true, netWorthReminder: true });
     vi.mocked(sendEmail).mockClear();
     await spend(emailed.auth, 12000);
     expect(vi.mocked(sendEmail)).toHaveBeenCalledTimes(1);

@@ -9,6 +9,7 @@ import { useTitle } from "../lib/useTitle";
 import { formatINR, pageWidth } from "../lib/ui";
 import { useWideLayout } from "../lib/useMediaQuery";
 import { isYearKey } from "../lib/yearReview";
+import { signedINR, worthINR } from "../lib/networth";
 import type { YearReview as Review } from "../lib/yearReview";
 import Emphasised from "../components/Emphasised";
 
@@ -173,6 +174,12 @@ export default function YearReview() {
         </p>
         <p className="mt-2 text-4xl sm:text-5xl font-semibold tracking-tight tabular-nums">{formatINR(Math.abs(totals.saved))}</p>
         {totals.savingsRate !== null && totals.saved >= 0 && <p className="mt-2 text-sm text-ink-300">{totals.savingsRate}% of your income</p>}
+        {review.netWorth && (
+          <Link to="/tracker/net-worth" className="mt-1 block text-sm text-ink-300 hover:text-white transition">
+            Net worth {worthINR(review.netWorth.end)}, {signedINR(review.netWorth.change)} in {review.year}
+            {review.inProgress && " so far"}
+          </Link>
+        )}
       </div>
       <div className="mt-6 grid grid-cols-2 gap-6 border-t border-ink-800 pt-5 lg:mt-0 lg:shrink-0 lg:gap-10 lg:border-t-0 lg:pt-0 lg:border-l lg:pl-10">
         <div>

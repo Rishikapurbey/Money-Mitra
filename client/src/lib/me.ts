@@ -11,6 +11,7 @@ export interface Me {
   emailReplies: boolean;
   budgetAlerts: boolean;
   emailBudgetAlerts: boolean;
+  netWorthReminder: boolean;
   displayName: string | null;
   bio: string | null;
   isPrivate: boolean;

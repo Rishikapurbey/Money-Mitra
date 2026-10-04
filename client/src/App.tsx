@@ -16,6 +16,7 @@ const Tracker = lazyPage(() => import("./pages/Tracker"));
 const ImportTransactions = lazyPage(() => import("./pages/ImportTransactions"));
 const MonthlyRecap = lazyPage(() => import("./pages/MonthlyRecap"));
 const YearReview = lazyPage(() => import("./pages/YearReview"));
+const NetWorth = lazyPage(() => import("./pages/NetWorth"));
 const Home = lazyPage(() => import("./pages/Home"));
 const Discuss = lazyPage(() => import("./pages/Discuss"));
 const DiscussPost = lazyPage(() => import("./pages/DiscussPost"));
@@ -73,6 +74,7 @@ function App() {
                 <Route path="/tracker/import" element={<ImportTransactions />} />
                 <Route path="/tracker/recap/:month" element={<MonthlyRecap />} />
                 <Route path="/tracker/year/:year" element={<YearReview />} />
+                <Route path="/tracker/net-worth" element={<NetWorth />} />
                 {/* Old address, kept so bookmarks and installed apps still work */}
                 <Route path="/dashboard" element={<Navigate to="/home" replace />} />
                 <Route path="/discuss" element={<Discuss />} />

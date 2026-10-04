@@ -28,6 +28,8 @@ export interface Recap {
   wentWell: string | null;
   toWatch: string | null;
   learnSlug: string;
+  // How net worth moved during the month; null without values from before it
+  netWorth: { start: number; end: number; change: number } | null;
   // The month of the user's first entry, and the next finished month; null when there isn't one
   firstMonth: string | null;
   nextMonth: string | null;

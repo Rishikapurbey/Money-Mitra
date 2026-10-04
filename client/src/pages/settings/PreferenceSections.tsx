@@ -36,12 +36,13 @@ export function AppearanceSection() {
   );
 }
 
-type NotificationSetting = "emailReplies" | "budgetAlerts" | "emailBudgetAlerts";
+type NotificationSetting = "emailReplies" | "budgetAlerts" | "emailBudgetAlerts" | "netWorthReminder";
 
 const SAVED: Record<NotificationSetting, [on: string, off: string]> = {
   emailReplies: ["Reply emails turned on", "Reply emails turned off"],
   budgetAlerts: ["Budget alerts turned on", "Budget alerts turned off"],
   emailBudgetAlerts: ["Budget alert emails turned on", "Budget alert emails turned off"],
+  netWorthReminder: ["Net worth reminders turned on", "Net worth reminders turned off"],
 };
 
 export function NotificationsSection() {
@@ -76,6 +77,15 @@ export function NotificationsSection() {
           disabled={disabled}
           onChange={(value) => save("budgetAlerts", value)}
         />
+        <div className="mt-5">
+          <Toggle
+            label="Net worth reminder"
+            description="A note under the bell when your net worth values are more than a month old. At most once a month."
+            checked={me?.netWorthReminder ?? false}
+            disabled={disabled}
+            onChange={(value) => save("netWorthReminder", value)}
+          />
+        </div>
       </Panel>
       <Panel title="Email">
         <div className="space-y-5">

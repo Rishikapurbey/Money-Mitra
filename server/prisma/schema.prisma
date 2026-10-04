@@ -31,6 +31,8 @@ model User {
   budgetAlerts        Boolean                @default(true)
   // Also email those budget alerts
   emailBudgetAlerts   Boolean                @default(false)
+  // A monthly note under the bell to update net worth values
+  netWorthReminder    Boolean                @default(true)
   // Public profile: shown instead of the username where set
   displayName         String?
   bio                 String?
@@ -63,6 +65,8 @@ model User {
   recurring           RecurringTransaction[]
   imports             Import[]
   goalContributions   GoalContribution[]
+  netWorthItems       NetWorthItem[]
+  netWorthValues      NetWorthValue[]
   categories          Category[]
   avatar              Avatar?
 }
@@ -260,7 +264,7 @@ model Notification {
   id        String    @id @default(cuid())
   // reply_to_question | reply_in_thread | helpful | post_hidden | reply_hidden
   // | follow_request | new_follower | follow_accepted | followed_post | budget_near | budget_over | recap_ready
-  // | answer_accepted | year_ready
+  // | answer_accepted | year_ready | networth_reminder
   kind      String
   count     Int       @default(1)
   // Question title at the time, so the notification still reads well if the title changes;
@@ -337,4 +341,38 @@ model Category {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, type, name])
+}
+
+// Something the user owns (asset) or owes (liability), valued by hand. Removing one records a
+// value of zero and hides it, so net worth on earlier dates doesn't change.
+model NetWorthItem {
+  id         String          @id @default(cuid())
+  name       String
+  // asset | liability
+  kind       String
+  // bank, fd, investments, ... (see networth.service)
+  type       String
+  // The latest recorded value
+  value      Float
+  archivedAt DateTime?
+  createdAt  DateTime        @default(now())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  values     NetWorthValue[]
+
+  @@index([userId])
+}
+
+// One recorded value of an item, so net worth can be worked out for any past date
+model NetWorthValue {
+  id         String       @id @default(cuid())
+  value      Float
+  recordedAt DateTime     @default(now())
+  itemId     String
+  item       NetWorthItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, recordedAt])
+  @@index([userId, recordedAt])
 }

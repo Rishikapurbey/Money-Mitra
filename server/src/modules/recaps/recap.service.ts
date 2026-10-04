@@ -3,6 +3,7 @@ import { HttpError } from "../../lib/httpError";
 import { localMonth } from "../budgets/budgetAlert.service";
 import { MIN_TRANSACTIONS, computeRecap } from "./recap";
 import { MIN_YEAR_TRANSACTIONS, computeYearReview } from "./yearReview";
+import { netWorthOver } from "../networth/networth.service";
 
 const MINUTE = 60_000;
 const DAY = 24 * 60 * MINUTE;
@@ -82,7 +83,8 @@ export async function getRecap(userId: string, month: string, tzOffset: number, 
     previousMonthName: prevBounds.shortName,
   });
   const next = shiftMonth(month, 1);
-  return { ...recap, firstMonth: earliest, nextMonth: next < currentMonth ? next : null };
+  const netWorth = await netWorthOver(userId, bounds.from, bounds.to);
+  return { ...recap, netWorth, firstMonth: earliest, nextMonth: next < currentMonth ? next : null };
 }
 
 // Records a "ready" notification once; true when it was created just now
@@ -204,5 +206,6 @@ export async function getYearReview(userId: string, year: string, tzOffset: numb
   });
   const firstYear = earliest ? earliest.slice(0, 4) : null;
   const nextYear = String(Number(year) + 1);
-  return { ...review, firstYear, nextYear: nextYear <= currentYear ? nextYear : null };
+  const netWorth = await netWorthOver(userId, yearFrom, inProgress ? now : yearTo);
+  return { ...review, netWorth, firstYear, nextYear: nextYear <= currentYear ? nextYear : null };
 }

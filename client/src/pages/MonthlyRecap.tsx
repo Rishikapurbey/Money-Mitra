@@ -9,6 +9,7 @@ import { formatINR, pageWidth } from "../lib/ui";
 import { useWideLayout } from "../lib/useMediaQuery";
 import { termBySlug } from "../lib/learn";
 import { isMonthKey, percentChange, shiftMonth } from "../lib/recap";
+import { signedINR, worthINR } from "../lib/networth";
 import type { Recap } from "../lib/recap";
 import Emphasised from "../components/Emphasised";
 
@@ -190,6 +191,11 @@ export default function MonthlyRecap() {
             {previous?.savingsRate != null && previous.savingsRate !== totals.savingsRate &&
               `, ${totals.savingsRate > previous.savingsRate ? "up" : "down"} from ${previous.savingsRate}% in ${recap.previousMonthName}`}
           </p>
+        )}
+        {recap.netWorth && (
+          <Link to="/tracker/net-worth" className="mt-1 block text-sm text-ink-300 hover:text-white transition">
+            Net worth {worthINR(recap.netWorth.end)}, {signedINR(recap.netWorth.change)} in {shortMonth}
+          </Link>
         )}
       </div>
       <div className="mt-6 grid grid-cols-2 gap-6 border-t border-ink-800 pt-5 lg:mt-0 lg:shrink-0 lg:gap-10 lg:border-t-0 lg:pt-0 lg:border-l lg:pl-10">
