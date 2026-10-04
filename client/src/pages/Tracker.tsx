@@ -566,7 +566,12 @@ function Tracker() {
   const trendCard = (
     <section className="bg-surface p-6 rounded-2xl border border-line">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-semibold text-ink-900">Last 6 months</h2>
+        <h2 className="font-semibold text-ink-900">
+          Last 6 months{" "}
+          <Link to={`/tracker/year/${month.getFullYear()}`} className="ml-2 text-sm font-medium text-brand-600 hover:underline">
+            See your {month.getFullYear()}
+          </Link>
+        </h2>
         <div className="flex items-center gap-4 text-sm text-ink-500">
           <span className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-sm bg-chart-1" /> Income

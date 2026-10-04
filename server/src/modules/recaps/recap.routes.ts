@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
 import { parseTzOffset } from "../transactions/transaction.input";
-import { dismissRecap, getRecap, isMonthKey, latestRecap } from "./recap.service";
+import { dismissRecap, dismissYearReview, getRecap, getYearReview, isMonthKey, isYearKey, latestRecap } from "./recap.service";
 
 const router = Router();
 
@@ -9,6 +9,20 @@ const router = Router();
 router.get("/latest", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   res.status(200).json(await latestRecap(req.userId, parseTzOffset(req.query.tzOffset)));
+});
+
+router.get("/year/:year", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  if (!isYearKey(req.params.year)) return res.status(400).json({ error: "Year must look like 2026" });
+  res.status(200).json({ review: await getYearReview(req.userId, req.params.year, parseTzOffset(req.query.tzOffset)) });
+});
+
+// Hides the January Home card for that year
+router.post("/year/:year/dismiss", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  if (!isYearKey(req.params.year)) return res.status(400).json({ error: "Year must look like 2026" });
+  await dismissYearReview(req.userId, req.params.year);
+  res.status(200).json({ success: true });
 });
 
 router.get("/:month", authMiddleware, async (req: AuthRequest, res) => {

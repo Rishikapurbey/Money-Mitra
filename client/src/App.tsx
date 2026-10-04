@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import Tracker from "./pages/Tracker";
 import ImportTransactions from "./pages/ImportTransactions";
 import MonthlyRecap from "./pages/MonthlyRecap";
+import YearReview from "./pages/YearReview";
 import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import Discuss from "./pages/Discuss";
@@ -63,6 +64,7 @@ function App() {
               <Route path="/tracker" element={<Tracker />} />
               <Route path="/tracker/import" element={<ImportTransactions />} />
               <Route path="/tracker/recap/:month" element={<MonthlyRecap />} />
+              <Route path="/tracker/year/:year" element={<YearReview />} />
               {/* Old address, kept so bookmarks and installed apps still work */}
               <Route path="/dashboard" element={<Navigate to="/home" replace />} />
               <Route path="/discuss" element={<Discuss />} />

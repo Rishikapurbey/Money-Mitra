@@ -17,52 +17,54 @@ datasource db {
 }
 
 model User {
-  id                 String                 @id @default(cuid())
-  email              String                 @unique
-  username           String                 @unique
-  passwordHash       String
+  id                  String                 @id @default(cuid())
+  email               String                 @unique
+  username            String                 @unique
+  passwordHash        String
   // When the user confirmed they own the email; null until then
-  emailVerifiedAt    DateTime?
+  emailVerifiedAt     DateTime?
   // Bumped on password change or reset; logins issued before it stop working
-  tokenVersion       Int                    @default(0)
+  tokenVersion        Int                    @default(0)
   // Email me when someone replies to my question
-  emailReplies       Boolean                @default(true)
+  emailReplies        Boolean                @default(true)
   // Tell me in the app when I reach 80% or 100% of a budget
-  budgetAlerts       Boolean                @default(true)
+  budgetAlerts        Boolean                @default(true)
   // Also email those budget alerts
-  emailBudgetAlerts  Boolean                @default(false)
+  emailBudgetAlerts   Boolean                @default(false)
   // Public profile: shown instead of the username where set
-  displayName        String?
-  bio                String?
+  displayName         String?
+  bio                 String?
   // Only the owner sees a private profile's Discuss activity
-  isPrivate          Boolean                @default(false)
+  isPrivate           Boolean                @default(false)
   // Pre-ticks "anonymous" when asking or replying in Discuss
-  anonymousByDefault Boolean                @default(false)
+  anonymousByDefault  Boolean                @default(false)
   // When the photo last changed, so its URL changes and browsers fetch the new one; null means no photo
-  avatarUpdatedAt    DateTime?
+  avatarUpdatedAt     DateTime?
   // The monthly recap (YYYY-MM) the user closed on Home, so its card stays hidden
-  recapDismissed     String?
-  createdAt          DateTime               @default(now())
-  transactions       Transaction[]
-  posts              Post[]
-  replies            Reply[]
-  budgets            Budget[]
-  goals              Goal[]
-  passwordResets     PasswordReset[]
-  emailVerifications EmailVerification[]
-  budgetAlertsSent   BudgetAlert[]
-  replyVotes         ReplyVote[]
-  reports            Report[]
-  notifications      Notification[]         @relation("recipient")
+  recapDismissed      String?
+  // The year review (YYYY) the user closed on Home
+  yearReviewDismissed String?
+  createdAt           DateTime               @default(now())
+  transactions        Transaction[]
+  posts               Post[]
+  replies             Reply[]
+  budgets             Budget[]
+  goals               Goal[]
+  passwordResets      PasswordReset[]
+  emailVerifications  EmailVerification[]
+  budgetAlertsSent    BudgetAlert[]
+  replyVotes          ReplyVote[]
+  reports             Report[]
+  notifications       Notification[]         @relation("recipient")
   // Notifications about something this user did, e.g. "Asha started following you"
-  actedIn            Notification[]         @relation("actor")
-  following          Follow[]               @relation("follower")
-  followers          Follow[]               @relation("followed")
-  recurring          RecurringTransaction[]
-  imports            Import[]
-  goalContributions  GoalContribution[]
-  categories         Category[]
-  avatar             Avatar?
+  actedIn             Notification[]         @relation("actor")
+  following           Follow[]               @relation("follower")
+  followers           Follow[]               @relation("followed")
+  recurring           RecurringTransaction[]
+  imports             Import[]
+  goalContributions   GoalContribution[]
+  categories          Category[]
+  avatar              Avatar?
 }
 
 // A profile photo, kept apart from User so the image bytes are only read when the photo is requested.
@@ -258,11 +260,11 @@ model Notification {
   id        String    @id @default(cuid())
   // reply_to_question | reply_in_thread | helpful | post_hidden | reply_hidden
   // | follow_request | new_follower | follow_accepted | followed_post | budget_near | budget_over | recap_ready
-  // | answer_accepted
+  // | answer_accepted | year_ready
   kind      String
   count     Int       @default(1)
   // Question title at the time, so the notification still reads well if the title changes;
-  // for budget alerts, the whole message; for recap_ready, the month (YYYY-MM)
+  // for budget alerts, the whole message; for recap_ready, the month (YYYY-MM); for year_ready, the year
   title     String
   readAt    DateTime?
   // When an email went out for this notification, used to send at most one per hour per question

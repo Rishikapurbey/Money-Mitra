@@ -187,9 +187,12 @@ export async function listNotifications(userId: string) {
         ? n.title
         : n.kind === "recap_ready"
           ? `Your ${monthBounds(n.title, 0).shortName} recap is ready`
-          : message(n.kind, n.count, n.actor ? n.actor.displayName || n.actor.username : "Someone"),
-      title: isBudget(n.kind) || n.kind === "recap_ready" ? "" : n.title,
+          : n.kind === "year_ready"
+            ? `Your ${n.title} in money is ready`
+            : message(n.kind, n.count, n.actor ? n.actor.displayName || n.actor.username : "Someone"),
+      title: isBudget(n.kind) || n.kind === "recap_ready" || n.kind === "year_ready" ? "" : n.title,
       month: n.kind === "recap_ready" ? n.title : null,
+      year: n.kind === "year_ready" ? n.title : null,
       postId: n.postId,
       actor: n.actor ? identity(n.actor) : null,
       read: n.readAt !== null,

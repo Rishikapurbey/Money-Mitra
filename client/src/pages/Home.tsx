@@ -21,7 +21,7 @@ import type { Insight } from "../components/InsightsCard";
 import LearnTipCard from "../components/LearnTipCard";
 import QuickAddSheet from "../components/QuickAddSheet";
 
-const NOT_DISCUSS = new Set<AppNotification["kind"]>(["budget_near", "budget_over", "recap_ready"]);
+const NOT_DISCUSS = new Set<AppNotification["kind"]>(["budget_near", "budget_over", "recap_ready", "year_ready"]);
 
 interface Goal {
   id: string;

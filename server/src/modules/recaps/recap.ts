@@ -65,11 +65,11 @@ const MIN_CHANGE_RUPEES = 500;
 const MIN_CHANGE_PERCENT = 20;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const rupees = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
-const key = (category: string) => category.trim().toLowerCase();
-const round2 = (n: number) => Math.round(n * 100) / 100;
+export const rupees = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
+export const key = (category: string) => category.trim().toLowerCase();
+export const round2 = (n: number) => Math.round(n * 100) / 100;
 
-function totalsOf(transactions: RecapTransaction[]): Totals {
+export function totalsOf(transactions: RecapTransaction[]): Totals {
   let income = 0;
   let expense = 0;
   for (const t of transactions) {
@@ -86,7 +86,7 @@ function totalsOf(transactions: RecapTransaction[]): Totals {
 }
 
 // Expense by category, matched case-insensitively, keeping the first spelling seen for display
-function byCategory(transactions: RecapTransaction[]) {
+export function byCategory(transactions: RecapTransaction[]) {
   const map = new Map<string, { name: string; amount: number }>();
   for (const t of transactions) {
     if (t.type !== "expense") continue;

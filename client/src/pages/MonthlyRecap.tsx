@@ -124,7 +124,10 @@ export default function MonthlyRecap() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink-900">{recap.monthName} recap</h1>
           <p className="mt-1 text-sm text-ink-500">
-            How your month went, from {recap.transactionCount} transaction{recap.transactionCount === 1 ? "" : "s"}.
+            How your month went, from {recap.transactionCount} transaction{recap.transactionCount === 1 ? "" : "s"}.{" "}
+            <Link to={`/tracker/year/${recap.month.slice(0, 4)}`} className="font-medium text-brand-600 hover:underline">
+              See your {recap.month.slice(0, 4)}
+            </Link>
           </p>
         </div>
         <nav aria-label="Other months" className="flex items-center bg-surface border border-line rounded-xl">
