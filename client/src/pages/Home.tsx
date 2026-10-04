@@ -16,9 +16,12 @@ import type { RecurringRule } from "../lib/recurring";
 import type { AppContext } from "../components/AppLayout";
 import GettingStarted from "../components/GettingStarted";
 import InsightsCard from "../components/InsightsCard";
+import RecapCard from "../components/RecapCard";
 import type { Insight } from "../components/InsightsCard";
 import LearnTipCard from "../components/LearnTipCard";
 import QuickAddSheet from "../components/QuickAddSheet";
+
+const NOT_DISCUSS = new Set<AppNotification["kind"]>(["budget_near", "budget_over", "recap_ready"]);
 
 interface Goal {
   id: string;
@@ -161,7 +164,8 @@ function Home() {
     .sort((a, b) => Number((a.replyCount ?? 0) > 0) - Number((b.replyCount ?? 0) > 0))
     .slice(0, 3);
   const categories = Object.values(data.expenseByCategory).map((c) => c.name);
-  const unreadNotifications = data.notifications.filter((n) => !n.read).slice(0, 3);
+  // Budget alerts and recaps live in the bell; this card is only for Discuss and follow activity
+  const unreadNotifications = data.notifications.filter((n) => !n.read && !NOT_DISCUSS.has(n.kind)).slice(0, 3);
   const comingUp = data.comingUp;
   const hasTransactions = data.income > 0 || data.expense > 0 || data.totalBalance !== 0;
 
@@ -387,6 +391,7 @@ function Home() {
           <div className="space-y-6 min-w-0">
             <GettingStarted hasTransactions={hasTransactions} onAddTransaction={() => setQuickAdd("expense")} />
             {glanceCard}
+            <RecapCard />
             {insightsCard}
             <div className="grid grid-cols-2 gap-6">
               {goalsCard}
@@ -404,6 +409,7 @@ function Home() {
         <>
           <GettingStarted hasTransactions={hasTransactions} onAddTransaction={() => setQuickAdd("expense")} />
           {glanceCard}
+          <RecapCard />
           {quickActionsNav}
           {comingUpCard}
           {newInDiscussCard}

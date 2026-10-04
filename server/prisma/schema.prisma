@@ -40,6 +40,8 @@ model User {
   anonymousByDefault Boolean                @default(false)
   // When the photo last changed, so its URL changes and browsers fetch the new one; null means no photo
   avatarUpdatedAt    DateTime?
+  // The monthly recap (YYYY-MM) the user closed on Home, so its card stays hidden
+  recapDismissed     String?
   createdAt          DateTime               @default(now())
   transactions       Transaction[]
   posts              Post[]
@@ -234,11 +236,11 @@ model Report {
 model Notification {
   id        String    @id @default(cuid())
   // reply_to_question | reply_in_thread | helpful | post_hidden | reply_hidden
-  // | follow_request | new_follower | follow_accepted | followed_post | budget_near | budget_over
+  // | follow_request | new_follower | follow_accepted | followed_post | budget_near | budget_over | recap_ready
   kind      String
   count     Int       @default(1)
   // Question title at the time, so the notification still reads well if the title changes;
-  // for budget alerts, the whole message
+  // for budget alerts, the whole message; for recap_ready, the month (YYYY-MM)
   title     String
   readAt    DateTime?
   // When an email went out for this notification, used to send at most one per hour per question

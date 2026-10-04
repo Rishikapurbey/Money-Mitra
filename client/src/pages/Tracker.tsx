@@ -13,9 +13,10 @@ import TransactionsCard from "../components/TransactionsCard";
 import type { Transaction } from "../components/TransactionsCard";
 import { announceDataChange, onDataChange } from "../lib/dataEvents";
 import { ordinal } from "../lib/recurring";
+import { monthKey } from "../lib/recap";
 import { quickPicks, useCategories } from "../lib/categories";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { AlertCircle, TrendingUp, TrendingDown, Wallet2, Plus, ChevronLeft, ChevronRight, Upload } from "lucide-react";
+import { AlertCircle, TrendingUp, TrendingDown, Wallet2, Plus, ChevronLeft, ChevronRight, Upload, CalendarCheck } from "lucide-react";
 import { withBudgetAlert } from "../lib/budgetAlerts";
 import type { BudgetAlert } from "../lib/budgetAlerts";
 
@@ -296,7 +297,15 @@ function Tracker() {
         <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Tracker</h1>
         <p className="mt-1 text-sm text-ink-500">Every rupee in and out, month by month.</p>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        {!isCurrentMonth && (
+          <Link
+            to={`/tracker/recap/${monthKey(month)}`}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-line bg-surface text-sm font-medium text-ink-900 hover:bg-ink-100 transition"
+          >
+            <CalendarCheck size={16} /> See recap
+          </Link>
+        )}
         <Link
           to="/tracker/import"
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-line bg-surface text-sm font-medium text-ink-900 hover:bg-ink-100 transition"

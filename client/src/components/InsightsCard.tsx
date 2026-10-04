@@ -1,7 +1,7 @@
-import { Fragment } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, Info, BookOpen } from "lucide-react";
 import { termBySlug } from "../lib/learn";
+import Emphasised from "./Emphasised";
 
 export interface Insight {
   id: string;
@@ -15,21 +15,6 @@ const TONE = {
   warning: { icon: AlertTriangle, color: "text-warn" },
   neutral: { icon: Info, color: "text-ink-400" },
 };
-
-// The server marks key figures with **double asterisks**; show those parts in bold
-function Emphasised({ text }: { text: string }) {
-  return (
-    <>
-      {text.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
-        part.startsWith("**") && part.endsWith("**") ? (
-          <strong key={i} className="font-semibold text-ink-900">{part.slice(2, -2)}</strong>
-        ) : (
-          <Fragment key={i}>{part}</Fragment>
-        )
-      )}
-    </>
-  );
-}
 
 interface InsightsCardProps {
   insights: Insight[];

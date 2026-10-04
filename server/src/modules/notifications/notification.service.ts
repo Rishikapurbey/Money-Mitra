@@ -1,4 +1,5 @@
 import prisma from "../../db/prisma";
+import { monthBounds } from "../recaps/recap.service";
 import { HttpError } from "../../lib/httpError";
 import { sendEmail } from "../../lib/email";
 import { escapeHtml } from "../../lib/html";
@@ -174,9 +175,14 @@ export async function listNotifications(userId: string) {
     notifications: items.map((n) => ({
       id: n.id,
       kind: n.kind,
-      // A budget alert's whole message is stored as its title
-      message: isBudget(n.kind) ? n.title : message(n.kind, n.count, n.actor ? n.actor.displayName || n.actor.username : "Someone"),
-      title: isBudget(n.kind) ? "" : n.title,
+      // A budget alert's whole message is stored as its title; a recap's title is its month
+      message: isBudget(n.kind)
+        ? n.title
+        : n.kind === "recap_ready"
+          ? `Your ${monthBounds(n.title, 0).shortName} recap is ready`
+          : message(n.kind, n.count, n.actor ? n.actor.displayName || n.actor.username : "Someone"),
+      title: isBudget(n.kind) || n.kind === "recap_ready" ? "" : n.title,
+      month: n.kind === "recap_ready" ? n.title : null,
       postId: n.postId,
       actor: n.actor ? identity(n.actor) : null,
       read: n.readAt !== null,
