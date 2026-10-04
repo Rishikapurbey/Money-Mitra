@@ -822,7 +822,7 @@ export default function ImportTransactions() {
                     {i.duplicate && <span className="ml-2 font-medium text-warn">Possible duplicate</span>}
                   </p>
                 </div>
-                <div className="col-start-2 md:col-start-auto">
+                <div className="col-start-2 col-span-2 md:col-start-auto md:col-span-1">
                   {newCategoryFor === i.key ? (
                     <input
                       autoFocus

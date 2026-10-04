@@ -59,18 +59,18 @@ function RecapCard() {
             <p className="text-sm text-ink-500">{totals.savingsRate}% of your income</p>
           )}
         </div>
-        <dl className="flex gap-8 text-sm">
+        <dl className="grid w-full grid-cols-3 gap-x-5 gap-y-1 text-sm sm:flex sm:w-auto sm:gap-8">
           <div>
-            <dt className="text-ink-500">Money in</dt>
+            <dt className="text-ink-500 whitespace-nowrap">Money in</dt>
             <dd className="font-medium text-ink-900 tabular-nums">{formatINR(totals.income)}</dd>
           </div>
           <div>
-            <dt className="text-ink-500">Money out</dt>
+            <dt className="text-ink-500 whitespace-nowrap">Money out</dt>
             <dd className="font-medium text-ink-900 tabular-nums">{formatINR(totals.expense)}</dd>
           </div>
           {savedDiff !== null && Math.round(savedDiff) !== 0 && (
             <div>
-              <dt className="text-ink-500">Vs {recap.previousMonthName}</dt>
+              <dt className="text-ink-500 whitespace-nowrap">Vs {recap.previousMonthName}</dt>
               <dd className={`font-medium tabular-nums ${savedDiff > 0 ? "text-gain" : "text-ink-900"}`}>
                 {formatINR(Math.abs(savedDiff))} {savedDiff > 0 ? "more saved" : "less saved"}
               </dd>
