@@ -54,7 +54,7 @@ const GROUPS: { title: string; sections: Section[] }[] = [
     title: "Privacy & data",
     sections: [
       { slug: "privacy", label: "Privacy", hint: "Private profile, anonymous posting", icon: Lock, component: PrivacySection },
-      { slug: "data", label: "Download your data", hint: "CSV or JSON", icon: Download, component: DataSection },
+      { slug: "data", label: "Your data", hint: "Import and download", icon: Download, component: DataSection },
       { slug: "delete", label: "Delete account", hint: "Permanently", icon: Trash2, component: DeleteAccountSection, danger: true },
     ],
   },

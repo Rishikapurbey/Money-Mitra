@@ -1,6 +1,8 @@
-import { useState } from "react";
-import { Download, FileJson } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { Download, FileJson, Upload } from "lucide-react";
 import api from "../../lib/api";
+import { announceDataChange, onDataChange } from "../../lib/dataEvents";
 import { csvField } from "../../lib/csv";
 import { setTheme, useTheme } from "../../lib/theme";
 import type { ThemeChoice } from "../../lib/theme";
@@ -173,6 +175,109 @@ function download(filename: string, content: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
+interface ImportRecord {
+  id: string;
+  fileName: string;
+  count: number;
+  remaining: number;
+  createdAt: string;
+}
+
+// Files imported lately, each of which can be undone as a whole
+function RecentImports() {
+  const [imports, setImports] = useState<ImportRecord[]>([]);
+  const [failed, setFailed] = useState(false);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [state, setState] = useState(idle);
+
+  useEffect(() => {
+    let current = true;
+    const load = () =>
+      api.get("/imports").then(
+        (res) => {
+          if (!current) return;
+          setImports(res.data.imports);
+          setFailed(false);
+        },
+        () => current && setFailed(true)
+      );
+    load();
+    const stop = onDataChange(load);
+    return () => {
+      current = false;
+      stop();
+    };
+  }, []);
+
+  const undo = async (item: ImportRecord) => {
+    setState({ busy: true, error: "", success: "" });
+    try {
+      const { removed } = (await api.delete(`/imports/${item.id}`)).data;
+      setConfirming(null);
+      setImports((list) => list.filter((i) => i.id !== item.id));
+      setState({ busy: false, error: "", success: `Removed ${removed} transaction${removed === 1 ? "" : "s"} from ${item.fileName}` });
+      announceDataChange();
+    } catch (err) {
+      setState({ busy: false, error: errorMessage(err, "We couldn't undo this import."), success: "" });
+    }
+  };
+
+  if (failed) {
+    return (
+      <Panel title="Recent imports">
+        <Status error="We couldn't load your recent imports." success="" />
+      </Panel>
+    );
+  }
+  // After undoing the last one, the message stays until the user leaves
+  if (imports.length === 0) {
+    return state.success ? (
+      <Panel title="Recent imports">
+        <Status {...state} />
+      </Panel>
+    ) : null;
+  }
+  return (
+    <Panel title="Recent imports" description="Undoing an import removes every transaction it added, including any you've edited since.">
+      <ul className="divide-y divide-line -my-3">
+        {imports.map((item) => (
+          <li key={item.id} className="py-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-ink-900 truncate">{item.fileName}</p>
+              <p className="text-xs text-ink-500">
+                {new Date(item.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} ·{" "}
+                {item.remaining === item.count
+                  ? `${item.count} transaction${item.count === 1 ? "" : "s"}`
+                  : `${item.remaining} of ${item.count} transactions still there`}
+              </p>
+            </div>
+            {confirming === item.id ? (
+              <span className="flex items-center gap-3 text-sm shrink-0">
+                <span className="text-ink-700">
+                  Remove {item.remaining} transaction{item.remaining === 1 ? "" : "s"}?
+                </span>
+                <button onClick={() => undo(item)} disabled={state.busy} className="font-medium text-loss hover:underline disabled:opacity-60">
+                  Remove
+                </button>
+                <button onClick={() => setConfirming(null)} className="text-ink-500 hover:text-ink-900">
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <button onClick={() => setConfirming(item.id)} className="text-sm font-medium text-ink-700 hover:text-loss transition shrink-0">
+                Undo import
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3">
+        <Status {...state} />
+      </div>
+    </Panel>
+  );
+}
+
 export function DataSection() {
   const [state, setState] = useState(idle);
 
@@ -200,8 +305,14 @@ export function DataSection() {
 
   return (
     <>
-      <SectionHeader title="Download your data" description="A copy of everything you've stored in Money Mitra." />
-      <Panel>
+      <SectionHeader title="Your data" description="Bring in transactions from a file, or download a copy of everything." />
+      <Panel title="Import transactions" description="Add entries from a bank statement or spreadsheet saved as CSV. You'll check every row before it's saved.">
+        <Link to="/tracker/import" className={`${secondaryButton} w-fit`}>
+          <Upload size={16} /> Import from CSV
+        </Link>
+      </Panel>
+      <RecentImports />
+      <Panel title="Download your data" description="A copy of everything you've stored in Money Mitra.">
         <div className="flex flex-wrap gap-3">
           <button onClick={() => exportData("csv")} disabled={state.busy} className={secondaryButton}>
             <Download size={16} /> Transactions (CSV)

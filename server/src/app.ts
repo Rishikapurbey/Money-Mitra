@@ -17,6 +17,7 @@ import categoryRoutes from "./modules/categories/category.routes";
 import feedbackRoutes from "./modules/feedback/feedback.routes";
 import profileRoutes from "./modules/profiles/profile.routes";
 import followRoutes from "./modules/follows/follow.routes";
+import importRoutes from "./modules/imports/import.routes";
 
 dotenv.config();
 
@@ -40,6 +41,8 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(helmet());
 app.use(cors({ origin: allowedOrigins }));
+// An imported file can hold up to 2,000 rows, so only this route accepts a bigger body
+app.use("/api/imports", express.json({ limit: "1mb" }));
 app.use(express.json({ limit: "100kb" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/transactions", transactionRoutes);
@@ -53,6 +56,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/users", profileRoutes);
 app.use("/api/follows", followRoutes);
+app.use("/api/imports", importRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "Money Mitra API is running" });

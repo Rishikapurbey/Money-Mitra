@@ -60,12 +60,14 @@ async function claim(userId: string, category: string, month: string, level: num
 
 // After spending in a category changes, alerts the user the first time this month it reaches
 // 80% or 100% of its budget. Only the current month counts, so editing old entries never alerts.
+// `email: false` keeps the alert in the app only, e.g. for a file import.
 export async function checkBudget(
   userId: string,
   category: string,
   tzOffset: number,
   date: Date,
-  now = new Date()
+  now = new Date(),
+  { email = true } = {}
 ): Promise<BudgetAlertResult | null> {
   const month = localMonth(now, tzOffset);
   if (date < month.from || date >= month.to) return null;
@@ -101,7 +103,7 @@ export async function checkBudget(
     data: { userId, kind: level === 100 ? "budget_over" : "budget_near", title: message },
   });
 
-  if (user.emailBudgetAlerts && user.emailVerifiedAt && user.username !== DELETED_USERNAME) {
+  if (email && user.emailBudgetAlerts && user.emailVerifiedAt && user.username !== DELETED_USERNAME) {
     const { text, html } = alertEmail(message, spent, budget.amount);
     sendEmail({ to: user.email, subject: message, text, html }).catch((err) => console.error("Budget alert email failed:", err));
   }

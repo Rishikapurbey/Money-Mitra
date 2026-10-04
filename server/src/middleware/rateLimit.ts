@@ -42,3 +42,6 @@ export const feedbackLimiter = limiter(60, 5, "You've sent a lot of feedback rec
 export const photoLimiter = limiter(60, 20, "You've changed your photo a lot recently. Please try again in an hour.");
 
 export const followLimiter = limiter(10, 60, "You're following and unfollowing very quickly. Please wait a few minutes.");
+
+// Each import can add thousands of rows, so a handful an hour is plenty
+export const importLimiter = limiter(60, 20, "You've imported a lot of files recently. Please try again in an hour.");

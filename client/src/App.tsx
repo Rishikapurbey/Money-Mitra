@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Tracker from "./pages/Tracker";
+import ImportTransactions from "./pages/ImportTransactions";
 import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import Discuss from "./pages/Discuss";
@@ -59,6 +60,7 @@ function App() {
             <Route element={<AppLayout />}>
               <Route path="/home" element={<Home />} />
               <Route path="/tracker" element={<Tracker />} />
+              <Route path="/tracker/import" element={<ImportTransactions />} />
               {/* Old address, kept so bookmarks and installed apps still work */}
               <Route path="/dashboard" element={<Navigate to="/home" replace />} />
               <Route path="/discuss" element={<Discuss />} />

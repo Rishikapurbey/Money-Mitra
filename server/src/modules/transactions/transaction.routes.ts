@@ -14,37 +14,9 @@ import {
   getCategories,
   TransactionSearch,
 } from "./transaction.service";
+import { parseDate, parseTransaction, parseTzOffset } from "./transaction.input";
 
 const router = Router();
-
-// Returns undefined when absent, null when present but not a valid date
-function parseDate(value: unknown): Date | undefined | null {
-  if (value === undefined || value === null || value === "") return undefined;
-  const date = new Date(String(value));
-  return isNaN(date.getTime()) ? null : date;
-}
-
-interface TransactionInput {
-  amount: number;
-  type: string;
-  category: string;
-  note: string | null;
-}
-
-// Returns the validated fields, or an error message
-function parseTransaction(body: Record<string, unknown>): TransactionInput | string {
-  const amount = Number(body.amount);
-  const type = body.type;
-  const category = typeof body.category === "string" ? body.category.trim() : "";
-  const note = typeof body.note === "string" ? body.note.trim() : "";
-  if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000_000) {
-    return "Amount must be a positive number";
-  }
-  if (type !== "income" && type !== "expense") return "Type must be income or expense";
-  if (!category || category.length > 50) return "Category is required (up to 50 characters)";
-  if (note.length > 200) return "Note can be up to 200 characters";
-  return { amount, type, category, note: note || null };
-}
 
 function parseRange(query: Record<string, unknown>): DateRange | null {
   const from = parseDate(query.from);
@@ -71,12 +43,6 @@ function parseSearch(query: Record<string, unknown>): TransactionSearch | string
   }
   if (min !== undefined && max !== undefined && min > max) return "Minimum amount can't be more than the maximum";
   return { range, q: q || undefined, type, category: category || undefined, min, max };
-}
-
-// The client's Date.getTimezoneOffset(), so "this month" means the user's month; UTC if missing
-function parseTzOffset(value: unknown) {
-  const n = Number(value ?? 0);
-  return Number.isFinite(n) && Math.abs(n) <= 14 * 60 ? n : 0;
 }
 
 // Expenses can push a budget past 80% or 100%; the alert, if any, is returned for a toast

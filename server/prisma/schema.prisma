@@ -57,6 +57,7 @@ model User {
   following          Follow[]               @relation("follower")
   followers          Follow[]               @relation("followed")
   recurring          RecurringTransaction[]
+  imports            Import[]
   categories         Category[]
   avatar             Avatar?
 }
@@ -82,6 +83,22 @@ model Transaction {
   // Set when a recurring rule added this entry; cleared (not deleted) if the rule is stopped
   recurringId String?
   recurring   RecurringTransaction? @relation(fields: [recurringId], references: [id], onDelete: SetNull)
+  // Set when the entry came from a CSV import, so the whole import can be undone
+  importId    String?
+  import      Import?               @relation(fields: [importId], references: [id], onDelete: SetNull)
+
+  @@index([importId])
+}
+
+// One CSV file the user imported
+model Import {
+  id           String        @id @default(cuid())
+  fileName     String
+  count        Int
+  createdAt    DateTime      @default(now())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
 }
 
 // Anonymous posts and replies still store the real author for moderation;

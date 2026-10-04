@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import api from "../lib/api";
 import { useToast } from "../lib/toast";
 import { useTitle } from "../lib/useTitle";
@@ -14,7 +15,7 @@ import { announceDataChange, onDataChange } from "../lib/dataEvents";
 import { ordinal } from "../lib/recurring";
 import { quickPicks, useCategories } from "../lib/categories";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { AlertCircle, TrendingUp, TrendingDown, Wallet2, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { AlertCircle, TrendingUp, TrendingDown, Wallet2, Plus, ChevronLeft, ChevronRight, Upload } from "lucide-react";
 import { withBudgetAlert } from "../lib/budgetAlerts";
 import type { BudgetAlert } from "../lib/budgetAlerts";
 
@@ -52,7 +53,9 @@ function Tracker() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0, totalBalance: 0 });
   const [trend, setTrend] = useState<{ month: string; income: number; expense: number }[]>([]);
-  const [month, setMonth] = useState(() => startOfMonth(new Date()));
+  // An import can send the user here to see the month it covered (a YYYY-MM-DD day in that month)
+  const openOn = (useLocation().state as { month?: string } | null)?.month;
+  const [month, setMonth] = useState(() => startOfMonth(openOn ? new Date(`${openOn}T00:00:00`) : new Date()));
   const toast = useToast();
   const wide = useWideLayout();
   useTitle("Tracker");
@@ -293,23 +296,31 @@ function Tracker() {
         <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Tracker</h1>
         <p className="mt-1 text-sm text-ink-500">Every rupee in and out, month by month.</p>
       </div>
-      <div className="flex items-center bg-surface border border-line rounded-xl">
-        <button
-          onClick={() => setMonth(addMonths(month, -1))}
-          aria-label="Previous month"
-          className="p-2.5 text-ink-500 hover:text-ink-900 transition"
+      <div className="flex items-center gap-3">
+        <Link
+          to="/tracker/import"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-line bg-surface text-sm font-medium text-ink-900 hover:bg-ink-100 transition"
         >
-          <ChevronLeft size={18} />
-        </button>
-        <span className="w-36 text-center text-sm font-medium text-ink-900">{monthName(month)}</span>
-        <button
-          onClick={() => setMonth(addMonths(month, 1))}
-          disabled={isCurrentMonth}
-          aria-label="Next month"
-          className="p-2.5 text-ink-500 hover:text-ink-900 transition disabled:text-ink-200 disabled:cursor-not-allowed"
-        >
-          <ChevronRight size={18} />
-        </button>
+          <Upload size={16} /> Import
+        </Link>
+        <div className="flex items-center bg-surface border border-line rounded-xl">
+          <button
+            onClick={() => setMonth(addMonths(month, -1))}
+            aria-label="Previous month"
+            className="p-2.5 text-ink-500 hover:text-ink-900 transition"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <span className="w-36 text-center text-sm font-medium text-ink-900">{monthName(month)}</span>
+          <button
+            onClick={() => setMonth(addMonths(month, 1))}
+            disabled={isCurrentMonth}
+            aria-label="Next month"
+            className="p-2.5 text-ink-500 hover:text-ink-900 transition disabled:text-ink-200 disabled:cursor-not-allowed"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
       </div>
     </div>
   );
