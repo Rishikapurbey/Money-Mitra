@@ -46,7 +46,7 @@ const GROUPS: { title: string; sections: Section[] }[] = [
     title: "Preferences",
     sections: [
       { slug: "appearance", label: "Appearance", hint: "Light or dark", icon: Palette, component: AppearanceSection },
-      { slug: "notifications", label: "Notifications", hint: "Emails about replies", icon: Bell, component: NotificationsSection },
+      { slug: "notifications", label: "Notifications", hint: "Budget alerts and emails", icon: Bell, component: NotificationsSection },
       { slug: "categories", label: "Categories", hint: "Add, rename and merge", icon: Tags, component: CategoriesSection },
     ],
   },

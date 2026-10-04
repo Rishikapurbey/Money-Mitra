@@ -125,3 +125,11 @@ body {
   border-radius: 10px;
   color: var(--color-ink-900);
 }
+
+/* Rows of chips that scroll sideways on phones, without a scrollbar showing */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

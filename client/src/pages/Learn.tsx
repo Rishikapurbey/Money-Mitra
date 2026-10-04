@@ -45,7 +45,7 @@ function Learn() {
       <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400" />
       <input
         type="search"
-        placeholder={wide ? "Search terms" : "Search a term, like SIP or credit score"}
+        placeholder={wide ? "Search terms" : "Search a term, like SIP"}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         className="w-full border border-line bg-surface rounded-xl pl-11 pr-4 py-3 text-ink-900 placeholder:text-ink-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition"
@@ -55,14 +55,14 @@ function Learn() {
 
   const filterChips = (
     <div className="space-y-3">
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
+      <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
         {["", ...LEVELS].map((l) => (
           <button key={l || "all"} onClick={() => setLevel(l)} className={chip(level === l)}>
             {l || "All levels"}
           </button>
         ))}
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
+      <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
         {["", ...LEARN_TOPICS].map((t) => (
           <button key={t || "all"} onClick={() => setTopic(t)} className={chip(topic === t)}>
             {t || "All topics"}
