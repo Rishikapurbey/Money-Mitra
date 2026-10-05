@@ -9,7 +9,7 @@ import { useToast } from "../lib/toast";
 import { formatINR, inputClass, pageWidth } from "../lib/ui";
 import { useWideLayout } from "../lib/useMediaQuery";
 import { announceDataChange } from "../lib/dataEvents";
-import { ITEM_TYPES, signedINR, typeLabel } from "../lib/networth";
+import { ITEM_TYPES, MAIN_ACCOUNT_TYPES, signedINR, typeLabel } from "../lib/networth";
 import type { ItemKind, NetWorthItem, NetWorthOverview } from "../lib/networth";
 
 const shortDate = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -49,7 +49,7 @@ function KindChoice({ value, onChange }: { value: ItemKind; onChange: (kind: Ite
 // One item: its value, a quick way to update it, and its past values
 function ItemRow({ item, onChanged }: { item: NetWorthItem; onChanged: () => void }) {
   const toast = useToast();
-  const [mode, setMode] = useState<"view" | "value" | "edit" | "remove">("view");
+  const [mode, setMode] = useState<"view" | "value" | "edit" | "remove" | "main">("view");
   const [value, setValue] = useState("");
   const [name, setName] = useState(item.name);
   const [type, setType] = useState(item.type);
@@ -81,10 +81,20 @@ function ItemRow({ item, onChanged }: { item: NetWorthItem; onChanged: () => voi
     <li className="py-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-medium text-ink-900 truncate">{item.name}</p>
+          <p className="font-medium text-ink-900 truncate flex items-center gap-2">
+            <span className="truncate">{item.name}</span>
+            {item.isMain && (
+              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 px-1.5 py-0.5 rounded">Main account</span>
+            )}
+          </p>
           <p className="text-xs text-ink-500">
             {typeLabel(item.kind, item.type)} · updated {shortDate(item.updatedAt)}
           </p>
+          {item.tracked && item.tracked.change !== 0 && (
+            <p className="text-xs text-ink-500">
+              {formatINR(item.tracked.recorded)} on {shortDate(item.updatedAt)}, then {signedINR(item.tracked.change)} from your Tracker
+            </p>
+          )}
         </div>
         <p className={`shrink-0 font-semibold tabular-nums ${item.kind === "liability" ? "text-ink-700" : "text-ink-900"}`}>
           {formatINR(item.value)}
@@ -145,6 +155,43 @@ function ItemRow({ item, onChanged }: { item: NetWorthItem; onChanged: () => voi
         </form>
       )}
 
+      {mode === "main" && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            run(async () => {
+              if (value !== "") await api.post(`/networth/items/${item.id}/values`, { value });
+              await api.put(`/networth/items/${item.id}/main`, { isMain: true });
+            }, `${item.name} is now your main account`);
+          }}
+          className="mt-3 rounded-xl bg-canvas border border-line p-3 text-sm space-y-2"
+        >
+          <p className="text-ink-700">
+            Tracker income and expenses dated from now on will change this balance. Type in what's in it today, so it starts from the right
+            amount.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="number"
+              min="0"
+              step="any"
+              autoFocus
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder={`Today's balance (now ${formatINR(item.value)})`}
+              aria-label="Today's balance"
+              className={`${inputClass} py-1.5 text-sm w-60 tabular-nums`}
+            />
+            <button type="submit" className="px-3 py-1.5 rounded-lg text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 transition">
+              {value === "" ? "Keep the value and continue" : "Save"}
+            </button>
+            <button type="button" onClick={() => setMode("view")} aria-label="Cancel" className="text-ink-400 hover:text-ink-900">
+              <X size={16} />
+            </button>
+          </div>
+        </form>
+      )}
+
       {mode === "remove" && (
         <div className="mt-3 rounded-xl bg-canvas border border-line p-3 text-sm">
           <p className="text-ink-700">
@@ -175,6 +222,27 @@ function ItemRow({ item, onChanged }: { item: NetWorthItem; onChanged: () => voi
           <button onClick={toggleHistory} aria-expanded={history !== null} className="text-ink-500 hover:text-ink-900">
             {history ? "Hide history" : "History"}
           </button>
+          {item.isMain ? (
+            <button
+              onClick={() => run(() => api.put(`/networth/items/${item.id}/main`, { isMain: false }), `${item.name} is no longer your main account`)}
+              className="text-ink-500 hover:text-ink-900"
+            >
+              Stop using as main account
+            </button>
+          ) : (
+            item.kind === "asset" &&
+            MAIN_ACCOUNT_TYPES.includes(item.type) && (
+              <button
+                onClick={() => {
+                  setValue("");
+                  setMode("main");
+                }}
+                className="text-ink-500 hover:text-ink-900"
+              >
+                Make main account
+              </button>
+            )
+          )}
           <button
             onClick={() => {
               setName(item.name);
@@ -218,6 +286,7 @@ export default function NetWorth() {
   const [name, setName] = useState("");
   const [value, setValue] = useState("");
   const [adding, setAdding] = useState(false);
+  const [asMain, setAsMain] = useState(false);
   const [formError, setFormError] = useState("");
 
   const load = useCallback(() => {
@@ -247,8 +316,10 @@ export default function NetWorth() {
     setAdding(true);
     setFormError("");
     try {
-      await api.post("/networth/items", { kind, type, name, value });
-      toast({ message: `${name.trim()} added` });
+      const res = await api.post("/networth/items", { kind, type, name, value });
+      if (canBeMain && asMain) await api.put(`/networth/items/${res.data.item.id}/main`, { isMain: true });
+      toast({ message: canBeMain && asMain ? `${name.trim()} added as your main account` : `${name.trim()} added` });
+      setAsMain(false);
       setName("");
       setValue("");
       changed();
@@ -259,6 +330,9 @@ export default function NetWorth() {
     }
   };
 
+  const canBeMain = kind === "asset" && MAIN_ACCOUNT_TYPES.includes(type);
+  const currentMain = data?.items.find((i) => i.isMain);
+
   const header = (
     <div className="space-y-4">
       <Link to="/tracker" className="inline-flex items-center gap-1.5 text-sm text-ink-500 hover:text-ink-900 transition">
@@ -266,7 +340,9 @@ export default function NetWorth() {
       </Link>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Net worth</h1>
-        <p className="mt-1 text-sm text-ink-500">What you own minus what you owe. Update the values whenever they change.</p>
+        <p className="mt-1 text-sm text-ink-500">
+          What you own minus what you owe. Your main account moves with your Tracker; update the other values whenever they change.
+        </p>
       </div>
     </div>
   );
@@ -337,6 +413,18 @@ export default function NetWorth() {
           />
         </div>
       </label>
+      {canBeMain && (
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" checked={asMain} onChange={(e) => setAsMain(e.target.checked)} className="mt-0.5 w-4 h-4 accent-brand-600" />
+          <span className="text-sm text-ink-900">
+            Make this my main account
+            <span className="block text-xs text-ink-500">
+              Tracker income and expenses from now on will change its balance
+              {currentMain ? `, instead of ${currentMain.name}` : ""}.
+            </span>
+          </span>
+        </label>
+      )}
       {formError && <p role="alert" className="text-sm text-loss bg-loss-soft px-3 py-2 rounded-lg">{formError}</p>}
       <button type="submit" disabled={adding} className={`${primaryButton} inline-flex items-center gap-2`}>
         <Plus size={16} /> {adding ? "Adding…" : "Add"}

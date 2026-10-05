@@ -402,6 +402,8 @@ model NetWorthItem {
   type       String
   // The latest recorded value
   value      Float
+  // The one account Tracker income and expenses flow through; its value moves with them
+  isMain     Boolean         @default(false)
   archivedAt DateTime?
   createdAt  DateTime        @default(now())
   userId     String

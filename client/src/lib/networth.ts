@@ -8,8 +8,15 @@ export interface NetWorthItem {
   kind: ItemKind;
   type: string;
   value: number;
+  // The account Tracker income and expenses flow through
+  isMain: boolean;
+  // For the main account: the value typed in, and how the Tracker has moved it since
+  tracked: { recorded: number; change: number } | null;
   updatedAt: string;
 }
+
+// Only these can be the main account
+export const MAIN_ACCOUNT_TYPES = ["bank", "cash"];
 
 export interface NetWorthTotals {
   assets: number;
