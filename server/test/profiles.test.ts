@@ -165,3 +165,37 @@ describe("privacy settings", () => {
     await send({ isPrivate: "yes" }).expect(400);
   });
 });
+
+describe("profile cover", () => {
+  const profileOf = async (user: Awaited<ReturnType<typeof createUser>>) =>
+    (await api().get(`/api/users/${user.username}`).set("Authorization", user.auth).expect(200)).body.profile;
+
+  it("uploads a cover image, swaps it for a built-in design, and goes back to the default", async () => {
+    const user = await createUser("cover");
+    expect(await profileOf(user)).toMatchObject({ coverUrl: null, coverPreset: null });
+
+    // Covers may be larger than profile photos
+    const wide = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(150 * 1024)]);
+    const res = await api().put("/api/account/cover").set("Authorization", user.auth).send({ image: `data:image/jpeg;base64,${wide.toString("base64")}` }).expect(200);
+    expect(res.body.coverUrl).toMatch(new RegExp(`^/users/${user.username}/cover\\?v=\\d+$`));
+    const image = await api().get(`/api${res.body.coverUrl}`).expect(200);
+    expect(image.headers["content-type"]).toBe("image/jpeg");
+    expect((await profileOf(user)).coverUrl).toBe(res.body.coverUrl);
+
+    await api().put("/api/account/cover/preset").set("Authorization", user.auth).send({ preset: "navy" }).expect(200);
+    expect(await profileOf(user)).toMatchObject({ coverUrl: null, coverPreset: "navy" });
+    await api().get(`/api${res.body.coverUrl}`).expect(404);
+
+    await api().delete("/api/account/cover").set("Authorization", user.auth).expect(200);
+    expect(await profileOf(user)).toMatchObject({ coverUrl: null, coverPreset: null });
+  });
+
+  it("rejects unknown designs, non-images and covers that are too large", async () => {
+    const user = await createUser("badcover");
+    await api().put("/api/account/cover/preset").set("Authorization", user.auth).send({ preset: "rainbow" }).expect(400);
+    await api().put("/api/account/cover").set("Authorization", user.auth).send({ image: "nope" }).expect(400);
+    const huge = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(201 * 1024)]);
+    await api().put("/api/account/cover").set("Authorization", user.auth).send({ image: `data:image/jpeg;base64,${huge.toString("base64")}` }).expect(400);
+    await api().put("/api/account/cover").send({ image: JPEG }).expect(401);
+  });
+});

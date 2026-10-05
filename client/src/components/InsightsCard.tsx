@@ -28,7 +28,7 @@ function InsightsCard({ insights, monthLabel, isCurrentMonth }: InsightsCardProp
   return (
     <section className="bg-surface p-6 rounded-2xl border border-line" aria-labelledby="insights-title">
       <h2 id="insights-title" className="font-semibold text-ink-900">
-        {isCurrentMonth ? "Your month in plain English" : `${monthLabel} in plain English`}
+        {isCurrentMonth ? "What we noticed this month" : `What we noticed in ${monthLabel}`}
       </h2>
       <ul className="mt-4 space-y-4">
         {insights.map((insight) => {

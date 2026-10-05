@@ -42,6 +42,9 @@ model User {
   anonymousByDefault  Boolean                @default(false)
   // When the photo last changed, so its URL changes and browsers fetch the new one; null means no photo
   avatarUpdatedAt     DateTime?
+  // The profile banner: an uploaded photo (when coverUpdatedAt is set), else a built-in design, else the default
+  coverUpdatedAt      DateTime?
+  coverPreset         String?
   // The monthly recap (YYYY-MM) the user closed on Home, so its card stays hidden
   recapDismissed      String?
   // The year review (YYYY) the user closed on Home
@@ -73,11 +76,20 @@ model User {
   groupActivity       GroupActivity[]
   categories          Category[]
   avatar              Avatar?
+  cover               CoverPhoto?
 }
 
 // A profile photo, kept apart from User so the image bytes are only read when the photo is requested.
 // Resized to a small square on the user's device before upload.
 model Avatar {
+  userId   String @id
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data     Bytes
+  mimeType String
+}
+
+// The wide banner image at the top of a profile, kept apart from User like the profile photo
+model CoverPhoto {
   userId   String @id
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   data     Bytes

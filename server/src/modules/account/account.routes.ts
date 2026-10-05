@@ -7,9 +7,12 @@ import type { NotificationPreferences } from "./account.service";
 
 import {
   MAX_BIO,
+  MAX_COVER_BYTES,
   displayNameProblem,
   parsePhoto,
   removePhoto,
+  setCover,
+  setCoverPreset,
   setPhoto,
   updatePrivacy,
   updateProfile,
@@ -85,6 +88,25 @@ router.put("/photo", authMiddleware, photoLimiter, async (req: AuthRequest, res)
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   const photo = parsePhoto(typeof req.body.image === "string" ? req.body.image : "");
   res.status(200).json({ avatarUrl: await setPhoto(req.userId, photo) });
+});
+
+// The profile banner: an uploaded image, a built-in design, or back to the default
+router.put("/cover", authMiddleware, photoLimiter, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  const cover = parsePhoto(typeof req.body.image === "string" ? req.body.image : "", MAX_COVER_BYTES);
+  res.status(200).json(await setCover(req.userId, cover));
+});
+
+router.put("/cover/preset", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  const preset = req.body.preset;
+  if (preset !== null && typeof preset !== "string") return res.status(400).json({ error: "Invalid request" });
+  res.status(200).json(await setCoverPreset(req.userId, preset));
+});
+
+router.delete("/cover", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  res.status(200).json(await setCoverPreset(req.userId, null));
 });
 
 router.delete("/photo", authMiddleware, async (req: AuthRequest, res) => {

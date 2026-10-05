@@ -12,7 +12,7 @@ const RECENT = 20;
 export async function getProfile(viewerId: string, username: string) {
   const user = await prisma.user.findFirst({
     where: { username: { equals: username, mode: "insensitive" }, NOT: { username: DELETED_USERNAME } },
-    select: { id: true, ...identitySelect, bio: true, isPrivate: true, createdAt: true },
+    select: { id: true, ...identitySelect, bio: true, isPrivate: true, createdAt: true, coverUpdatedAt: true, coverPreset: true },
   });
   if (!user) throw new HttpError(404, "Profile not found");
 
@@ -26,6 +26,8 @@ export async function getProfile(viewerId: string, username: string) {
   ]);
   const profile = {
     ...identity(user),
+    coverUrl: coverUrl(user),
+    coverPreset: user.coverPreset,
     bio: user.bio,
     joinedAt: user.createdAt,
     isPrivate: user.isPrivate,
@@ -105,13 +107,13 @@ const IMAGE_TYPES: Record<string, (bytes: Buffer) => boolean> = {
 export const MAX_PHOTO_BYTES = 70 * 1024;
 
 // Accepts a data URL ("data:image/jpeg;base64,...") and checks the bytes really are that kind of image
-export function parsePhoto(dataUrl: string) {
+export function parsePhoto(dataUrl: string, maxBytes = MAX_PHOTO_BYTES) {
   const [, mimeType = "", base64 = ""] = /^data:(image\/[a-z]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl) ?? [];
   const check = IMAGE_TYPES[mimeType];
   if (!check) throw new HttpError(400, "Please choose a JPEG, PNG or WebP photo");
   const data = Buffer.from(base64, "base64");
   if (data.length === 0 || !check(data)) throw new HttpError(400, "That file doesn't look like a photo");
-  if (data.length > MAX_PHOTO_BYTES) throw new HttpError(400, "That photo is too large. Please try a smaller one.");
+  if (data.length > maxBytes) throw new HttpError(400, "That photo is too large. Please try a smaller one.");
   return { mimeType, data };
 }
 
@@ -128,6 +130,38 @@ export async function removePhoto(userId: string) {
     prisma.avatar.deleteMany({ where: { userId } }),
     prisma.user.update({ where: { id: userId }, data: { avatarUpdatedAt: null } }),
   ]);
+}
+
+// Cover images are wide banners, so they're allowed to be larger than profile photos
+export const MAX_COVER_BYTES = 200 * 1024;
+// The built-in cover designs; no preset means the default teal band
+export const COVER_PRESETS = ["navy", "forest", "sand", "slate", "deepsea"];
+
+// Like the photo, the address changes whenever the cover does, so browsers can cache it for good
+const coverUrl = (user: { username: string; coverUpdatedAt: Date | null }) =>
+  user.coverUpdatedAt ? `/users/${encodeURIComponent(user.username)}/cover?v=${user.coverUpdatedAt.getTime()}` : null;
+
+export async function getCover(username: string) {
+  const user = await prisma.user.findUnique({ where: { username }, select: { cover: true } });
+  return user?.cover ?? null;
+}
+
+export async function setCover(userId: string, photo: { mimeType: string; data: Buffer }) {
+  const [, user] = await prisma.$transaction([
+    prisma.coverPhoto.upsert({ where: { userId }, create: { userId, ...photo }, update: photo }),
+    prisma.user.update({ where: { id: userId }, data: { coverUpdatedAt: new Date(), coverPreset: null }, select: { username: true, coverUpdatedAt: true } }),
+  ]);
+  return { coverUrl: coverUrl(user), coverPreset: null };
+}
+
+// A built-in design, or null for the default; either replaces an uploaded photo
+export async function setCoverPreset(userId: string, preset: string | null) {
+  if (preset !== null && !COVER_PRESETS.includes(preset)) throw new HttpError(400, "Choose one of the covers shown");
+  await prisma.$transaction([
+    prisma.coverPhoto.deleteMany({ where: { userId } }),
+    prisma.user.update({ where: { id: userId }, data: { coverUpdatedAt: null, coverPreset: preset } }),
+  ]);
+  return { coverUrl: null, coverPreset: preset };
 }
 
 // Names that could pass for the app, staff or an anonymous or deleted author

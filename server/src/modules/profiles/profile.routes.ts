@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
-import { getAvatar, getProfile } from "./profile.service";
+import { getAvatar, getCover, getProfile } from "./profile.service";
 import { listPeople } from "../follows/follow.service";
 
 const router = Router();
@@ -34,6 +34,18 @@ router.get("/:username/avatar", async (req, res) => {
       "Cross-Origin-Resource-Policy": "cross-origin",
     })
     .send(avatar.data);
+});
+
+router.get("/:username/cover", async (req, res) => {
+  const cover = await getCover(req.params.username as string);
+  if (!cover) return res.status(404).json({ error: "No cover" });
+  res
+    .set({
+      "Content-Type": cover.mimeType,
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "Cross-Origin-Resource-Policy": "cross-origin",
+    })
+    .send(cover.data);
 });
 
 export default router;

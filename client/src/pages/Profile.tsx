@@ -25,6 +25,7 @@ import { useTitle } from "../lib/useTitle";
 import { useWideLayout } from "../lib/useMediaQuery";
 import Avatar from "../components/Avatar";
 import FollowButton from "../components/FollowButton";
+import { CoverBand, CoverEditor } from "../components/ProfileCover";
 
 type Result = ProfileData | "not-found" | "error";
 
@@ -44,6 +45,7 @@ function Profile() {
   const wide = useWideLayout();
   const [result, setResult] = useState<Result | null>(null);
   const [tab, setTab] = useState<"questions" | "replies">("questions");
+  const [editingCover, setEditingCover] = useState(false);
   const profile = result && typeof result === "object" ? result : null;
   useTitle(profile ? nameOf(profile) : "Profile");
 
@@ -143,19 +145,10 @@ function Profile() {
 
   const header = (
     <section className="bg-surface border border-line rounded-2xl overflow-hidden">
-      {/* A quiet band in the brand's deep teal with a fine dot pattern, the same in both themes */}
-      <div
-        aria-hidden="true"
-        className="h-28 sm:h-36"
-        style={{
-          backgroundColor: "#0c5a54",
-          backgroundImage: "radial-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1px)",
-          backgroundSize: "18px 18px",
-        }}
-      />
+      <CoverBand cover={profile} onEdit={profile.isMe ? () => setEditingCover(true) : undefined} />
       <div className="px-5 sm:px-8 pb-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="-mt-14 rounded-full ring-4 ring-surface bg-surface">
+          <div className="relative -mt-14 rounded-full ring-4 ring-surface bg-surface">
             <Avatar name={name} avatarUrl={profile.avatarUrl} size="2xl" />
           </div>
           <div className="pt-4">{actions}</div>
@@ -189,6 +182,7 @@ function Profile() {
             <p className="mt-3 text-sm text-ink-500">Request sent. You'll see their activity once they accept.</p>
           )}
         </div>
+        {profile.isMe && editingCover && <CoverEditor cover={profile} onChanged={reload} onClose={() => setEditingCover(false)} />}
       </div>
     </section>
   );

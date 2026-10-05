@@ -33,6 +33,9 @@ export interface Profile {
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
+  // The banner: an uploaded image, else a built-in design (null for the default)
+  coverUrl: string | null;
+  coverPreset: string | null;
   bio: string | null;
   joinedAt: string;
   isPrivate: boolean;

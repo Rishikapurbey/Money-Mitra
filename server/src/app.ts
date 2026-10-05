@@ -46,6 +46,8 @@ app.use(helmet());
 app.use(cors({ origin: allowedOrigins }));
 // An imported file can hold up to 2,000 rows, so only this route accepts a bigger body
 app.use("/api/imports", express.json({ limit: "1mb" }));
+// A cover image is a wide banner of up to 200 KB, which is larger once sent as text
+app.use("/api/account/cover", express.json({ limit: "300kb" }));
 app.use(express.json({ limit: "100kb" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/transactions", transactionRoutes);
