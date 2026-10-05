@@ -21,6 +21,7 @@ import {
   renameGroup,
   setArchived,
   shareLink,
+  sharedSummary,
 } from "./shared.service";
 
 const router = Router();
@@ -81,6 +82,11 @@ function parseExpense(body: Record<string, unknown>): ExpenseInput | string {
 router.get("/groups", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   res.status(200).json(await listGroups(req.userId));
+});
+
+router.get("/summary", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  res.status(200).json(await sharedSummary(req.userId));
 });
 
 router.post("/groups", authMiddleware, sharedLimiter, async (req: AuthRequest, res) => {

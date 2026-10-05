@@ -1,6 +1,7 @@
 import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
 import { checkBudget } from "../budgets/budgetAlert.service";
+import { notifyGroupMembers } from "../notifications/notification.service";
 import { inr, logActivity, syncTracker } from "./ledger";
 import { splitEqually } from "./split";
 import { nameOf, writableMembership } from "./shared.service";
@@ -57,6 +58,33 @@ async function budgetAlerts(userIds: string[], category: string, date: Date, tzO
   return mine;
 }
 
+// Tells the people an expense or payment affects. Notifications are secondary: a problem here
+// must never undo the change itself.
+async function tell(kind: "shared_activity" | "shared_payment", groupId: string, actorId: string, actor: string, groupName: string, messages: Map<string, string>) {
+  try {
+    await notifyGroupMembers(kind, groupId, actorId, messages, (count) =>
+      kind === "shared_activity" ? `${actor} made ${count} changes to expenses in ${groupName}` : `${actor} made ${count} changes to payments in ${groupName}`
+    );
+  } catch (err) {
+    console.error("Notification failed:", err);
+  }
+}
+
+// Everyone on Money Mitra who paid for or has a share in an expense, each with their own line
+function expenseMessages(
+  members: { id: string; userId: string | null }[],
+  payerIds: string[],
+  shares: { memberId: string; amount: number }[],
+  message: (share: number) => string
+) {
+  const messages = new Map<string, string>();
+  for (const memberId of new Set([...payerIds, ...shares.map((s) => s.memberId)])) {
+    const userId = members.find((m) => m.id === memberId)?.userId;
+    if (userId) messages.set(userId, message(shares.find((s) => s.memberId === memberId)?.amount ?? 0));
+  }
+  return messages;
+}
+
 async function loadExpense(groupId: string, expenseId: string) {
   const expense = await prisma.sharedExpense.findFirst({
     where: { id: expenseId, groupId },
@@ -90,6 +118,18 @@ export async function addExpense(userId: string, groupId: string, given: Expense
     return created;
   });
 
+  await tell(
+    "shared_activity",
+    groupId,
+    userId,
+    actor,
+    group.name,
+    expenseMessages(members, [input.paidById], shares, (share) =>
+      share > 0
+        ? `${actor} added ${input.description} in ${group.name}. Your share is ${inr(share)}.`
+        : `${actor} added ${input.description} (${inr(input.amount)}) in ${group.name}, paid by you.`
+    )
+  );
   const userIds = expense.shares.map((s) => s.member.userId).filter((id): id is string => id !== null);
   const budgetAlert = await budgetAlerts(userIds, input.category, input.date, tzOffset, userId);
   return { id: expense.id, budgetAlert };
@@ -155,19 +195,38 @@ export async function updateExpense(userId: string, groupId: string, expenseId: 
     return updated;
   });
 
+  await tell(
+    "shared_activity",
+    groupId,
+    userId,
+    actor,
+    group.name,
+    expenseMessages(members, [before.paidById, input.paidById], [...shares, ...before.shares.map((s) => ({ ...s, amount: 0 }))], (share) =>
+      `${actor} changed ${before.description} in ${group.name}: ${changes.join(", ")}.${share > 0 ? ` Your share is now ${inr(share)}.` : ""}`
+    )
+  );
   const userIds = expense.shares.map((s) => s.member.userId).filter((id): id is string => id !== null);
   const budgetAlert = await budgetAlerts(userIds, input.category, input.date, tzOffset, userId);
   return { id: expenseId, budgetAlert };
 }
 
 export async function deleteExpense(userId: string, groupId: string, expenseId: string) {
-  const { actor } = await writableMembership(userId, groupId);
+  const { actor, group } = await writableMembership(userId, groupId);
   const expense = await loadExpense(groupId, expenseId);
+  const members = await prisma.groupMember.findMany({ where: { groupId }, select: { id: true, userId: true } });
   await prisma.$transaction(async (tx) => {
     await tx.transaction.deleteMany({ where: { shareId: { in: expense.shares.map((s) => s.id) } } });
     await tx.sharedExpense.delete({ where: { id: expenseId } });
     await logActivity(groupId, userId, `${actor} deleted ${expense.description} (${inr(expense.amount)})`, tx);
   });
+  await tell(
+    "shared_activity",
+    groupId,
+    userId,
+    actor,
+    group.name,
+    expenseMessages(members, [expense.paidById], expense.shares, () => `${actor} deleted ${expense.description} (${inr(expense.amount)}) in ${group.name}`)
+  );
 }
 
 export async function addSettlement(
@@ -175,7 +234,7 @@ export async function addSettlement(
   groupId: string,
   input: { fromMemberId: string; toMemberId: string; amount: number; date: Date }
 ) {
-  const { actor } = await writableMembership(userId, groupId);
+  const { actor, group } = await writableMembership(userId, groupId);
   if (input.fromMemberId === input.toMemberId) throw new HttpError(400, "Choose two different people");
   const members = await prisma.groupMember.findMany({
     where: { groupId, status: "active", id: { in: [input.fromMemberId, input.toMemberId] } },
@@ -190,11 +249,15 @@ export async function addSettlement(
     await logActivity(groupId, userId, `${actor} recorded that ${nameOf(from)} paid ${nameOf(to)} ${inr(input.amount)}`, tx);
     return created;
   });
+  const messages = new Map<string, string>();
+  if (to.userId) messages.set(to.userId, `${actor} recorded that ${nameOf(from)} paid you ${inr(input.amount)} in ${group.name}`);
+  if (from.userId) messages.set(from.userId, `${actor} recorded that you paid ${nameOf(to)} ${inr(input.amount)} in ${group.name}`);
+  await tell("shared_payment", groupId, userId, actor, group.name, messages);
   return { id: settlement.id };
 }
 
 export async function deleteSettlement(userId: string, groupId: string, settlementId: string) {
-  const { actor } = await writableMembership(userId, groupId);
+  const { actor, group } = await writableMembership(userId, groupId);
   const settlement = await prisma.settlement.findFirst({
     where: { id: settlementId, groupId },
     include: { from: { include: memberInclude }, to: { include: memberInclude } },
@@ -206,4 +269,8 @@ export async function deleteSettlement(userId: string, groupId: string, settleme
       data: { groupId, actorId: userId, message: `${actor} removed the payment of ${inr(settlement.amount)} from ${nameOf(settlement.from)} to ${nameOf(settlement.to)}` },
     }),
   ]);
+  const message = `${actor} removed the payment of ${inr(settlement.amount)} from ${nameOf(settlement.from)} to ${nameOf(settlement.to)} in ${group.name}`;
+  const messages = new Map<string, string>();
+  for (const id of [settlement.from.userId, settlement.to.userId]) if (id) messages.set(id, message);
+  await tell("shared_payment", groupId, userId, actor, group.name, messages);
 }

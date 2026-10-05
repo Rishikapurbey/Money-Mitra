@@ -214,3 +214,45 @@ describe("members with history", () => {
     expect(await prisma.sharedExpense.count({ where: { groupId: id } })).toBe(0);
   });
 });
+
+describe("notices and the Home summary", () => {
+  it("tells the people involved, groups repeat changes, and clears when the group is opened", async () => {
+    const { owner, friend, id, a, b, ravi } = await setUp("note");
+    await addExpense(owner, id, { description: "Dinner", amount: 900, paidById: a, split: { type: "equal", memberIds: [a, b, ravi] } }).expect(201);
+
+    let [notice] = await inboxOf(friend);
+    expect(notice).toMatchObject({ kind: "shared_activity", groupId: id, title: "", actor: { username: owner.username } });
+    expect(notice.message).toBe(`${owner.username} added Dinner in Goa. Your share is ₹300.`);
+    // The person who made the change isn't told about it
+    expect((await inboxOf(owner)).filter((n: { kind: string }) => n.kind === "shared_activity")).toEqual([]);
+
+    await addExpense(owner, id, { description: "Taxi", amount: 300, paidById: a, split: { type: "equal", memberIds: [a, b] } }).expect(201);
+    const shared = (await inboxOf(friend)).filter((n: { kind: string }) => n.kind === "shared_activity");
+    expect(shared).toHaveLength(1);
+    expect(shared[0].message).toBe(`${owner.username} made 2 changes to expenses in Goa`);
+
+    await groupOf(friend, id);
+    expect((await inboxOf(friend)).every((n: { read: boolean }) => n.read)).toBe(true);
+
+    await api().post(`/api/shared/groups/${id}/settlements`).set("Authorization", owner.auth).send({ fromMemberId: b, toMemberId: a, amount: 450 }).expect(201);
+    [notice] = await inboxOf(friend);
+    expect(notice).toMatchObject({ kind: "shared_payment", read: false });
+    expect(notice.message).toBe(`${owner.username} recorded that you paid ${owner.username} ₹450 in Goa`);
+  });
+
+  it("adds up what the user owes and is owed across groups", async () => {
+    const { owner, friend, id, a, b } = await setUp("sum");
+    const other = (await api().post("/api/shared/groups").set("Authorization", friend.auth).send({ name: "Flat" }).expect(201)).body.group.id;
+    const invite = (await api().post(`/api/shared/groups/${other}/members`).set("Authorization", friend.auth).send({ username: owner.username }).expect(201)).body.member;
+    await addExpense(owner, id, { description: "Hotel", amount: 1000, paidById: a, split: { type: "equal", memberIds: [a, b] } }).expect(201);
+
+    const summaryOf = async (user: User) => (await api().get("/api/shared/summary").set("Authorization", user.auth).expect(200)).body;
+    expect(await summaryOf(owner)).toEqual({ owe: 0, owed: 500, groups: [{ id, name: "Goa", balance: 500 }], invites: 1 });
+    expect(await summaryOf(friend)).toMatchObject({ owe: 500, owed: 0, invites: 0 });
+
+    await api().post(`/api/shared/invites/${invite.id}/accept`).set("Authorization", owner.auth).expect(200);
+    const [fm, om] = (await groupOf(friend, other)).members.map((m: Member) => m.id);
+    await addExpense(owner, other, { description: "Rent", amount: 2000, paidById: om, split: { type: "equal", memberIds: [fm, om] } }).expect(201);
+    expect(await summaryOf(owner)).toMatchObject({ owe: 0, owed: 1500, invites: 0 });
+  });
+});

@@ -20,7 +20,9 @@ export interface AppNotification {
     | "networth_reminder"
     | "bill_soon"
     | "bill_today"
-    | "group_invite";
+    | "group_invite"
+    | "shared_activity"
+    | "shared_payment";
   message: string;
   // The question's title; empty for follow, budget and recap notifications
   title: string;
@@ -29,6 +31,8 @@ export interface AppNotification {
   // For year_ready: the year (YYYY) the review covers
   year: string | null;
   postId: string | null;
+  // For shared group notices, the group they're about
+  groupId: string | null;
   // Who it's about, for follow notifications and new questions from people you follow
   actor: AuthorProfile | null;
   read: boolean;
@@ -44,6 +48,7 @@ export function notificationLink(n: AppNotification) {
   if (n.kind === "networth_reminder") return "/tracker/net-worth";
   if (n.kind === "bill_soon" || n.kind === "bill_today") return "/home";
   if (n.kind === "group_invite") return "/shared";
+  if (n.groupId) return `/shared/${n.groupId}`;
   if (n.postId) return `/discuss/${n.postId}`;
   if (n.actor) return `/u/${n.actor.username}`;
   return "/discuss";

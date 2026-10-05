@@ -131,7 +131,7 @@ export default function SharedGroups() {
                           {invite.memberCount === 1 ? "member" : "members"}
                         </p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 w-full pl-[52px] sm:w-auto sm:pl-0">
                         <button
                           onClick={() => answer(invite, true)}
                           disabled={answering === invite.id}

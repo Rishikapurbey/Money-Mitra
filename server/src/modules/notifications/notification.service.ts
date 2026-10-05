@@ -167,8 +167,32 @@ function message(kind: string, count: number, actor: string, title: string) {
   }
 }
 
-// Budget alerts and bill reminders store their whole message as the title
-const isBudget = (kind: string) => ["budget_near", "budget_over", "bill_soon", "bill_today"].includes(kind);
+// Shared group changes that affect someone: one notice per person, per group and per actor. While it's
+// unread, further changes bump it to a summary instead of adding more lines.
+export async function notifyGroupMembers(
+  kind: "shared_activity" | "shared_payment",
+  groupId: string,
+  actorId: string,
+  messages: Map<string, string>,
+  summary: (count: number) => string
+) {
+  for (const [userId, message] of messages) {
+    if (userId === actorId) continue;
+    const existing = await prisma.notification.findFirst({ where: { userId, kind, groupId, actorId, readAt: null } });
+    if (existing) {
+      await prisma.notification.update({ where: { id: existing.id }, data: { count: { increment: 1 }, title: summary(existing.count + 1) } });
+    } else {
+      await prisma.notification.create({ data: { userId, kind, groupId, actorId, title: message } });
+    }
+  }
+}
+
+// Opening a group marks its notices as read
+export const markGroupRead = (userId: string, groupId: string) =>
+  prisma.notification.updateMany({ where: { userId, groupId, readAt: null }, data: { readAt: new Date() } });
+
+// Budget alerts, bill reminders and shared group notices store their whole message as the title
+const isBudget = (kind: string) => ["budget_near", "budget_over", "bill_soon", "bill_today", "shared_activity", "shared_payment"].includes(kind);
 
 export async function listNotifications(userId: string) {
   const [items, unread] = await Promise.all([
@@ -199,6 +223,7 @@ export async function listNotifications(userId: string) {
       month: n.kind === "recap_ready" ? n.title : null,
       year: n.kind === "year_ready" ? n.title : null,
       postId: n.postId,
+      groupId: n.groupId,
       actor: n.actor ? identity(n.actor) : null,
       read: n.readAt !== null,
       updatedAt: n.updatedAt,

@@ -3,6 +3,7 @@ import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
 import { identity, identitySelect } from "../../lib/identity";
 import { findPerson } from "../follows/follow.service";
+import { markGroupRead } from "../notifications/notification.service";
 import { backfillTracker, groupBalances, hasHistory, inr, logActivity } from "./ledger";
 import { simplifyDebts, toRupees } from "./split";
 
@@ -121,6 +122,7 @@ const LIST_LIMIT = 300;
 // payments to settle up, and recent activity
 export async function getGroup(userId: string, groupId: string) {
   const me = await membership(userId, groupId);
+  await markGroupRead(userId, groupId);
   const [group, balance, expenses, settlements, activity] = await Promise.all([
     prisma.sharedGroup.findUniqueOrThrow({
       where: { id: groupId },
@@ -345,4 +347,25 @@ export async function releaseMemberships(userId: string) {
     prisma.groupMember.updateMany({ where: { userId, status: "invited" }, data: { status: "left" } }),
     prisma.groupMember.updateMany({ where: { userId }, data: { name: user.displayName || user.username } }),
   ];
+}
+
+// Home's card: what the user owes and is owed across their groups, and invites waiting
+export async function sharedSummary(userId: string) {
+  const mine = await prisma.groupMember.findMany({
+    where: { userId, status: { in: ["active", "invited"] } },
+    include: { group: { select: { id: true, name: true } } },
+  });
+  const groups: { id: string; name: string; balance: number }[] = [];
+  for (const m of mine.filter((x) => x.status === "active")) {
+    const balance = (await groupBalances(m.groupId)).get(m.id) ?? 0;
+    if (balance !== 0) groups.push({ id: m.group.id, name: m.group.name, balance });
+  }
+  groups.sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
+  const sum = (list: typeof groups) => toRupees(list.reduce((total, g) => total + Math.abs(g.balance), 0));
+  return {
+    owe: sum(groups.filter((g) => g.balance < 0)),
+    owed: sum(groups.filter((g) => g.balance > 0)),
+    groups: groups.map((g) => ({ ...g, balance: toRupees(g.balance) })),
+    invites: mine.filter((x) => x.status === "invited").length,
+  };
 }

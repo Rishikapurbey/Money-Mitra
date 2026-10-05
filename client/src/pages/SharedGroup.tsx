@@ -7,7 +7,7 @@ import { useTitle } from "../lib/useTitle";
 import { useToast } from "../lib/toast";
 import { formatINR, inputClass, pageWidth } from "../lib/ui";
 import { timeAgo } from "../lib/discuss";
-import { announceDataChange } from "../lib/dataEvents";
+import { announceDataChange, announceNotificationsChange } from "../lib/dataEvents";
 import { myPosition } from "../lib/shared";
 import type { GroupDetail, Payment, SharedExpense, Settlement } from "../lib/shared";
 import ExpenseForm from "../components/shared/ExpenseForm";
@@ -15,7 +15,11 @@ import SettleForm from "../components/shared/SettleForm";
 import { AddMemberForm, MemberRow } from "../components/shared/Members";
 
 const errorText = (err: unknown, fallback: string) => (isAxiosError(err) && err.response?.data?.error) || fallback;
-const shortDate = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+// The year is only shown for dates outside this year
+const shortDate = (iso: string) => {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", ...(d.getFullYear() !== new Date().getFullYear() && { year: "numeric" }) });
+};
 
 const outlineButton =
   "inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium text-ink-700 border border-line bg-surface hover:bg-ink-100 transition";
@@ -119,7 +123,17 @@ function ExpenseRow({
   );
 }
 
-function SettlementRow({ group, settlement, nameOf, onChanged }: { group: GroupDetail; settlement: Settlement; nameOf: (id: string) => string; onChanged: () => void }) {
+function SettlementRow({
+  group,
+  settlement,
+  nameOf,
+  onChanged,
+}: {
+  group: GroupDetail;
+  settlement: Settlement;
+  nameOf: (id: string, object?: boolean) => string;
+  onChanged: () => void;
+}) {
   const toast = useToast();
   const [confirming, setConfirming] = useState(false);
 
@@ -143,7 +157,7 @@ function SettlementRow({ group, settlement, nameOf, onChanged }: { group: GroupD
         <div className="min-w-0 flex-1">
           <p className="text-ink-900 truncate">
             <span className="font-medium">{nameOf(settlement.fromMemberId)}</span> paid{" "}
-            <span className="font-medium">{nameOf(settlement.toMemberId)}</span>
+            <span className="font-medium">{nameOf(settlement.toMemberId, true)}</span>
           </p>
           <p className="text-sm text-ink-500">{shortDate(settlement.date)}</p>
         </div>
@@ -191,6 +205,8 @@ export default function SharedGroup() {
       .then((res) => {
         setGroup(res.data.group);
         setLoadError(null);
+        // Opening the group marks its notices read
+        announceNotificationsChange();
       })
       .catch((err) => setLoadError(isAxiosError(err) && err.response?.status === 404 ? "missing" : "failed"));
   }, [id]);
@@ -275,9 +291,10 @@ export default function SharedGroup() {
   const invited = group.members.filter((m) => m.status === "invited");
   const me = group.members.find((m) => m.id === group.myMemberId);
   const myBalance = me?.balance ?? 0;
-  const nameOf = (memberId: string) => {
+  // `object` for after a verb: "Kiran paid you"
+  const nameOf = (memberId: string, object = false) => {
     const m = group.members.find((x) => x.id === memberId);
-    return !m ? "Someone" : m.isMe ? "You" : m.name;
+    return !m ? "Someone" : m.isMe ? (object ? "you" : "You") : m.name;
   };
   const owing = group.members.filter((m) => m.balance !== 0);
   const timeline = [
@@ -382,12 +399,13 @@ export default function SharedGroup() {
         {group.archived && <p className="text-sm text-ink-500">This group is archived. Unarchive it to add expenses or payments.</p>}
       </div>
 
+      {/* On phones the two columns dissolve into one list, ordered so balances come before the history */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px] items-start">
-        <div className="space-y-6 min-w-0">
+        <div className="max-lg:contents space-y-6 min-w-0">
           {panel?.kind === "expense" && <ExpenseForm key={panel.expense?.id ?? "new"} group={group} expense={panel.expense} onDone={done} />}
           {panel?.kind === "settle" && <SettleForm key={JSON.stringify(panel.suggestion)} group={group} suggestion={panel.suggestion} onDone={done} />}
 
-          <section className="dark-panel bg-ink-900 rounded-2xl p-6 text-white">
+          <section className="max-lg:order-1 dark-panel bg-ink-900 rounded-2xl p-6 text-white">
             <p className="text-ink-300 text-xs font-medium uppercase tracking-wider">Your balance</p>
             <p className={`mt-2 text-3xl font-semibold tracking-tight tabular-nums ${myBalance > 0 ? "text-brand-300" : ""}`}>
               {myBalance === 0 ? "All settled up" : formatINR(Math.abs(myBalance))}
@@ -395,7 +413,7 @@ export default function SharedGroup() {
             {myBalance !== 0 && <p className="mt-1 text-sm text-ink-300">{myBalance > 0 ? "You're owed this in total" : "You owe this in total"}</p>}
           </section>
 
-          <section className="bg-surface border border-line rounded-2xl">
+          <section className="max-lg:order-3 bg-surface border border-line rounded-2xl min-w-0">
             <h2 className="px-5 pt-5 font-semibold text-ink-900">Expenses and payments</h2>
             {timeline.length === 0 ? (
               <div className="px-5 py-10 text-center">
@@ -423,7 +441,7 @@ export default function SharedGroup() {
           </section>
 
           {group.activity.length > 0 && (
-            <section className="bg-surface border border-line rounded-2xl p-5">
+            <section className="max-lg:order-4 bg-surface border border-line rounded-2xl p-5">
               <h2 className="font-semibold text-ink-900">Activity</h2>
               <ul className="mt-3 space-y-2.5 text-sm">
                 {activity.map((a) => (
@@ -442,8 +460,8 @@ export default function SharedGroup() {
           )}
         </div>
 
-        <div className="space-y-6 min-w-0">
-          <section className="bg-surface border border-line rounded-2xl p-5">
+        <div className="max-lg:contents space-y-6 min-w-0">
+          <section className="max-lg:order-2 bg-surface border border-line rounded-2xl p-5">
             <h2 className="font-semibold text-ink-900">Balances</h2>
             {owing.length === 0 ? (
               <p className="mt-2 text-sm text-ink-500">Everyone is settled up.</p>
@@ -481,7 +499,7 @@ export default function SharedGroup() {
             )}
           </section>
 
-          <section className="bg-surface border border-line rounded-2xl">
+          <section className="max-lg:order-5 bg-surface border border-line rounded-2xl">
             <h2 className="px-5 pt-5 font-semibold text-ink-900">Members</h2>
             <ul className="mt-2 divide-y divide-line">
               {[...active, ...invited].map((m) => (
@@ -489,7 +507,9 @@ export default function SharedGroup() {
               ))}
             </ul>
           </section>
-          <AddMemberForm groupId={group.id} onAdded={load} />
+          <div className="max-lg:order-6">
+            <AddMemberForm groupId={group.id} onAdded={load} />
+          </div>
         </div>
       </div>
     </main>

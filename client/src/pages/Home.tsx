@@ -19,6 +19,7 @@ import InsightsCard from "../components/InsightsCard";
 import RecapCard from "../components/RecapCard";
 import NetWorthCard from "../components/NetWorthCard";
 import BillsDueCard from "../components/BillsDueCard";
+import SharedCard from "../components/SharedCard";
 import type { Insight } from "../components/InsightsCard";
 import LearnTipCard from "../components/LearnTipCard";
 import QuickAddSheet from "../components/QuickAddSheet";
@@ -404,6 +405,7 @@ function Home() {
           <aside className="space-y-6" aria-label="Shortcuts and updates">
             {quickActionsNav}
             <BillsDueCard />
+            <SharedCard />
             <NetWorthCard />
             {comingUpCard}
             {newInDiscussCard}
@@ -417,6 +419,7 @@ function Home() {
           <RecapCard />
           {quickActionsNav}
           <BillsDueCard />
+          <SharedCard />
           <NetWorthCard />
           {comingUpCard}
           {newInDiscussCard}

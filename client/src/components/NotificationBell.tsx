@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bell, CalendarCheck, CalendarRange, CheckCircle2, CircleAlert, Landmark, Receipt, EyeOff, MessageCircle, PiggyBank, ThumbsUp, UserCheck, UserPlus, UsersRound } from "lucide-react";
+import { Bell, CalendarCheck, CalendarRange, CheckCircle2, HandCoins, CircleAlert, Landmark, Receipt, EyeOff, MessageCircle, PiggyBank, ThumbsUp, UserCheck, UserPlus, UsersRound } from "lucide-react";
 import api from "../lib/api";
 import { timeAgo } from "../lib/discuss";
 import { announceNotificationsChange, onNotificationsChange } from "../lib/dataEvents";
@@ -30,6 +30,8 @@ const ICONS = {
   bill_soon: Receipt,
   bill_today: Receipt,
   group_invite: UsersRound,
+  shared_activity: Receipt,
+  shared_payment: HandCoins,
 };
 
 // The bell in the header: an unread count that refreshes on navigation and every minute,

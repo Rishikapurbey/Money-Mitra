@@ -268,32 +268,35 @@ model Report {
 // Something the user should know about in Discuss. Repeats of the same unread event are
 // grouped into one row by raising `count` (e.g. "3 new replies to your question").
 model Notification {
-  id        String    @id @default(cuid())
+  id        String       @id @default(cuid())
   // reply_to_question | reply_in_thread | helpful | post_hidden | reply_hidden
   // | follow_request | new_follower | follow_accepted | followed_post | budget_near | budget_over | recap_ready
-  // | answer_accepted | year_ready | networth_reminder | bill_soon | bill_today | group_invite
+  // | answer_accepted | year_ready | networth_reminder | bill_soon | bill_today | group_invite | shared_activity | shared_payment
   kind      String
-  count     Int       @default(1)
+  count     Int          @default(1)
   // Question title at the time, so the notification still reads well if the title changes;
   // for budget alerts, the whole message; for recap_ready, the month (YYYY-MM); for year_ready, the year;
-  // for group_invite, the group's name
+  // for group_invite, the group's name; for shared_activity and shared_payment, the whole message
   title     String
   readAt    DateTime?
   // When an email went out for this notification, used to send at most one per hour per question
   emailedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
   userId    String
-  user      User      @relation("recipient", fields: [userId], references: [id], onDelete: Cascade)
+  user      User         @relation("recipient", fields: [userId], references: [id], onDelete: Cascade)
   // Empty for follow notifications, which aren't about a question
   postId    String?
-  post      Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post      Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
   replyId   String?
-  reply     Reply?    @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  reply     Reply?       @relation(fields: [replyId], references: [id], onDelete: Cascade)
   // Who it's about, for follow notifications and new questions from people you follow; never
   // set for anything that could reveal who wrote an anonymous post
   actorId   String?
-  actor     User?     @relation("actor", fields: [actorId], references: [id], onDelete: Cascade)
+  actor     User?        @relation("actor", fields: [actorId], references: [id], onDelete: Cascade)
+  // The shared group it's about, so opening the notice opens the group
+  groupId   String?
+  group     SharedGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
 }
@@ -425,35 +428,36 @@ model NetWorthValue {
 // A group of people sharing expenses (a trip, a flat). Everyone in it sees its expenses and
 // balances, and nothing else about each other's money.
 model SharedGroup {
-  id          String          @id @default(cuid())
-  name        String
+  id            String          @id @default(cuid())
+  name          String
   // Archived groups are kept for their history but shown apart from active ones, and can't take new expenses
-  archivedAt  DateTime?
-  createdAt   DateTime        @default(now())
-  members     GroupMember[]
-  expenses    SharedExpense[]
-  settlements Settlement[]
-  activity    GroupActivity[]
+  archivedAt    DateTime?
+  createdAt     DateTime        @default(now())
+  members       GroupMember[]
+  expenses      SharedExpense[]
+  settlements   Settlement[]
+  activity      GroupActivity[]
+  notifications Notification[]
 }
 
 // One person in a group: a Money Mitra user, or just a name for a friend who isn't on the app.
 // Expenses point at members rather than users, so they survive people leaving or deleting accounts.
 model GroupMember {
-  id          String      @id @default(cuid())
+  id          String          @id @default(cuid())
   // invited | active | left. A name-only member is always active.
   status      String
   // Set for name-only members, and kept when a user deletes their account so balances still read well
   name        String?
   // Lets a name-only member's friend join and take over their spot; cleared once used
-  inviteToken String?     @unique
+  inviteToken String?         @unique
   joinedAt    DateTime?
-  createdAt   DateTime    @default(now())
+  createdAt   DateTime        @default(now())
   groupId     String
-  group       SharedGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group       SharedGroup     @relation(fields: [groupId], references: [id], onDelete: Cascade)
   userId      String?
-  user        User?       @relation("memberUser", fields: [userId], references: [id], onDelete: SetNull)
+  user        User?           @relation("memberUser", fields: [userId], references: [id], onDelete: SetNull)
   invitedById String?
-  invitedBy   User?       @relation("memberInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+  invitedBy   User?           @relation("memberInviter", fields: [invitedById], references: [id], onDelete: SetNull)
   paid        SharedExpense[]
   shares      ExpenseShare[]
   paidOut     Settlement[]    @relation("settlementFrom")
