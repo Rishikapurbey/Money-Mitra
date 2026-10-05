@@ -1,26 +1,38 @@
 # Money Mitra
 
-Money Mitra is a finance app for people who handle their day-to-day money
-responsibly, but were never taught about investing — banks, SIPs, mutual
-funds, LIC, and where to actually start.
+**A personal finance companion for everyday people in India.**
 
-It brings together what most finance apps keep separate:
+Money Mitra is for people who manage their day-to-day money responsibly but were never
+taught how investing works: SIPs, mutual funds, FDs, LIC, and where to start. It brings
+together what most finance apps keep separate:
 
 - **Track**: log income and expenses, set budgets and goals, and see each month clearly
 - **Learn**: plain-language explanations of money terms, with worked examples in rupees
 - **Discuss**: ask questions about money without judgment, under your name or anonymously
 - **Share**: split trips and flat costs with friends and settle up
 
-**Live app:** https://money-mitra-three.vercel.app
+**Live app:** [money-mitra-three.vercel.app](https://money-mitra-three.vercel.app)
 
-## Why
+## Contents
 
-A lot of people know how to spend and save responsibly, but the world of
-actual investment products is opaque — nobody sits you down and explains
-SIPs vs mutual funds vs LIC vs FDs, or when each one makes sense. Money
-Mitra is meant to close that specific gap: not just a budgeting app, and not
-generic financial advice — a friend that tracks with you and teaches you
-along the way.
+- [Why Money Mitra](#why-money-mitra)
+- [Features](#features)
+- [Privacy](#privacy)
+- [Tech stack](#tech-stack)
+- [Project structure](#project-structure)
+- [Running locally](#running-locally)
+- [Environment variables](#environment-variables)
+- [API overview](#api-overview)
+- [Deployment](#deployment)
+- [Design notes](#design-notes)
+
+## Why Money Mitra
+
+Many people know how to spend and save sensibly, yet investment products remain opaque.
+Nobody explains the difference between a SIP, a mutual fund, LIC and an FD, or when each
+one makes sense. Money Mitra closes that gap. It is neither just a budgeting app nor generic
+financial advice, but a companion that tracks your money with you and explains things along
+the way.
 
 ## Features
 
@@ -61,19 +73,21 @@ along the way.
 ## Privacy
 
 - Nobody can see another person's finances. Profiles show identity and Discuss activity only.
-- In a shared group, members see only what's added to that group — never anyone's Tracker, budgets, goals or net worth.
+- In a shared group, members see only what's added to that group, never anyone's Tracker, budgets, goals or net worth.
 - Anonymous posts store the real author internally for moderation, but the API never sends it to other users.
 - Profile photos and covers are cropped and resized on the device before upload, which also removes hidden details such as location.
 
 ## Tech stack
 
-**Frontend:** React, TypeScript, Vite, Tailwind CSS, Recharts, React Router
-**Backend:** Node.js, Express, TypeScript
-**Database:** PostgreSQL with Prisma ORM
-**Auth:** JWT (7-day tokens), passwords hashed with bcrypt
-**Email:** Brevo
-**Tests:** Vitest and Supertest (server against a real test database), Vitest (client)
-**Deployment:** Vercel (client), Render (server), Neon (Postgres)
+| Layer | Technology |
+| --- | --- |
+| Frontend | React, TypeScript, Vite, Tailwind CSS, Recharts, React Router |
+| Backend | Node.js, Express, TypeScript |
+| Database | PostgreSQL with Prisma ORM |
+| Authentication | JWT (7-day tokens), passwords hashed with bcrypt |
+| Email | Brevo |
+| Testing | Vitest and Supertest (server, against a real test database); Vitest (client) |
+| Hosting | Vercel (client), Render (server), Neon (PostgreSQL) |
 
 ## Project structure
 
@@ -95,9 +109,9 @@ money-mitra/
 
 ## Running locally
 
-Requirements: Node.js 20+ and a PostgreSQL database.
+**Requirements:** Node.js 20 or later, and a PostgreSQL database.
 
-Install everything once:
+Install the dependencies:
 
 ```bash
 npm install
@@ -114,18 +128,18 @@ JWT_SECRET=any-long-random-string-of-32-or-more-characters
 PORT=5000
 ```
 
-Set up the database, then start the API and the website together in one terminal:
+Apply the database migrations, then start the API and the website together:
 
 ```bash
 npm --prefix server exec prisma migrate dev
 npm run dev
 ```
 
-Open http://127.0.0.1:5173. The API runs on http://localhost:5000 and restarts by itself
+Open http://127.0.0.1:5173. The API runs on http://localhost:5000 and restarts automatically
 when server code changes. No email setup is needed locally: without `BREVO_API_KEY`,
-emails (like password reset links) are printed in the terminal instead of being sent.
+emails such as password reset links are printed to the terminal instead of being sent.
 
-Useful commands:
+**Commands**
 
 | Command | What it does |
 | --- | --- |
@@ -134,8 +148,8 @@ Useful commands:
 | `npm --prefix server run typecheck` | Type-check the server |
 | `npm --prefix client run lint` | Lint the client |
 
-The client talks to `http://localhost:5000/api` by default. Set
-`VITE_API_URL` to point it at a different server.
+The client calls `http://localhost:5000/api` by default. Set `VITE_API_URL` to use a
+different server.
 
 ## Environment variables
 
@@ -177,35 +191,29 @@ reset, email confirmation, and profile photos and covers (which load in `<img>` 
 | Notifications | `/api/notifications` | The bell |
 | Feedback | `/api/feedback` | Feedback from Settings |
 
-## Deployment notes
+## Deployment
 
-- The server build runs `prisma generate`, then `tsc`, then
-  `prisma migrate deploy`, so new migrations reach production on each deploy.
-- On Neon, `DATABASE_URL` is the pooled connection (host contains `-pooler`)
-  and `DIRECT_URL` is the same string without `-pooler`. Prisma needs the
-  direct connection to run migrations.
-- `client/vercel.json` rewrites all paths to `index.html` so routes like
-  `/tracker` work when opened directly.
-- Pages load on demand, so the first download stays small.
-- The Render free tier sleeps when idle, so the first request after a quiet
-  period can take up to a minute; the app says so instead of looking frozen.
+- The server build runs `prisma generate`, `tsc` and `prisma migrate deploy`, so new
+  migrations reach production on every deploy.
+- On Neon, `DATABASE_URL` is the pooled connection (its host contains `-pooler`) and
+  `DIRECT_URL` is the same string without `-pooler`. Prisma needs the direct connection to
+  run migrations.
+- `client/vercel.json` rewrites every path to `index.html`, so routes such as `/tracker`
+  work when opened directly.
+- Pages are loaded on demand, which keeps the first download small.
+- Render's free tier sleeps when idle, so the first request after a quiet period can take up
+  to a minute. The app tells the user it is waking up rather than appearing frozen.
 
 ## Design notes
 
-- PostgreSQL was chosen over MongoDB deliberately, since the data
-  (users, transactions, posts, groups) is genuinely relational.
-- Shared group amounts are stored in whole paise, so splits always add up exactly.
-- A main account's balance and net worth are worked out from the last value you typed in plus
-  the Tracker since then, rather than stored, so edits and deletions are always reflected.
-- Learn content lives in the client as a typed data file, so terms can be
+- **Relational data, relational database.** Users, transactions, posts and groups are
+  closely linked, so PostgreSQL was chosen over a document store.
+- **Exact splits.** Shared group amounts are stored in whole paise, so shares always add up
+  to the total.
+- **Computed balances.** The main account's balance and net worth are calculated from the
+  last value entered plus Tracker activity since then, rather than stored, so edits and
+  deletions are always reflected.
+- **Content as code.** Learn terms live in the client as a typed data file, so they can be
   added or corrected without a database change.
-- Learn is for education only and is not financial advice. Tax terms carry a
-  last-reviewed date because rules change with each Budget.
-
-## Status
-
-Complete and live. Development of the planned features is finished; the app is ready for
-everyday use and is maintained with fixes and small improvements.
-
-Ideas for later: error alerts, a tested backup routine, a private usage page, and more
-shared-expense options (splitting without a group, UPI pay links, recurring shared bills).
+- **Education, not advice.** Learn is for education only and is not financial advice. Tax
+  terms carry a last-reviewed date because rules change with each Budget.
