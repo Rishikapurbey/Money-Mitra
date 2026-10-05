@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigationType, useSearchParams } from "react-router-dom";
-import { Pencil, Receipt, Repeat, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { Pencil, Receipt, Repeat, Search, SlidersHorizontal, Trash2, UsersRound, X } from "lucide-react";
 import api from "../lib/api";
 import { formatINR, inputClass } from "../lib/ui";
 import {
@@ -22,6 +22,8 @@ export interface Transaction {
   note?: string;
   date: string;
   recurringId?: string | null;
+  // Set when this is the user's share of a shared group expense
+  shareId?: string | null;
 }
 
 interface Totals {
@@ -226,7 +228,11 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
   );
 
   const repeatIcon = (t: Transaction) =>
-    t.recurringId && <Repeat size={13} className="shrink-0 text-ink-400" aria-label="Added automatically every month" />;
+    t.recurringId ? (
+      <Repeat size={13} className="shrink-0 text-ink-400" aria-label="Added automatically every month" />
+    ) : (
+      t.shareId && <UsersRound size={13} className="shrink-0 text-ink-400" aria-label="Your share of a shared expense" />
+    );
 
   const filterBar = (
     <div className="p-5 border-b border-line space-y-3">
@@ -459,9 +465,12 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
                       <button onClick={() => onEdit(t)} aria-label={`Edit ${t.category}`} className="text-ink-300 hover:text-brand-600 transition">
                         <Pencil size={16} />
                       </button>
-                      <button onClick={() => onDelete(t)} aria-label={`Delete ${t.category}`} className="text-ink-300 hover:text-loss transition">
-                        <Trash2 size={16} />
-                      </button>
+                      {/* A shared expense is removed from its group, which takes the share out of here too */}
+                      {!t.shareId && (
+                        <button onClick={() => onDelete(t)} aria-label={`Delete ${t.category}`} className="text-ink-300 hover:text-loss transition">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </span>
                   </td>
                 </tr>
@@ -491,9 +500,11 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
                     <button onClick={() => onEdit(t)} aria-label="Edit" className="text-ink-300 hover:text-brand-600 transition">
                       <Pencil size={16} />
                     </button>
-                    <button onClick={() => onDelete(t)} aria-label="Delete" className="text-ink-300 hover:text-loss transition">
-                      <Trash2 size={16} />
-                    </button>
+                    {!t.shareId && (
+                      <button onClick={() => onDelete(t)} aria-label="Delete" className="text-ink-300 hover:text-loss transition">
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

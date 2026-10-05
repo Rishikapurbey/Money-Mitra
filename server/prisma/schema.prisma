@@ -70,6 +70,7 @@ model User {
   billPayments        BillPayment[]
   groupMemberships    GroupMember[]          @relation("memberUser")
   groupInvitesSent    GroupMember[]          @relation("memberInviter")
+  groupActivity       GroupActivity[]
   categories          Category[]
   avatar              Avatar?
 }
@@ -98,6 +99,9 @@ model Transaction {
   // Set when the entry came from a CSV import, so the whole import can be undone
   importId    String?
   import      Import?               @relation(fields: [importId], references: [id], onDelete: SetNull)
+  // The user's share of a shared group expense; its amount and date are kept in step with the group
+  shareId     String?               @unique
+  share       ExpenseShare?         @relation(fields: [shareId], references: [id], onDelete: SetNull)
 
   @@index([importId])
 }
@@ -421,12 +425,15 @@ model NetWorthValue {
 // A group of people sharing expenses (a trip, a flat). Everyone in it sees its expenses and
 // balances, and nothing else about each other's money.
 model SharedGroup {
-  id         String        @id @default(cuid())
-  name       String
-  // Archived groups are kept for their history but shown apart from active ones
-  archivedAt DateTime?
-  createdAt  DateTime      @default(now())
-  members    GroupMember[]
+  id          String          @id @default(cuid())
+  name        String
+  // Archived groups are kept for their history but shown apart from active ones, and can't take new expenses
+  archivedAt  DateTime?
+  createdAt   DateTime        @default(now())
+  members     GroupMember[]
+  expenses    SharedExpense[]
+  settlements Settlement[]
+  activity    GroupActivity[]
 }
 
 // One person in a group: a Money Mitra user, or just a name for a friend who isn't on the app.
@@ -447,7 +454,72 @@ model GroupMember {
   user        User?       @relation("memberUser", fields: [userId], references: [id], onDelete: SetNull)
   invitedById String?
   invitedBy   User?       @relation("memberInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+  paid        SharedExpense[]
+  shares      ExpenseShare[]
+  paidOut     Settlement[]    @relation("settlementFrom")
+  paidIn      Settlement[]    @relation("settlementTo")
 
   @@unique([groupId, userId])
   @@index([userId])
+}
+
+// An expense paid by one member and split between some of them. Amounts are whole paise, so
+// splits always add up exactly.
+model SharedExpense {
+  id          String         @id @default(cuid())
+  description String
+  amount      Int
+  category    String
+  date        DateTime
+  createdAt   DateTime       @default(now())
+  groupId     String
+  group       SharedGroup    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  paidById    String
+  paidBy      GroupMember    @relation(fields: [paidById], references: [id], onDelete: NoAction)
+  shares      ExpenseShare[]
+
+  @@index([groupId, date])
+}
+
+// What one member owes towards an expense, in paise
+model ExpenseShare {
+  id          String        @id @default(cuid())
+  amount      Int
+  expenseId   String
+  expense     SharedExpense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  memberId    String
+  member      GroupMember   @relation(fields: [memberId], references: [id], onDelete: NoAction)
+  transaction Transaction?
+
+  @@unique([expenseId, memberId])
+}
+
+// One member paying another back, in paise. A transfer, never counted as spending.
+model Settlement {
+  id           String      @id @default(cuid())
+  amount       Int
+  date         DateTime
+  createdAt    DateTime    @default(now())
+  groupId      String
+  group        SharedGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromMemberId String
+  from         GroupMember @relation("settlementFrom", fields: [fromMemberId], references: [id], onDelete: NoAction)
+  toMemberId   String
+  to           GroupMember @relation("settlementTo", fields: [toMemberId], references: [id], onDelete: NoAction)
+
+  @@index([groupId])
+}
+
+// A line in the group's history, e.g. "Asha changed Dinner from ₹1,200 to ₹1,000"
+model GroupActivity {
+  id        String      @id @default(cuid())
+  // The whole line, written when it happened, so it reads the same even after names change
+  message   String
+  createdAt DateTime    @default(now())
+  groupId   String
+  group     SharedGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  actorId   String?
+  actor     User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([groupId, createdAt])
 }

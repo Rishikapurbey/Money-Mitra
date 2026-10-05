@@ -140,6 +140,7 @@ export async function getTrend(userId: string, from: Date, tzOffset: number) {
 export async function deleteTransaction(userId: string, id: string) {
   const transaction = await prisma.transaction.findUnique({ where: { id } });
   if (!transaction || transaction.userId !== userId) throw new HttpError(404, "Transaction not found");
+  if (transaction.shareId) throw new HttpError(400, "This is your share of a group expense. Remove it from the group instead.");
   return prisma.transaction.delete({ where: { id } });
 }
 
@@ -150,6 +151,8 @@ export async function updateTransaction(
 ) {
   const transaction = await prisma.transaction.findUnique({ where: { id } });
   if (!transaction || transaction.userId !== userId) throw new HttpError(404, "Transaction not found");
+  // A share of a group expense follows the group: only its category and note are the user's own
+  if (transaction.shareId) data = { ...(data.category !== undefined && { category: data.category }), ...(data.note !== undefined && { note: data.note }) };
   const { date, ...rest } = data;
   const category = await rememberCategory(userId, rest.type ?? transaction.type, rest.category ?? transaction.category);
   return prisma.transaction.update({ where: { id }, data: { ...rest, category, ...(date && { date }) } });

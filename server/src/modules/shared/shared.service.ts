@@ -3,6 +3,8 @@ import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
 import { identity, identitySelect } from "../../lib/identity";
 import { findPerson } from "../follows/follow.service";
+import { backfillTracker, groupBalances, hasHistory, inr, logActivity } from "./ledger";
+import { simplifyDebts, toRupees } from "./split";
 
 export const MAX_MEMBERS = 50;
 
@@ -12,12 +14,12 @@ interface MemberRow {
   id: string;
   status: string;
   name: string | null;
-  inviteToken: string | null;
+  inviteToken?: string | null;
   userId: string | null;
   user: { id: string; username: string; displayName: string | null; avatarUpdatedAt: Date | null } | null;
 }
 
-const nameOf = (m: MemberRow) => (m.user ? m.user.displayName || m.user.username : (m.name ?? ""));
+export const nameOf = (m: MemberRow) => (m.user ? m.user.displayName || m.user.username : (m.name ?? ""));
 
 // What other members see about someone: their public identity, never anything from their Tracker
 function memberView(m: MemberRow, viewerId: string) {
@@ -41,12 +43,25 @@ async function safely(task: () => Promise<unknown>) {
   }
 }
 
-// The viewer's own membership; anyone who isn't an active member is told the group doesn't exist
+// The viewer's own membership; anyone who isn't an active member is told the group doesn't exist.
+// `actor` is how they're named in the group's activity.
 async function membership(userId: string, groupId: string) {
-  const member = await prisma.groupMember.findFirst({ where: { groupId, userId, status: "active" }, include: { group: true } });
+  const member = await prisma.groupMember.findFirst({ where: { groupId, userId, status: "active" }, include: { group: true, ...memberInclude } });
   if (!member) throw new HttpError(404, "Group not found");
+  return { ...member, actor: nameOf(member) };
+}
+
+// The same, for changes to expenses and paybacks, which archived groups don't take
+export async function writableMembership(userId: string, groupId: string) {
+  const member = await membership(userId, groupId);
+  if (member.group.archivedAt) throw new HttpError(400, "This group is archived. Unarchive it to make changes.");
   return member;
 }
+
+const userName = async (userId: string) => {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { username: true, displayName: true } });
+  return user.displayName || user.username;
+};
 
 async function memberOf(groupId: string, memberId: string) {
   const member = await prisma.groupMember.findFirst({ where: { id: memberId, groupId }, include: memberInclude });
@@ -96,32 +111,71 @@ export async function createGroup(userId: string, name: string) {
   const group = await prisma.sharedGroup.create({
     data: { name, members: { create: { userId, status: "active", joinedAt: new Date() } } },
   });
+  await logActivity(group.id, userId, `${await userName(userId)} created the group`);
   return { id: group.id, name: group.name };
 }
 
+const LIST_LIMIT = 300;
+
+// Everything a member sees in a group: people and balances, expenses, paybacks, suggested
+// payments to settle up, and recent activity
 export async function getGroup(userId: string, groupId: string) {
-  await membership(userId, groupId);
-  const group = await prisma.sharedGroup.findUniqueOrThrow({
-    where: { id: groupId },
-    include: { members: { where: { status: { in: ["active", "invited"] } }, orderBy: { createdAt: "asc" }, include: memberInclude } },
-  });
+  const me = await membership(userId, groupId);
+  const [group, balance, expenses, settlements, activity] = await Promise.all([
+    prisma.sharedGroup.findUniqueOrThrow({
+      where: { id: groupId },
+      include: { members: { orderBy: { createdAt: "asc" }, include: memberInclude } },
+    }),
+    groupBalances(groupId),
+    prisma.sharedExpense.findMany({
+      where: { groupId },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      take: LIST_LIMIT,
+      include: { shares: { select: { memberId: true, amount: true } } },
+    }),
+    prisma.settlement.findMany({ where: { groupId }, orderBy: [{ date: "desc" }, { createdAt: "desc" }], take: LIST_LIMIT }),
+    prisma.groupActivity.findMany({ where: { groupId }, orderBy: { createdAt: "desc" }, take: 50 }),
+  ]);
+  // People who left stay listed while they appear in what's shown, so every line has a name
+  const mentioned = new Set([
+    ...expenses.flatMap((e) => [e.paidById, ...e.shares.map((s) => s.memberId)]),
+    ...settlements.flatMap((s) => [s.fromMemberId, s.toMemberId]),
+  ]);
+  const members = group.members.filter((m) => m.status !== "left" || mentioned.has(m.id) || (balance.get(m.id) ?? 0) !== 0);
+
   return {
     id: group.id,
     name: group.name,
     archived: group.archivedAt !== null,
-    members: group.members.map((m) => memberView(m, userId)),
+    myMemberId: me.id,
+    members: members.map((m) => ({ ...memberView(m, userId), balance: toRupees(balance.get(m.id) ?? 0) })),
+    expenses: expenses.map((e) => ({
+      id: e.id,
+      description: e.description,
+      amount: toRupees(e.amount),
+      category: e.category,
+      date: e.date,
+      paidById: e.paidById,
+      shares: e.shares.map((s) => ({ memberId: s.memberId, amount: toRupees(s.amount) })),
+    })),
+    settlements: settlements.map((s) => ({ id: s.id, fromMemberId: s.fromMemberId, toMemberId: s.toMemberId, amount: toRupees(s.amount), date: s.date })),
+    suggestedPayments: simplifyDebts(balance).map((p) => ({ ...p, amount: toRupees(p.amount) })),
+    activity: activity.map((a) => ({ id: a.id, message: a.message, createdAt: a.createdAt })),
   };
 }
 
 export async function renameGroup(userId: string, groupId: string, name: string) {
-  await membership(userId, groupId);
+  const { group, actor } = await membership(userId, groupId);
+  if (group.name === name) return;
   await prisma.sharedGroup.update({ where: { id: groupId }, data: { name } });
+  await logActivity(groupId, userId, `${actor} renamed the group to ${name}`);
 }
 
 export async function setArchived(userId: string, groupId: string, archived: boolean) {
-  const { group } = await membership(userId, groupId);
+  const { group, actor } = await membership(userId, groupId);
   if (archived === (group.archivedAt !== null)) return;
   await prisma.sharedGroup.update({ where: { id: groupId }, data: { archivedAt: archived ? new Date() : null } });
+  await logActivity(groupId, userId, `${actor} ${archived ? "archived" : "unarchived"} the group`);
 }
 
 async function checkRoom(groupId: string) {
@@ -131,7 +185,7 @@ async function checkRoom(groupId: string) {
 
 // Invites a Money Mitra user, who joins only once they accept
 export async function inviteUser(userId: string, groupId: string, username: string) {
-  const { group } = await membership(userId, groupId);
+  const { group, actor } = await membership(userId, groupId);
   const person = await findPerson(username);
   if (person.id === userId) throw new HttpError(400, "You're already in this group");
   await checkRoom(groupId);
@@ -145,35 +199,42 @@ export async function inviteUser(userId: string, groupId: string, username: stri
     ? await prisma.groupMember.update({ where: { id: existing.id }, data: { status: "invited", invitedById: userId }, include: memberInclude })
     : await prisma.groupMember.create({ data: { groupId, userId: person.id, status: "invited", invitedById: userId }, include: memberInclude });
   await safely(() => prisma.notification.create({ data: { userId: person.id, kind: "group_invite", actorId: userId, title: group.name } }));
+  await logActivity(groupId, userId, `${actor} invited ${nameOf(member)}`);
   return memberView(member, userId);
 }
 
 // Adds a friend who isn't on Money Mitra, by name only
 export async function addNameOnly(userId: string, groupId: string, name: string) {
-  await membership(userId, groupId);
+  const { actor } = await membership(userId, groupId);
   await checkRoom(groupId);
   const members = await prisma.groupMember.findMany({ where: { groupId, status: { in: ["active", "invited"] } }, include: memberInclude });
   if (members.some((m) => nameOf(m).toLowerCase() === name.toLowerCase())) {
     throw new HttpError(400, `There's already someone called ${name} in this group`);
   }
   const member = await prisma.groupMember.create({ data: { groupId, name, status: "active", invitedById: userId }, include: memberInclude });
+  await logActivity(groupId, userId, `${actor} added ${name}`);
   return memberView(member, userId);
 }
 
 // Cancels an invite or removes a name-only member. People who joined leave by themselves.
 export async function removeMember(userId: string, groupId: string, memberId: string) {
-  const { group } = await membership(userId, groupId);
+  const { group, actor } = await membership(userId, groupId);
   const member = await memberOf(groupId, memberId);
   if (member.userId && member.status === "active") throw new HttpError(400, "Only they can leave the group");
   if (member.status === "left") throw new HttpError(404, "Member not found");
+  if (!member.userId && (await hasHistory(memberId))) {
+    throw new HttpError(400, `${nameOf(member)} is part of expenses or payments in this group, so they can't be removed`);
+  }
 
   if (member.userId) {
     // Someone invited back after leaving keeps their spot for its history
     if (member.joinedAt) await prisma.groupMember.update({ where: { id: memberId }, data: { status: "left" } });
     else await prisma.groupMember.delete({ where: { id: memberId } });
     await clearInvite(member.userId, member.invitedById, group.name);
+    await logActivity(groupId, userId, `${actor} cancelled the invite to ${nameOf(member)}`);
   } else {
     await prisma.groupMember.delete({ where: { id: memberId } });
+    await logActivity(groupId, userId, `${actor} removed ${nameOf(member)}`);
   }
 }
 
@@ -190,7 +251,12 @@ export async function shareLink(userId: string, groupId: string, memberId: strin
 
 export async function leaveGroup(userId: string, groupId: string) {
   const member = await membership(userId, groupId);
+  const balance = (await groupBalances(groupId)).get(member.id) ?? 0;
+  if (balance !== 0) {
+    throw new HttpError(400, balance < 0 ? `Settle up first: you owe ${inr(-balance)} in this group` : `Settle up first: you're owed ${inr(balance)} in this group`);
+  }
   await prisma.groupMember.update({ where: { id: member.id }, data: { status: "left" } });
+  await logActivity(groupId, userId, `${member.actor} left the group`);
   await deleteIfEmpty(groupId);
 }
 
@@ -204,6 +270,8 @@ export async function acceptInvite(userId: string, memberId: string) {
   const member = await pendingInvite(userId, memberId);
   await prisma.groupMember.update({ where: { id: memberId }, data: { status: "active", joinedAt: member.joinedAt ?? new Date() } });
   await clearInvite(userId, member.invitedById, member.group.name);
+  await backfillTracker(memberId);
+  await logActivity(member.groupId, userId, `${await userName(userId)} joined the group`);
   return { groupId: member.groupId };
 }
 
@@ -253,6 +321,8 @@ export async function joinByLink(userId: string, token: string) {
     if (taken.count === 0) throw new HttpError(404, "This link has expired or was already used");
   });
   if (mine) await clearInvite(userId, mine.invitedById, spot.group.name);
+  await backfillTracker(spot.id);
+  await logActivity(spot.groupId, userId, `${await userName(userId)} joined the group as ${spot.name}`);
   return { groupId: spot.groupId };
 }
 

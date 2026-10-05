@@ -83,6 +83,8 @@ function Tracker() {
   // auto: added by itself each time | remind: a bill to mark paid when it's due
   const [repeatMode, setRepeatMode] = useState<"auto" | "remind">("auto");
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Editing a share of a group expense: its amount, type and date come from the group
+  const [editingShared, setEditingShared] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   // Reloaded along with the month's data, so a category added with a transaction appears straight away
   const { categories: savedCategories } = useCategories(transactions);
@@ -127,6 +129,7 @@ function Tracker() {
     setRepeatFrequency("monthly");
     setRepeatMode("auto");
     setEditingId(null);
+    setEditingShared(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -195,6 +198,7 @@ function Tracker() {
 
   const handleEdit = (t: Transaction) => {
     setEditingId(t.id);
+    setEditingShared(Boolean(t.shareId));
     setAmount(String(t.amount));
     setType(t.type);
     setCategory(t.category);
@@ -422,7 +426,8 @@ function Tracker() {
             key={t}
             type="button"
             onClick={() => setType(t)}
-            className={`py-2 rounded-lg capitalize transition ${
+            disabled={editingShared}
+            className={`py-2 rounded-lg capitalize transition disabled:cursor-not-allowed ${
               type === t ? "bg-surface text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-700"
             }`}
           >
@@ -441,7 +446,8 @@ function Tracker() {
             placeholder="0"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className={`${inputClass} w-full pl-9 text-lg font-semibold tabular-nums`}
+            disabled={editingShared}
+            className={`${inputClass} w-full pl-9 text-lg font-semibold tabular-nums disabled:bg-canvas disabled:text-ink-500`}
             required
           />
         </div>
@@ -451,10 +457,20 @@ function Tracker() {
           max={toInputDate(new Date())}
           onChange={(e) => setDate(e.target.value)}
           aria-label="Date"
-          className={`${inputClass} w-full`}
+          disabled={editingShared}
+          className={`${inputClass} w-full disabled:bg-canvas disabled:text-ink-500`}
           required
         />
       </div>
+      {editingShared && (
+        <p className="text-xs text-ink-500">
+          This is your share of a group expense. You can change its category and note here; change the amount or date in{" "}
+          <Link to="/shared" className="font-medium text-brand-600 hover:underline">
+            the group
+          </Link>
+          .
+        </p>
+      )}
 
       <div>
         <input

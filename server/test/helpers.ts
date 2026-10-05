@@ -6,7 +6,7 @@ export const api = () => request(app);
 
 export async function resetDatabase() {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE "Notification", "ReplyVote", "Report", "Reply", "Post", "GroupMember", "SharedGroup", "BillReminder", "BillPayment", "Transaction", "Import", "GoalContribution", "NetWorthValue", "NetWorthItem", "Budget", "Goal", "PasswordReset", "EmailVerification", "BudgetAlert", "RecurringTransaction", "Category", "User" CASCADE'
+    'TRUNCATE "Notification", "ReplyVote", "Report", "Reply", "Post", "GroupActivity", "Settlement", "ExpenseShare", "SharedExpense", "GroupMember", "SharedGroup", "BillReminder", "BillPayment", "Transaction", "Import", "GoalContribution", "NetWorthValue", "NetWorthItem", "Budget", "Goal", "PasswordReset", "EmailVerification", "BudgetAlert", "RecurringTransaction", "Category", "User" CASCADE'
   );
 }
 
