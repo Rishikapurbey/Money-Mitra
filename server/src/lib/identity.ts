@@ -11,6 +11,10 @@ interface IdentityFields {
 export const avatarUrl = (user: { username: string; avatarUpdatedAt: Date | null }) =>
   user.avatarUpdatedAt ? `/users/${encodeURIComponent(user.username)}/avatar?v=${user.avatarUpdatedAt.getTime()}` : null;
 
+// Like the photo, the cover's address changes whenever the cover does
+export const coverUrl = (user: { username: string; coverUpdatedAt: Date | null }) =>
+  user.coverUpdatedAt ? `/users/${encodeURIComponent(user.username)}/cover?v=${user.coverUpdatedAt.getTime()}` : null;
+
 export const identity = (user: IdentityFields) => ({
   username: user.username,
   displayName: user.displayName,

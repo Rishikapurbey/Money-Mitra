@@ -5,6 +5,7 @@ import api from "../../lib/api";
 import { nameOf } from "../../lib/me";
 import { preparePhoto } from "../../lib/photo";
 import Avatar from "../../components/Avatar";
+import { CoverBand, CoverPicker } from "../../components/ProfileCover";
 import { inputClass } from "../../lib/ui";
 import { useToast } from "../../lib/toast";
 import { Panel, SectionHeader, Status } from "./shared";
@@ -95,6 +96,33 @@ function PhotoPanel() {
       <div className="mt-3">
         <Status {...state} />
       </div>
+    </Panel>
+  );
+}
+
+// The banner at the top of your profile, previewed here as it will look
+function CoverPanel() {
+  const { me, updateMe } = useSettings();
+  const [state, setState] = useState(idle);
+  return (
+    <Panel title="Cover" description="The wide banner at the top of your profile. Upload an image (cropped to 3:1), or pick one of ours.">
+      {me ? (
+        <div className="space-y-4">
+          <div className="rounded-xl overflow-hidden border border-line">
+            <CoverBand cover={me} className="h-24 sm:h-28" />
+          </div>
+          <CoverPicker
+            cover={me}
+            onChanged={(cover, message) => {
+              updateMe(cover);
+              setState({ busy: false, error: "", success: message });
+            }}
+          />
+          <Status {...state} />
+        </div>
+      ) : (
+        <div className="h-24 rounded-xl bg-ink-100 animate-pulse" />
+      )}
     </Panel>
   );
 }
@@ -220,6 +248,7 @@ export function ProfileSection() {
         </Link>
       )}
       <PhotoPanel />
+      <CoverPanel />
       <AboutYouPanel />
       <UsernamePanel />
     </>

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { signupUser, loginUser } from "./auth.service";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
 import prisma from "../../db/prisma";
-import { avatarUrl } from "../../lib/identity";
+import { avatarUrl, coverUrl } from "../../lib/identity";
 import { forgotPasswordLimiter, loginLimiter, resetPasswordLimiter, signupLimiter, verifyEmailLimiter, resendVerificationLimiter } from "../../middleware/rateLimit";
 import { requestPasswordReset, resetPassword } from "./passwordReset.service";
 import { pendingEmail, sendVerificationEmail, verifyEmail } from "./emailVerification.service";
@@ -93,6 +93,8 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
       isPrivate: true,
       anonymousByDefault: true,
       avatarUpdatedAt: true,
+      coverUpdatedAt: true,
+      coverPreset: true,
     },
   });
 
@@ -100,7 +102,15 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
     return res.status(404).json({ error: "User not found" });
   }
 
-  const { avatarUpdatedAt, emailVerifiedAt, ...rest } = user;
-  res.status(200).json({ user: { ...rest, emailVerified: emailVerifiedAt !== null, pendingEmail: await pendingEmail(user.id), avatarUrl: avatarUrl({ username: user.username, avatarUpdatedAt }) } });
+  const { avatarUpdatedAt, coverUpdatedAt, emailVerifiedAt, ...rest } = user;
+  res.status(200).json({
+    user: {
+      ...rest,
+      emailVerified: emailVerifiedAt !== null,
+      pendingEmail: await pendingEmail(user.id),
+      avatarUrl: avatarUrl({ username: user.username, avatarUpdatedAt }),
+      coverUrl: coverUrl({ username: user.username, coverUpdatedAt }),
+    },
+  });
 });
 export default router;

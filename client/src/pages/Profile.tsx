@@ -25,7 +25,7 @@ import { useTitle } from "../lib/useTitle";
 import { useWideLayout } from "../lib/useMediaQuery";
 import Avatar from "../components/Avatar";
 import FollowButton from "../components/FollowButton";
-import { CoverBand, CoverEditor } from "../components/ProfileCover";
+import { CoverBand } from "../components/ProfileCover";
 
 type Result = ProfileData | "not-found" | "error";
 
@@ -45,7 +45,6 @@ function Profile() {
   const wide = useWideLayout();
   const [result, setResult] = useState<Result | null>(null);
   const [tab, setTab] = useState<"questions" | "replies">("questions");
-  const [editingCover, setEditingCover] = useState(false);
   const profile = result && typeof result === "object" ? result : null;
   useTitle(profile ? nameOf(profile) : "Profile");
 
@@ -145,7 +144,7 @@ function Profile() {
 
   const header = (
     <section className="bg-surface border border-line rounded-2xl overflow-hidden">
-      <CoverBand cover={profile} onEdit={profile.isMe ? () => setEditingCover(true) : undefined} />
+      <CoverBand cover={profile} />
       <div className="px-5 sm:px-8 pb-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="relative -mt-14 rounded-full ring-4 ring-surface bg-surface">
@@ -182,7 +181,6 @@ function Profile() {
             <p className="mt-3 text-sm text-ink-500">Request sent. You'll see their activity once they accept.</p>
           )}
         </div>
-        {profile.isMe && editingCover && <CoverEditor cover={profile} onChanged={reload} onClose={() => setEditingCover(false)} />}
       </div>
     </section>
   );

@@ -2,7 +2,7 @@ import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
 import { DELETED_USERNAME } from "../../lib/validation";
 import { HIDE_AFTER_REPORTS } from "../posts/post.service";
-import { avatarUrl, identity, identitySelect } from "../../lib/identity";
+import { avatarUrl, coverUrl, identity, identitySelect } from "../../lib/identity";
 import { acceptAllRequests, canSeeActivity, followCounts, followStatus, pendingRequestCount } from "../follows/follow.service";
 
 const RECENT = 20;
@@ -136,10 +136,6 @@ export async function removePhoto(userId: string) {
 export const MAX_COVER_BYTES = 200 * 1024;
 // The built-in cover designs; no preset means the default teal band
 export const COVER_PRESETS = ["navy", "forest", "sand", "slate", "deepsea"];
-
-// Like the photo, the address changes whenever the cover does, so browsers can cache it for good
-const coverUrl = (user: { username: string; coverUpdatedAt: Date | null }) =>
-  user.coverUpdatedAt ? `/users/${encodeURIComponent(user.username)}/cover?v=${user.coverUpdatedAt.getTime()}` : null;
 
 export async function getCover(username: string) {
   const user = await prisma.user.findUnique({ where: { username }, select: { cover: true } });

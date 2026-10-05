@@ -181,6 +181,7 @@ describe("profile cover", () => {
     const image = await api().get(`/api${res.body.coverUrl}`).expect(200);
     expect(image.headers["content-type"]).toBe("image/jpeg");
     expect((await profileOf(user)).coverUrl).toBe(res.body.coverUrl);
+    expect((await api().get("/api/auth/me").set("Authorization", user.auth)).body.user).toMatchObject({ coverUrl: res.body.coverUrl, coverPreset: null });
 
     await api().put("/api/account/cover/preset").set("Authorization", user.auth).send({ preset: "navy" }).expect(200);
     expect(await profileOf(user)).toMatchObject({ coverUrl: null, coverPreset: "navy" });
