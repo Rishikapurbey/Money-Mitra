@@ -6,6 +6,7 @@ import { DELETED_USERNAME } from "../../lib/validation";
 import { signToken } from "../../lib/tokens";
 import { avatarUrl } from "../../lib/identity";
 import { requestEmailChange } from "../auth/emailVerification.service";
+import { releaseMemberships } from "../shared/shared.service";
 
 async function verifyPassword(userId: string, password: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -108,6 +109,7 @@ export async function exportData(userId: string) {
       replies: { select: { body: true, isAnonymous: true, createdAt: true, post: { select: { title: true } } } },
       following: { select: { status: true, createdAt: true, following: { select: { username: true } } } },
       followers: { select: { status: true, createdAt: true, follower: { select: { username: true } } } },
+      groupMemberships: { select: { status: true, joinedAt: true, group: { select: { name: true } } } },
     },
   });
   if (!user) throw new HttpError(404, "Account not found");
@@ -130,7 +132,9 @@ async function deletedUserId() {
 export async function deleteAccount(userId: string, password: string) {
   await verifyPassword(userId, password);
   const placeholderId = await deletedUserId();
+  const groupChanges = await releaseMemberships(userId);
   await prisma.$transaction([
+    ...groupChanges,
     prisma.post.updateMany({ where: { authorId: userId }, data: { authorId: placeholderId } }),
     prisma.reply.updateMany({ where: { authorId: userId }, data: { authorId: placeholderId } }),
     prisma.transaction.deleteMany({ where: { userId } }),

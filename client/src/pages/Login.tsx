@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../lib/api";
+import { takeReturnTo } from "../lib/returnTo";
 import AuthLayout, { authInputClass } from "../components/AuthLayout";
 import { useSubmit } from "../lib/useSubmit";
 import { useTitle } from "../lib/useTitle";
@@ -17,7 +18,7 @@ function Login() {
     run(async () => {
       const res = await api.post("/auth/login", { email, password });
       localStorage.setItem("token", res.data.token);
-      navigate("/home");
+      navigate(takeReturnTo());
     });
   };
 

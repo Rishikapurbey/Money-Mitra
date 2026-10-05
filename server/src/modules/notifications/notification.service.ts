@@ -138,8 +138,10 @@ export async function notifyFollowersOfPost(authorId: string, postId: string, ti
   });
 }
 
-function message(kind: string, count: number, actor: string) {
+function message(kind: string, count: number, actor: string, title: string) {
   switch (kind) {
+    case "group_invite":
+      return `${actor} invited you to the shared group "${title}"`;
     case "follow_request":
       return `${actor} asked to follow you`;
     case "new_follower":
@@ -192,8 +194,8 @@ export async function listNotifications(userId: string) {
             ? `Your ${n.title} in money is ready`
             : n.kind === "networth_reminder"
               ? "Time to update your net worth"
-              : message(n.kind, n.count, n.actor ? n.actor.displayName || n.actor.username : "Someone"),
-      title: isBudget(n.kind) || n.kind === "recap_ready" || n.kind === "year_ready" ? "" : n.title,
+              : message(n.kind, n.count, n.actor ? n.actor.displayName || n.actor.username : "Someone", n.title),
+      title: isBudget(n.kind) || ["recap_ready", "year_ready", "group_invite"].includes(n.kind) ? "" : n.title,
       month: n.kind === "recap_ready" ? n.title : null,
       year: n.kind === "year_ready" ? n.title : null,
       postId: n.postId,

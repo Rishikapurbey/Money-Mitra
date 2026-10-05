@@ -68,6 +68,8 @@ model User {
   netWorthItems       NetWorthItem[]
   netWorthValues      NetWorthValue[]
   billPayments        BillPayment[]
+  groupMemberships    GroupMember[]          @relation("memberUser")
+  groupInvitesSent    GroupMember[]          @relation("memberInviter")
   categories          Category[]
   avatar              Avatar?
 }
@@ -265,11 +267,12 @@ model Notification {
   id        String    @id @default(cuid())
   // reply_to_question | reply_in_thread | helpful | post_hidden | reply_hidden
   // | follow_request | new_follower | follow_accepted | followed_post | budget_near | budget_over | recap_ready
-  // | answer_accepted | year_ready | networth_reminder | bill_soon | bill_today
+  // | answer_accepted | year_ready | networth_reminder | bill_soon | bill_today | group_invite
   kind      String
   count     Int       @default(1)
   // Question title at the time, so the notification still reads well if the title changes;
-  // for budget alerts, the whole message; for recap_ready, the month (YYYY-MM); for year_ready, the year
+  // for budget alerts, the whole message; for recap_ready, the month (YYYY-MM); for year_ready, the year;
+  // for group_invite, the group's name
   title     String
   readAt    DateTime?
   // When an email went out for this notification, used to send at most one per hour per question
@@ -413,4 +416,38 @@ model NetWorthValue {
 
   @@index([itemId, recordedAt])
   @@index([userId, recordedAt])
+}
+
+// A group of people sharing expenses (a trip, a flat). Everyone in it sees its expenses and
+// balances, and nothing else about each other's money.
+model SharedGroup {
+  id         String        @id @default(cuid())
+  name       String
+  // Archived groups are kept for their history but shown apart from active ones
+  archivedAt DateTime?
+  createdAt  DateTime      @default(now())
+  members    GroupMember[]
+}
+
+// One person in a group: a Money Mitra user, or just a name for a friend who isn't on the app.
+// Expenses point at members rather than users, so they survive people leaving or deleting accounts.
+model GroupMember {
+  id          String      @id @default(cuid())
+  // invited | active | left. A name-only member is always active.
+  status      String
+  // Set for name-only members, and kept when a user deletes their account so balances still read well
+  name        String?
+  // Lets a name-only member's friend join and take over their spot; cleared once used
+  inviteToken String?     @unique
+  joinedAt    DateTime?
+  createdAt   DateTime    @default(now())
+  groupId     String
+  group       SharedGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?       @relation("memberUser", fields: [userId], references: [id], onDelete: SetNull)
+  invitedById String?
+  invitedBy   User?       @relation("memberInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@unique([groupId, userId])
+  @@index([userId])
 }

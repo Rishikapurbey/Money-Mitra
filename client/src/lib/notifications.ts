@@ -19,7 +19,8 @@ export interface AppNotification {
     | "year_ready"
     | "networth_reminder"
     | "bill_soon"
-    | "bill_today";
+    | "bill_today"
+    | "group_invite";
   message: string;
   // The question's title; empty for follow, budget and recap notifications
   title: string;
@@ -42,6 +43,7 @@ export function notificationLink(n: AppNotification) {
   if (n.kind === "year_ready" && n.year) return `/tracker/year/${n.year}`;
   if (n.kind === "networth_reminder") return "/tracker/net-worth";
   if (n.kind === "bill_soon" || n.kind === "bill_today") return "/home";
+  if (n.kind === "group_invite") return "/shared";
   if (n.postId) return `/discuss/${n.postId}`;
   if (n.actor) return `/u/${n.actor.username}`;
   return "/discuss";

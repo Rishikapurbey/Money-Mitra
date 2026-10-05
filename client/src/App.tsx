@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
+import { rememberReturnTo } from "./lib/returnTo";
 import { lazyPage } from "./lib/lazyPage";
 import PageBoundary from "./components/PageBoundary";
 import Signup from "./pages/Signup";
@@ -17,6 +18,9 @@ const ImportTransactions = lazyPage(() => import("./pages/ImportTransactions"));
 const MonthlyRecap = lazyPage(() => import("./pages/MonthlyRecap"));
 const YearReview = lazyPage(() => import("./pages/YearReview"));
 const NetWorth = lazyPage(() => import("./pages/NetWorth"));
+const SharedGroups = lazyPage(() => import("./pages/SharedGroups"));
+const SharedGroup = lazyPage(() => import("./pages/SharedGroup"));
+const JoinGroup = lazyPage(() => import("./pages/JoinGroup"));
 const Home = lazyPage(() => import("./pages/Home"));
 const Discuss = lazyPage(() => import("./pages/Discuss"));
 const DiscussPost = lazyPage(() => import("./pages/DiscussPost"));
@@ -36,7 +40,11 @@ const VerifyEmail = lazyPage(() => import("./pages/VerifyEmail"));
 const isSignedIn = () => Boolean(localStorage.getItem("token"));
 
 function RequireAuth() {
-  return isSignedIn() ? <Outlet /> : <Navigate to="/login" replace />;
+  const location = useLocation();
+  if (isSignedIn()) return <Outlet />;
+  // Comes back here after logging in, so a shared link still works for someone signed out
+  rememberReturnTo(location.pathname + location.search);
+  return <Navigate to="/login" replace />;
 }
 
 function RedirectIfSignedIn() {
@@ -75,6 +83,9 @@ function App() {
                 <Route path="/tracker/recap/:month" element={<MonthlyRecap />} />
                 <Route path="/tracker/year/:year" element={<YearReview />} />
                 <Route path="/tracker/net-worth" element={<NetWorth />} />
+                <Route path="/shared" element={<SharedGroups />} />
+                <Route path="/shared/:id" element={<SharedGroup />} />
+                <Route path="/join/:token" element={<JoinGroup />} />
                 {/* Old address, kept so bookmarks and installed apps still work */}
                 <Route path="/dashboard" element={<Navigate to="/home" replace />} />
                 <Route path="/discuss" element={<Discuss />} />

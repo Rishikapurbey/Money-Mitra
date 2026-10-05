@@ -45,3 +45,6 @@ export const followLimiter = limiter(10, 60, "You're following and unfollowing v
 
 // Each import can add thousands of rows, so a handful an hour is plenty
 export const importLimiter = limiter(60, 20, "You've imported a lot of files recently. Please try again in an hour.");
+
+// Creating groups and inviting people: generous for real use, but stops invite spam
+export const sharedLimiter = limiter(10, 60, "You're making changes very quickly. Please wait a few minutes and try again.");

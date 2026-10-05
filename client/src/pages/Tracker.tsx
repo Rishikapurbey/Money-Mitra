@@ -360,6 +360,9 @@ function Tracker() {
           <Link to="/tracker/net-worth" className="text-xs font-medium text-brand-300 hover:text-white transition">
             See your net worth
           </Link>
+          <Link to="/shared" className="text-xs font-medium text-brand-300 hover:text-white transition">
+            Shared expenses
+          </Link>
         </div>
         <p className="mt-2 text-4xl sm:text-5xl font-semibold tracking-tight tabular-nums">{formatINR(summary.totalBalance)}</p>
         {savingsRate !== null && (

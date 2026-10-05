@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { House, PieChart, MessagesSquare, BookOpen, LogOut, ChevronDown, Calculator, Settings, Download, UserRound } from "lucide-react";
+import { House, PieChart, MessagesSquare, BookOpen, LogOut, ChevronDown, Calculator, Settings, Download, UserRound, UsersRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import api from "../lib/api";
 import { Logo } from "./Logo";
@@ -28,11 +28,14 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   soon?: boolean;
+  // Left out of the phone tab bar, which has room for five; reached from the Tracker there
+  wideOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
   { to: "/home", label: "Home", icon: House },
   { to: "/tracker", label: "Tracker", icon: PieChart },
+  { to: "/shared", label: "Shared", icon: UsersRound, wideOnly: true },
   { to: "/discuss", label: "Discuss", icon: MessagesSquare },
   { to: "/learn", label: "Learn", icon: BookOpen },
   { to: "/calculators", label: "Calculators", icon: Calculator },
@@ -190,7 +193,7 @@ function AppLayout() {
       </PageBoundary>
 
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-surface border-t border-line grid grid-cols-5">
-        {navItems.map(({ to, label, icon: Icon, soon }) =>
+        {navItems.filter((item) => !item.wideOnly).map(({ to, label, icon: Icon, soon }) =>
           soon ? (
             <span key={to} className="flex flex-col items-center gap-1 py-2.5 text-ink-300">
               <Icon size={20} />
