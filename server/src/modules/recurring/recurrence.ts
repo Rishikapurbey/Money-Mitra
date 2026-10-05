@@ -1,4 +1,4 @@
-// Date arithmetic for monthly recurring transactions, done in the user's own timezone.
+// Date arithmetic for monthly and yearly recurring transactions, done in the user's own timezone.
 // tzOffset is the client's Date.getTimezoneOffset(): minutes to add to local time to get UTC
 // (-330 for India). Entries are stamped at local midday, so no timezone can move them a day.
 
@@ -39,7 +39,41 @@ export function nextAfter(occurrence: Date, dayOfMonth: number, tzOffset: number
   return occurrenceIn(year, month + 1, dayOfMonth, tzOffset);
 }
 
-// A safety limit on how many months one catch-up may add (three years' worth)
+export type Frequency = "monthly" | "yearly";
+
+// The entry after `occurrence`: the next month's, or the same date next year
+export function nextOccurrence(occurrence: Date, dayOfMonth: number, tzOffset: number, frequency: Frequency = "monthly"): Date {
+  if (frequency === "monthly") return nextAfter(occurrence, dayOfMonth, tzOffset);
+  const { year, month } = toLocalDate(occurrence, tzOffset);
+  return occurrenceIn(year + 1, month, dayOfMonth, tzOffset);
+}
+
+// The first entry on or after the local day containing `from`. Yearly ones fall in `monthOfYear`
+// (0-11), or in from's month when it isn't given.
+export function firstDue(
+  from: Date,
+  dayOfMonth: number,
+  tzOffset: number,
+  frequency: Frequency = "monthly",
+  monthOfYear: number | null = null
+): Date {
+  if (frequency === "monthly") return firstOnOrAfter(from, dayOfMonth, tzOffset);
+  const today = toLocalDate(from, tzOffset);
+  const month = monthOfYear ?? today.month;
+  const thisYear = occurrenceIn(today.year, month, dayOfMonth, tzOffset);
+  const due = toLocalDate(thisYear, tzOffset);
+  const notPassed = due.month > today.month || (due.month === today.month && due.day >= today.day);
+  return notPassed ? thisYear : occurrenceIn(today.year + 1, month, dayOfMonth, tzOffset);
+}
+
+// Whole local days from `now` until `due`: 0 on the day, negative once it has passed
+export function daysUntil(due: Date, now: Date, tzOffset: number): number {
+  const a = toLocalDate(now, tzOffset);
+  const b = toLocalDate(due, tzOffset);
+  return Math.round((Date.UTC(b.year, b.month, b.day) - Date.UTC(a.year, a.month, a.day)) / (24 * 60 * MINUTE));
+}
+
+// A safety limit on how many entries one catch-up may add (three years of monthly ones)
 const MAX_CATCH_UP = 36;
 
 // Every entry due from nextDue up to now (and not past endDate), plus the new nextDue
@@ -48,13 +82,14 @@ export function dueOccurrences(
   now: Date,
   dayOfMonth: number,
   tzOffset: number,
-  endDate: Date | null
+  endDate: Date | null,
+  frequency: Frequency = "monthly"
 ): { due: Date[]; nextDue: Date } {
   const due: Date[] = [];
   let cursor = nextDue;
   while (cursor <= now && (!endDate || cursor <= endDate) && due.length < MAX_CATCH_UP) {
     due.push(cursor);
-    cursor = nextAfter(cursor, dayOfMonth, tzOffset);
+    cursor = nextOccurrence(cursor, dayOfMonth, tzOffset, frequency);
   }
   return { due, nextDue: cursor };
 }

@@ -4,6 +4,7 @@ import { localMonth } from "../budgets/budgetAlert.service";
 import { MIN_TRANSACTIONS, computeRecap } from "./recap";
 import { MIN_YEAR_TRANSACTIONS, computeYearReview } from "./yearReview";
 import { netWorthOver } from "../networth/networth.service";
+import { billsInMonth } from "../recurring/recurring.service";
 
 const MINUTE = 60_000;
 const DAY = 24 * 60 * MINUTE;
@@ -83,8 +84,8 @@ export async function getRecap(userId: string, month: string, tzOffset: number, 
     previousMonthName: prevBounds.shortName,
   });
   const next = shiftMonth(month, 1);
-  const netWorth = await netWorthOver(userId, bounds.from, bounds.to);
-  return { ...recap, netWorth, firstMonth: earliest, nextMonth: next < currentMonth ? next : null };
+  const [netWorth, bills] = await Promise.all([netWorthOver(userId, bounds.from, bounds.to), billsInMonth(userId, bounds.from, bounds.to, now)]);
+  return { ...recap, netWorth, bills, firstMonth: earliest, nextMonth: next < currentMonth ? next : null };
 }
 
 // Records a "ready" notification once; true when it was created just now

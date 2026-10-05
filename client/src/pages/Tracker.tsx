@@ -25,6 +25,15 @@ const COLORS = [1, 2, 3, 4, 5, 6].map((n) => `var(--color-chart-${n})`);
 
 const monthName = (d: Date) => d.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 
+// The toast after setting something to repeat
+function repeatSummary(mode: "auto" | "remind", frequency: "monthly" | "yearly", day: number, date: string) {
+  const when =
+    frequency === "yearly"
+      ? `every year on ${new Date(`${date}T12:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`
+      : `on the ${ordinal(day)} of every month`;
+  return mode === "remind" ? `We'll remind you to pay it ${when}.` : `It will repeat ${when}.`;
+}
+
 interface DashboardData {
   transactions: Transaction[];
   summary: { income: number; expense: number; balance: number; totalBalance: number };
@@ -70,6 +79,9 @@ function Tracker() {
   const [editingOriginalDate, setEditingOriginalDate] = useState<string | null>(null);
   const [repeat, setRepeat] = useState(false);
   const [repeatEnd, setRepeatEnd] = useState("");
+  const [repeatFrequency, setRepeatFrequency] = useState<"monthly" | "yearly">("monthly");
+  // auto: added by itself each time | remind: a bill to mark paid when it's due
+  const [repeatMode, setRepeatMode] = useState<"auto" | "remind">("auto");
   const [editingId, setEditingId] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   // Reloaded along with the month's data, so a category added with a transaction appears straight away
@@ -112,6 +124,8 @@ function Tracker() {
     setEditingOriginalDate(null);
     setRepeat(false);
     setRepeatEnd("");
+    setRepeatFrequency("monthly");
+    setRepeatMode("auto");
     setEditingId(null);
   };
 
@@ -139,7 +153,7 @@ function Tracker() {
       return;
     }
 
-    // "Repeat every month": this entry becomes the first one, and the next is added next month
+    // "Repeat": this entry becomes the first one; the next is due a month (or a year) later
     const repeatDay = Number(date.slice(8, 10));
     let repeating = false;
     if (createdId && repeat) {
@@ -150,6 +164,8 @@ function Tracker() {
           category,
           note,
           dayOfMonth: repeatDay,
+          mode: repeatMode,
+          frequency: repeatFrequency,
           tzOffset: new Date().getTimezoneOffset(),
           firstEntryId: createdId,
           endDate: repeatEnd ? new Date(`${repeatEnd}T23:59:59`).toISOString() : null,
@@ -170,7 +186,7 @@ function Tracker() {
     const saved = wasEditing
       ? "Changes saved"
       : repeating
-        ? `${savedCategory} added. It will repeat on the ${ordinal(repeatDay)} of every month.`
+        ? `${savedCategory} added. ${repeatSummary(repeatMode, repeatFrequency, repeatDay, date)}`
         : otherMonth
           ? `Transaction added to ${monthName(targetMonth)}`
           : "Transaction added";
@@ -488,21 +504,54 @@ function Tracker() {
           <label className="flex items-center gap-3 cursor-pointer">
             <input type="checkbox" checked={repeat} onChange={(e) => setRepeat(e.target.checked)} className="w-4 h-4 accent-brand-600" />
             <span className="text-sm text-ink-900">
-              Repeat every month
-              <span className="text-ink-500"> on the {ordinal(Number(date.slice(8, 10)) || 1)}</span>
+              Repeat
+              <span className="text-ink-500">
+                {" "}
+                {repeatFrequency === "yearly"
+                  ? `every year on ${new Date(`${date}T12:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`
+                  : `every month on the ${ordinal(Number(date.slice(8, 10)) || 1)}`}
+              </span>
             </span>
           </label>
           {repeat && (
-            <label className="flex flex-wrap items-center gap-3 text-sm text-ink-500">
-              Ends (optional)
-              <input
-                type="date"
-                value={repeatEnd}
-                min={date}
-                onChange={(e) => setRepeatEnd(e.target.value)}
-                className={`${inputClass} py-1.5`}
-              />
-            </label>
+            <div className="space-y-3">
+              {/* Stacked: the form sits in a narrow side column on wide screens */}
+              <div className="grid gap-2">
+                <select
+                  value={repeatFrequency}
+                  onChange={(e) => setRepeatFrequency(e.target.value as "monthly" | "yearly")}
+                  aria-label="How often"
+                  className={`${inputClass} py-1.5 text-sm`}
+                >
+                  <option value="monthly">Every month</option>
+                  <option value="yearly">Every year</option>
+                </select>
+                <select
+                  value={repeatMode}
+                  onChange={(e) => setRepeatMode(e.target.value as "auto" | "remind")}
+                  aria-label="When it's due"
+                  className={`${inputClass} py-1.5 text-sm`}
+                >
+                  <option value="auto">Add it automatically</option>
+                  <option value="remind">Remind me to pay</option>
+                </select>
+              </div>
+              {repeatMode === "remind" && (
+                <p className="text-xs text-ink-500">
+                  You'll get a reminder two days before and on the day, then mark it paid with the amount, which can be different each time.
+                </p>
+              )}
+              <label className="flex flex-wrap items-center gap-3 text-sm text-ink-500">
+                Ends (optional)
+                <input
+                  type="date"
+                  value={repeatEnd}
+                  min={date}
+                  onChange={(e) => setRepeatEnd(e.target.value)}
+                  className={`${inputClass} py-1.5`}
+                />
+              </label>
+            </div>
           )}
         </div>
       )}

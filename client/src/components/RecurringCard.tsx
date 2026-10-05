@@ -5,7 +5,7 @@ import api from "../lib/api";
 import { formatINR, inputClass } from "../lib/ui";
 import { useToast } from "../lib/toast";
 import { announceDataChange, onDataChange } from "../lib/dataEvents";
-import { ordinal, shortDate } from "../lib/recurring";
+import { ruleName, scheduleLabel, shortDate } from "../lib/recurring";
 import type { RecurringRule } from "../lib/recurring";
 
 // Recurring transactions: what repeats, when it's next added, and pause, edit or stop
@@ -16,6 +16,9 @@ function RecurringCard() {
   const [amount, setAmount] = useState("");
   const [day, setDay] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [mode, setMode] = useState<RecurringRule["mode"]>("auto");
+  const [frequency, setFrequency] = useState<RecurringRule["frequency"]>("monthly");
+  const [monthOfYear, setMonthOfYear] = useState(0);
   const [error, setError] = useState("");
   const toast = useToast();
 
@@ -60,8 +63,11 @@ function RecurringCard() {
 
   const openEdit = (rule: RecurringRule) => {
     setEditing(rule);
-    setAmount(String(rule.amount));
+    setAmount(rule.amount !== null ? String(rule.amount) : "");
     setDay(String(rule.dayOfMonth));
+    setMode(rule.mode);
+    setFrequency(rule.frequency);
+    setMonthOfYear(rule.monthOfYear ?? new Date(rule.nextDue).getMonth());
     setEndDate(rule.endDate ? rule.endDate.slice(0, 10) : "");
     setError("");
   };
@@ -71,10 +77,14 @@ function RecurringCard() {
     if (!editing) return;
     try {
       const res = await api.put(`/recurring/${editing.id}`, {
-        amount: parseFloat(amount),
+        // A bill's amount can be left empty when it varies
+        amount: amount === "" ? null : parseFloat(amount),
         type: editing.type,
         category: editing.category,
         note: editing.note,
+        mode,
+        frequency,
+        monthOfYear: frequency === "yearly" ? monthOfYear : null,
         dayOfMonth: parseInt(day, 10),
         endDate: endDate ? new Date(`${endDate}T23:59:59`).toISOString() : null,
       });
@@ -90,7 +100,7 @@ function RecurringCard() {
     <section id="recurring" className="bg-surface p-6 rounded-2xl border border-line scroll-mt-24" aria-labelledby="recurring-title">
       <div>
         <h2 id="recurring-title" className="font-semibold text-ink-900">Recurring</h2>
-        <p className="text-xs text-ink-500 mt-0.5">Added automatically every month</p>
+        <p className="text-xs text-ink-500 mt-0.5">Added for you, or bills you mark paid when they're due</p>
       </div>
 
       {error && <p className="mt-3 text-loss text-sm bg-loss-soft px-3 py-2 rounded-lg">{error}</p>}
@@ -99,8 +109,8 @@ function RecurringCard() {
         <div className="mt-4 flex items-start gap-3 text-sm text-ink-500">
           <Repeat size={18} className="shrink-0 text-brand-600 mt-0.5" />
           <p>
-            Salary, rent, SIPs or EMIs? Tick <span className="font-medium text-ink-700">Repeat every month</span> when you
-            add one, and it will be added for you each month.
+            Salary, rent, SIPs, EMIs or a credit card bill? Tick <span className="font-medium text-ink-700">Repeat</span> when
+            you add one. It can be added for you, or you can get a reminder to pay it.
           </p>
         </div>
       ) : (
@@ -110,18 +120,55 @@ function RecurringCard() {
               {editing?.id === rule.id ? (
                 <form onSubmit={saveEdit} className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-ink-900">Edit {rule.category}</p>
+                    <p className="text-sm font-medium text-ink-900">Edit {ruleName(rule)}</p>
                     <button type="button" onClick={() => setEditing(null)} aria-label="Cancel" className="text-ink-400 hover:text-ink-900">
                       <X size={16} />
                     </button>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <label className="text-xs text-ink-500">
-                      Amount
-                      <input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className={`${inputClass} w-full mt-1 tabular-nums`} required />
+                      When it's due
+                      <select value={mode} onChange={(e) => setMode(e.target.value as RecurringRule["mode"])} className={`${inputClass} w-full mt-1 text-sm`}>
+                        <option value="auto">Add it automatically</option>
+                        <option value="remind">Remind me to pay</option>
+                      </select>
                     </label>
                     <label className="text-xs text-ink-500">
-                      Day of the month
+                      Repeats
+                      <select value={frequency} onChange={(e) => setFrequency(e.target.value as RecurringRule["frequency"])} className={`${inputClass} w-full mt-1 text-sm`}>
+                        <option value="monthly">Every month</option>
+                        <option value="yearly">Every year</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <label className="text-xs text-ink-500">
+                      Amount{mode === "remind" && " (empty if it varies)"}
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        placeholder={mode === "remind" ? "Varies" : undefined}
+                        className={`${inputClass} w-full mt-1 tabular-nums`}
+                        required={mode === "auto"}
+                      />
+                    </label>
+                    {frequency === "yearly" && (
+                      <label className="text-xs text-ink-500">
+                        Month
+                        <select value={monthOfYear} onChange={(e) => setMonthOfYear(Number(e.target.value))} className={`${inputClass} w-full mt-1 text-sm`}>
+                          {Array.from({ length: 12 }, (_, m) => (
+                            <option key={m} value={m}>
+                              {new Date(2000, m, 1).toLocaleDateString("en-IN", { month: "long" })}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                    <label className="text-xs text-ink-500">
+                      Day
                       <input type="number" min="1" max="31" value={day} onChange={(e) => setDay(e.target.value)} className={`${inputClass} w-full mt-1 tabular-nums`} required />
                     </label>
                     <label className="text-xs text-ink-500">
@@ -137,16 +184,23 @@ function RecurringCard() {
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className={`text-sm font-medium truncate ${rule.paused ? "text-ink-400" : "text-ink-900"}`}>
-                      {rule.category}{" "}
-                      <span className={`tabular-nums ${rule.type === "income" ? "text-gain" : "text-ink-700"}`}>
-                        {rule.type === "income" ? "+" : "−"}
-                        {formatINR(rule.amount)}
-                      </span>
+                      {ruleName(rule)}{" "}
+                      {rule.amount !== null ? (
+                        <span className={`tabular-nums ${rule.type === "income" ? "text-gain" : "text-ink-700"}`}>
+                          {rule.type === "income" ? "+" : "−"}
+                          {formatINR(rule.amount)}
+                        </span>
+                      ) : (
+                        <span className="font-normal text-ink-500">· amount varies</span>
+                      )}
+                      {rule.mode === "remind" && (
+                        <span className="ml-2 align-middle text-[11px] font-medium text-brand-700 bg-brand-50 px-1.5 py-0.5 rounded">Bill</span>
+                      )}
                     </p>
                     <p className="text-xs text-ink-500">
                       {rule.paused
                         ? "Paused"
-                        : `Every month on the ${ordinal(rule.dayOfMonth)} · next ${shortDate(rule.nextDue)}`}
+                        : `${scheduleLabel(rule)} · ${rule.mode === "remind" ? "due" : "next"} ${shortDate(rule.nextDue)}`}
                       {rule.endDate && ` · until ${new Date(rule.endDate).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}`}
                     </p>
                   </div>

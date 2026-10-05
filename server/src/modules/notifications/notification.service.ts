@@ -165,7 +165,8 @@ function message(kind: string, count: number, actor: string) {
   }
 }
 
-const isBudget = (kind: string) => kind === "budget_near" || kind === "budget_over";
+// Budget alerts and bill reminders store their whole message as the title
+const isBudget = (kind: string) => ["budget_near", "budget_over", "bill_soon", "bill_today"].includes(kind);
 
 export async function listNotifications(userId: string) {
   const [items, unread] = await Promise.all([

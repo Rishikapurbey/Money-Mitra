@@ -60,6 +60,8 @@ function AppLayout() {
       .post("/recurring/run")
       .then((res) => {
         const added: { category: string; count: number }[] = res.data.added;
+        // Bill reminders may have just gone to the bell
+        if (res.data.reminded > 0) announceNotificationsChange();
         if (added.length === 0) return;
         const total = added.reduce((sum, a) => sum + a.count, 0);
         toast({

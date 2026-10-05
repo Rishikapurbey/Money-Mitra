@@ -67,6 +67,7 @@ model User {
   goalContributions   GoalContribution[]
   netWorthItems       NetWorthItem[]
   netWorthValues      NetWorthValue[]
+  billPayments        BillPayment[]
   categories          Category[]
   avatar              Avatar?
 }
@@ -264,7 +265,7 @@ model Notification {
   id        String    @id @default(cuid())
   // reply_to_question | reply_in_thread | helpful | post_hidden | reply_hidden
   // | follow_request | new_follower | follow_accepted | followed_post | budget_near | budget_over | recap_ready
-  // | answer_accepted | year_ready | networth_reminder
+  // | answer_accepted | year_ready | networth_reminder | bill_soon | bill_today
   kind      String
   count     Int       @default(1)
   // Question title at the time, so the notification still reads well if the title changes;
@@ -308,24 +309,61 @@ model Follow {
 // A monthly repeating transaction (salary, rent, SIP, EMI). Entries are added when due by a
 // catch-up that runs as the user opens the app; nextDue marks the next entry not yet added.
 model RecurringTransaction {
-  id         String        @id @default(cuid())
-  amount     Float
-  type       String
-  category   String
-  note       String?
+  id          String         @id @default(cuid())
+  // Empty for a bill whose amount varies; it's entered when the bill is marked paid
+  amount      Float?
+  type        String
+  category    String
+  note        String?
+  // auto: added on the day by itself | remind: a bill the user marks paid (or skips) when it's due
+  mode        String         @default("auto")
+  // monthly | yearly
+  frequency   String         @default("monthly")
   // 1-31; in shorter months the entry lands on the month's last day
-  dayOfMonth Int
+  dayOfMonth  Int
+  // For yearly ones, the month it's due in (0-11)
+  monthOfYear Int?
   // The user's Date.getTimezoneOffset(), so "the 1st" means the 1st where they live
-  tzOffset   Int
-  nextDue    DateTime
-  endDate    DateTime?
-  paused     Boolean       @default(false)
-  createdAt  DateTime      @default(now())
-  userId     String
-  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entries    Transaction[]
+  tzOffset    Int
+  // For a bill, the date of the oldest one not yet paid or skipped
+  nextDue     DateTime
+  endDate     DateTime?
+  paused      Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries     Transaction[]
+  payments    BillPayment[]
+  reminders   BillReminder[]
 
   @@index([userId])
+}
+
+// One due date of a "remind me to pay" bill, and whether it was paid (and when) or skipped
+model BillPayment {
+  id          String               @id @default(cuid())
+  dueDate     DateTime
+  paidAt      DateTime?
+  skipped     Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+  recurringId String
+  recurring   RecurringTransaction @relation(fields: [recurringId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dueDate])
+}
+
+// Which reminders went out for a bill's due date, so each is sent once
+model BillReminder {
+  id          String               @id @default(cuid())
+  dueDate     DateTime
+  // soon (two days before) | today
+  stage       String
+  recurringId String
+  recurring   RecurringTransaction @relation(fields: [recurringId], references: [id], onDelete: Cascade)
+
+  @@unique([recurringId, dueDate, stage])
 }
 
 // The user's own list of categories, offered when adding transactions and managed in Settings.

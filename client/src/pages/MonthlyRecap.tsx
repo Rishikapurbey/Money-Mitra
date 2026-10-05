@@ -263,7 +263,28 @@ export default function MonthlyRecap() {
             </p>
           </li>
         )}
-        {!recap.wentWell && !recap.toWatch && <li>A steady month, without big changes from {recap.previousMonthName}.</li>}
+        {recap.bills && (
+          <li className="flex gap-3">
+            {recap.bills.onTime === recap.bills.total ? (
+              <CheckCircle2 size={18} className="shrink-0 mt-0.5 text-gain" aria-hidden="true" />
+            ) : (
+              <AlertTriangle size={18} className="shrink-0 mt-0.5 text-warn" aria-hidden="true" />
+            )}
+            <p>
+              {recap.bills.onTime === recap.bills.total ? (
+                <>
+                  You paid <strong className="font-semibold text-ink-900">every bill on time</strong>
+                  {recap.bills.total > 1 && ` (${recap.bills.total} of them)`}.
+                </>
+              ) : (
+                <>
+                  You paid <strong className="font-semibold text-ink-900">{recap.bills.onTime} of {recap.bills.total} bills</strong> on time.
+                </>
+              )}
+            </p>
+          </li>
+        )}
+        {!recap.wentWell && !recap.toWatch && !recap.bills && <li>A steady month, without big changes from {recap.previousMonthName}.</li>}
       </ul>
       {learn && (
         <Link

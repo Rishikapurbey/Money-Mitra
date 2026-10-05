@@ -18,11 +18,12 @@ import GettingStarted from "../components/GettingStarted";
 import InsightsCard from "../components/InsightsCard";
 import RecapCard from "../components/RecapCard";
 import NetWorthCard from "../components/NetWorthCard";
+import BillsDueCard from "../components/BillsDueCard";
 import type { Insight } from "../components/InsightsCard";
 import LearnTipCard from "../components/LearnTipCard";
 import QuickAddSheet from "../components/QuickAddSheet";
 
-const NOT_DISCUSS = new Set<AppNotification["kind"]>(["budget_near", "budget_over", "recap_ready", "year_ready", "networth_reminder"]);
+const NOT_DISCUSS = new Set<AppNotification["kind"]>(["budget_near", "budget_over", "recap_ready", "year_ready", "networth_reminder", "bill_soon", "bill_today"]);
 
 interface Goal {
   id: string;
@@ -84,8 +85,9 @@ async function fetchHome(): Promise<HomeData | null> {
       insights,
       posts,
       notifications,
+      // Bills to pay have their own card
       comingUp: recurring
-        .filter((r) => !r.paused && new Date(r.nextDue).getTime() <= Date.now() + 7 * 24 * 60 * 60 * 1000)
+        .filter((r) => r.mode === "auto" && !r.paused && new Date(r.nextDue).getTime() <= Date.now() + 7 * 24 * 60 * 60 * 1000)
         .filter((r) => !r.endDate || r.nextDue <= r.endDate)
         .slice(0, 4),
     };
@@ -272,7 +274,7 @@ function Home() {
               <span className="text-ink-500">{shortDate(r.nextDue)}</span>
               <span className={`tabular-nums font-medium ${r.type === "income" ? "text-gain" : "text-ink-900"}`}>
                 {r.type === "income" ? "+" : "−"}
-                {formatINR(r.amount)}
+                {formatINR(r.amount ?? 0)}
               </span>
             </span>
           </li>
@@ -401,6 +403,7 @@ function Home() {
           </div>
           <aside className="space-y-6" aria-label="Shortcuts and updates">
             {quickActionsNav}
+            <BillsDueCard />
             <NetWorthCard />
             {comingUpCard}
             {newInDiscussCard}
@@ -413,6 +416,7 @@ function Home() {
           {glanceCard}
           <RecapCard />
           {quickActionsNav}
+          <BillsDueCard />
           <NetWorthCard />
           {comingUpCard}
           {newInDiscussCard}

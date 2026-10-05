@@ -90,7 +90,9 @@ export async function exportData(userId: string) {
           contributions: { select: { amount: true, createdAt: true }, orderBy: { createdAt: "asc" } },
         },
       },
-      recurring: { select: { amount: true, type: true, category: true, note: true, dayOfMonth: true, endDate: true, paused: true } },
+      recurring: {
+        select: { amount: true, type: true, category: true, note: true, mode: true, frequency: true, dayOfMonth: true, monthOfYear: true, endDate: true, paused: true },
+      },
       netWorthItems: {
         select: {
           name: true,
