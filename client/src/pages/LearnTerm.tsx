@@ -32,7 +32,7 @@ function LearnTerm() {
   useEffect(() => {
     if (!term) return;
     try {
-      localStorage.setItem(LEARN_READ_KEY, "1");
+      localStorage.setItem(LEARN_READ_KEY, new Date().toISOString());
       addToList(READ_TERMS_KEY, term.slug);
     } catch {
       // Storage can be unavailable (e.g. private browsing); the checklist just won't tick this step

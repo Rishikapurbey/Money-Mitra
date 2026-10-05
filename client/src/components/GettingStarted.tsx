@@ -3,18 +3,20 @@ import { Link } from "react-router-dom";
 import { Check, X } from "lucide-react";
 import api from "../lib/api";
 import { onDataChange } from "../lib/dataEvents";
-import { CHECKLIST_HIDDEN_KEY, LEARN_READ_KEY, readFlag, setFlag } from "../lib/checklist";
+import { checklistHiddenKey, readFlag, readLearnSince, setFlag } from "../lib/checklist";
 
 interface GettingStartedProps {
+  account: { username: string; createdAt: string };
   hasTransactions: boolean;
   onAddTransaction: () => void;
 }
 
 // A short welcome checklist for new users; it disappears once everything is done or it's hidden
-function GettingStarted({ hasTransactions, onAddTransaction }: GettingStartedProps) {
-  const [hidden, setHidden] = useState(() => readFlag(CHECKLIST_HIDDEN_KEY));
+function GettingStarted({ account, hasTransactions, onAddTransaction }: GettingStartedProps) {
+  const hiddenKey = checklistHiddenKey(account.username);
+  const [hidden, setHidden] = useState(() => readFlag(hiddenKey));
   const [counts, setCounts] = useState<{ budgets: number; goals: number } | null>(null);
-  const readLearn = readFlag(LEARN_READ_KEY);
+  const readLearn = readLearnSince(account.createdAt);
 
   useEffect(() => {
     if (hidden) return;
@@ -44,7 +46,7 @@ function GettingStarted({ hasTransactions, onAddTransaction }: GettingStartedPro
   if (doneCount === steps.length) return null;
 
   const hide = () => {
-    setFlag(CHECKLIST_HIDDEN_KEY);
+    setFlag(hiddenKey);
     setHidden(true);
   };
 

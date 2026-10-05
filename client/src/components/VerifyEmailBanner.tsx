@@ -1,27 +1,11 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import { MailCheck } from "lucide-react";
-import { isAxiosError } from "axios";
-import api from "../lib/api";
 import { pageWidth } from "../lib/ui";
-import { useToast } from "../lib/toast";
+import { useResendVerification } from "../lib/verifyEmail";
 
 // Shown under the header until the user confirms their email
 function VerifyEmailBanner({ email }: { email: string }) {
-  const [sending, setSending] = useState(false);
-  const toast = useToast();
-
-  const resend = async () => {
-    setSending(true);
-    try {
-      const res = await api.post("/auth/resend-verification");
-      toast({ message: res.data.message });
-    } catch (err) {
-      toast({ message: (isAxiosError(err) && err.response?.data?.error) || "We couldn't send the link. Please try again." });
-    } finally {
-      setSending(false);
-    }
-  };
+  const { sending, resend } = useResendVerification();
 
   return (
     <div className="bg-brand-50 border-b border-brand-100">

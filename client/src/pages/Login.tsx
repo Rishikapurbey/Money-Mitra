@@ -31,6 +31,8 @@ function Login() {
           <input
             type="email"
             placeholder="you@example.com"
+            name="email"
+            autoComplete="username"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className={`${authInputClass} mt-1.5`}
@@ -47,6 +49,8 @@ function Login() {
           <input
             type="password"
             placeholder="Your password"
+            name="password"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className={`${authInputClass} mt-1.5`}

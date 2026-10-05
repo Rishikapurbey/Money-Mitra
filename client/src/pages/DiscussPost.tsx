@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router-dom";
+import ConfirmEmailNotice from "../components/ConfirmEmailNotice";
 import { isAxiosError } from "axios";
 import { ArrowLeft, ArrowRight, BookOpen, Trash2, AlertCircle, ThumbsUp, Award, EyeOff, CheckCircle2 } from "lucide-react";
 import api from "../lib/api";
@@ -410,6 +411,7 @@ function DiscussPost() {
           </section>
 
           <form onSubmit={handleReply} className="bg-surface border border-line rounded-2xl p-5 space-y-3">
+            {me && !me.emailVerified && <ConfirmEmailNotice action="reply" />}
             <textarea
               placeholder="Write a helpful reply"
               value={reply}

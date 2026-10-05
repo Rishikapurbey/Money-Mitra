@@ -34,6 +34,8 @@ function Signup() {
           <input
             type="email"
             placeholder="you@example.com"
+            name="email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className={`${authInputClass} mt-1.5`}
@@ -45,6 +47,8 @@ function Signup() {
           <input
             type="text"
             placeholder="Choose a username"
+            name="handle"
+            autoComplete="nickname"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             pattern="[A-Za-z0-9_]{3,20}"
@@ -59,6 +63,8 @@ function Signup() {
           <input
             type="password"
             placeholder="Create a password"
+            name="password"
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             minLength={8}

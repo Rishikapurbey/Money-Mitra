@@ -2,6 +2,11 @@ import { Link } from "react-router-dom";
 import {
   ArrowRight,
   BookOpen,
+  CalendarCheck,
+  Landmark,
+  Receipt,
+  Upload,
+  UsersRound,
   Check,
   EyeOff,
   IndianRupee,
@@ -131,6 +136,15 @@ interface Feature {
   points: string[];
   visual: ReactNode;
 }
+
+// Smaller features, listed after the four main ones
+const extras = [
+  { icon: UsersRound, title: "Shared expenses", body: "Split trips and flat costs with friends, see who owes whom, and settle up." },
+  { icon: Landmark, title: "Net worth", body: "Everything you own minus what you owe, with your bank balance kept up to date by your Tracker." },
+  { icon: Receipt, title: "Bill reminders", body: "A nudge two days before rent, EMIs and bills are due, and on the day." },
+  { icon: CalendarCheck, title: "Monthly recap", body: "A short look back at each month: where it went and what changed." },
+  { icon: Upload, title: "Bank statement import", body: "Bring in past months from a CSV file instead of typing them in." },
+];
 
 const features: Feature[] = [
   {
@@ -286,6 +300,23 @@ function Landing() {
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="mt-20 sm:mt-28">
+          <h3 className="text-xl font-semibold tracking-tight text-ink-900">Also in Money Mitra</h3>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {extras.map((x) => (
+              <div key={x.title} className="flex items-start gap-3 rounded-2xl border border-line bg-surface p-5">
+                <span className="w-9 h-9 shrink-0 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center">
+                  <x.icon size={17} />
+                </span>
+                <div>
+                  <p className="font-medium text-ink-900">{x.title}</p>
+                  <p className="mt-1 text-sm text-ink-500">{x.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

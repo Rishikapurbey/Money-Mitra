@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import { ArrowUp } from "lucide-react";
 
-// A small button that appears after scrolling down a long page
+// A small button that appears after scrolling down a long page. It steps aside near the end of
+// the page, where it would cover the last row's buttons on a phone.
 function BackToTop({ className = "bottom-6" }: { className?: string }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const update = () => setVisible(window.scrollY > 900);
+    const update = () => {
+      const nearEnd = window.innerHeight + window.scrollY > document.documentElement.scrollHeight - 200;
+      setVisible(window.scrollY > 900 && !nearEnd);
+    };
     window.addEventListener("scroll", update, { passive: true });
     return () => window.removeEventListener("scroll", update);
   }, []);

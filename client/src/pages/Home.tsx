@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
-import { ArrowRight, Bell, Calculator, CalendarClock, MessageCircle, MessagesSquare, Minus, Plus, Target } from "lucide-react";
+import { ArrowRight, Bell, CalendarClock, MessageCircle, MessagesSquare, Minus, Plus, Target, UsersRound } from "lucide-react";
 import api from "../lib/api";
 import { useTitle } from "../lib/useTitle";
 import { formatINR, pageWidth } from "../lib/ui";
@@ -177,7 +177,8 @@ function Home() {
     { label: "Add expense", icon: Minus, onClick: () => setQuickAdd("expense") },
     { label: "Add income", icon: Plus, onClick: () => setQuickAdd("income") },
     { label: "Ask a question", icon: MessagesSquare, to: "/discuss?ask=1" },
-    { label: "Calculators", icon: Calculator, to: "/calculators" },
+    // Calculators are in the tab bar already; shared expenses would otherwise be hard to find on a phone
+    { label: "Split a bill", icon: UsersRound, to: "/shared" },
   ];
 
   const glanceCard = (
@@ -393,7 +394,7 @@ function Home() {
         // Wide screens: the month and its details on the left, things to do and read on the right
         <div className="grid grid-cols-[minmax(0,1fr)_380px] gap-6 items-start">
           <div className="space-y-6 min-w-0">
-            <GettingStarted hasTransactions={hasTransactions} onAddTransaction={() => setQuickAdd("expense")} />
+            {me && <GettingStarted account={me} hasTransactions={hasTransactions} onAddTransaction={() => setQuickAdd("expense")} />}
             {glanceCard}
             <RecapCard />
             {insightsCard}
@@ -414,7 +415,7 @@ function Home() {
         </div>
       ) : (
         <>
-          <GettingStarted hasTransactions={hasTransactions} onAddTransaction={() => setQuickAdd("expense")} />
+          {me && <GettingStarted account={me} hasTransactions={hasTransactions} onAddTransaction={() => setQuickAdd("expense")} />}
           {glanceCard}
           <RecapCard />
           {quickActionsNav}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
+import ConfirmEmailNotice from "../components/ConfirmEmailNotice";
 import { isAxiosError } from "axios";
 import { MessageCircle, Plus, AlertCircle, MessagesSquare, X, BookOpen, ArrowRight, Search, CheckCircle2 } from "lucide-react";
 import api from "../lib/api";
@@ -200,6 +201,7 @@ function Discuss() {
           <X size={18} />
         </button>
       </div>
+      {me && !me.emailVerified && <ConfirmEmailNotice action="post your question" />}
       {formError && <p className="text-loss text-sm bg-loss-soft px-3 py-2 rounded-lg">{formError}</p>}
       <input
         type="text"

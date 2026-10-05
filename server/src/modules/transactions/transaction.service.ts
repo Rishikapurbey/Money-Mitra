@@ -106,7 +106,9 @@ export async function getSummary(userId: string, range: DateRange = {}) {
   );
   const income = inRange.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
   const expense = inRange.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
-  return { income, expense, balance: income - expense, totalBalance: net(all) };
+  // Until any income is added, the balance is only spending, so the app explains that instead
+  const hasIncome = all.some((t) => t.type === "income");
+  return { income, expense, balance: income - expense, totalBalance: net(all), hasIncome };
 }
 
 // Income and expense per month, bucketed in the client's timezone.

@@ -80,7 +80,7 @@ function PublicLayout() {
   return (
     <div className="min-h-screen bg-canvas flex flex-col">
       <header className="bg-surface/90 backdrop-blur border-b border-line sticky top-0 z-30">
-        <div className={`${pageWidth} h-16 flex items-center gap-8`}>
+        <div className={`${pageWidth} h-16 flex items-center gap-3 md:gap-8`}>
           <Link to="/" onClick={(e) => handleNav(e, "/")} aria-label="Money Mitra home" className="shrink-0">
             <Logo />
           </Link>
@@ -99,7 +99,7 @@ function PublicLayout() {
             ))}
           </nav>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1 sm:gap-2">
             <ThemeToggle />
             <Link
               to="/login"
@@ -109,7 +109,7 @@ function PublicLayout() {
             </Link>
             <Link
               to="/signup"
-              className="px-4 py-2 rounded-xl text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 transition"
+              className="whitespace-nowrap px-3 sm:px-4 py-2 rounded-xl text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 transition"
             >
               Get started
             </Link>

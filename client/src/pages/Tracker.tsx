@@ -36,7 +36,7 @@ function repeatSummary(mode: "auto" | "remind", frequency: "monthly" | "yearly",
 
 interface DashboardData {
   transactions: Transaction[];
-  summary: { income: number; expense: number; balance: number; totalBalance: number };
+  summary: { income: number; expense: number; balance: number; totalBalance: number; hasIncome: boolean };
   trend: { month: string; income: number; expense: number }[];
 }
 
@@ -61,7 +61,7 @@ async function fetchDashboard(month: Date): Promise<DashboardData | null> {
 
 function Tracker() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0, totalBalance: 0 });
+  const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0, totalBalance: 0, hasIncome: true });
   const [trend, setTrend] = useState<{ month: string; income: number; expense: number }[]>([]);
   // An import can send the user here to see the month it covered (a YYYY-MM-DD day in that month)
   const openOn = (useLocation().state as { month?: string } | null)?.month;
@@ -369,6 +369,9 @@ function Tracker() {
           </Link>
         </div>
         <p className="mt-2 text-4xl sm:text-5xl font-semibold tracking-tight tabular-nums">{formatINR(summary.totalBalance)}</p>
+        {!summary.hasIncome && summary.totalBalance < 0 && (
+          <p className="mt-1 text-sm text-ink-300">This is only what you've spent so far. Add your income to see your real balance.</p>
+        )}
         {savingsRate !== null && (
           <div className="mt-4 max-w-sm">
             <p className="text-sm text-ink-300">
