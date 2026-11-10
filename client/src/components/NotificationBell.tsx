@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bell, CalendarCheck, CalendarRange, CheckCircle2, HandCoins, CircleAlert, Landmark, Receipt, EyeOff, MessageCircle, PiggyBank, ThumbsUp, UserCheck, UserPlus, UsersRound } from "lucide-react";
+import { Bell, CalendarCheck, X, CalendarRange, CheckCircle2, HandCoins, CircleAlert, Landmark, Receipt, EyeOff, MessageCircle, PiggyBank, ThumbsUp, UserCheck, UserPlus, UsersRound } from "lucide-react";
 import api from "../lib/api";
 import { timeAgo } from "../lib/discuss";
 import { announceNotificationsChange, onNotificationsChange } from "../lib/dataEvents";
@@ -41,6 +41,9 @@ function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AppNotification[] | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  // More notifications below the visible part of the list, shown as a fade at its bottom edge
+  const [moreBelow, setMoreBelow] = useState(false);
   const { pathname } = useLocation();
   const navigate = useNavigate();
 
@@ -78,6 +81,13 @@ function NotificationBell() {
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  const checkScroll = () => {
+    const list = listRef.current;
+    setMoreBelow(!!list && list.scrollTop + list.clientHeight < list.scrollHeight - 4);
+  };
+
+  useEffect(checkScroll, [items, open]);
 
   const toggle = () => {
     if (!open) {
@@ -124,13 +134,20 @@ function NotificationBell() {
 
       {open && (
         <div className="fixed inset-x-4 top-[4.5rem] sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-[22rem] bg-surface border border-line rounded-xl shadow-lg overflow-hidden z-30">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-line">
-            <p className="font-semibold text-ink-900">Notifications</p>
+          <div className="flex items-center gap-3 pl-4 pr-2 py-2 border-b border-line">
+            <p className="flex-1 font-semibold text-ink-900">Notifications</p>
             {items?.some((n) => !n.read) && (
               <button onClick={markAllRead} className="text-xs font-medium text-brand-600 hover:text-brand-700">
                 Mark all as read
               </button>
             )}
+            <button
+              onClick={() => setOpen(false)}
+              aria-label="Close notifications"
+              className="p-2 rounded-lg text-ink-400 hover:text-ink-900 hover:bg-ink-100 transition"
+            >
+              <X size={18} />
+            </button>
           </div>
           {items === null ? (
             <p className="px-4 py-6 text-sm text-ink-500">Loading…</p>
@@ -142,31 +159,41 @@ function NotificationBell() {
               </p>
             </div>
           ) : (
-            <ul className="max-h-96 overflow-y-auto divide-y divide-line">
-              {items.map((n) => {
-                const Icon = ICONS[n.kind] ?? MessageCircle;
-                return (
-                  <li key={n.id}>
-                    <button
-                      onClick={() => openNotification(n)}
-                      className={`w-full flex gap-3 px-4 py-3 text-left transition hover:bg-canvas ${n.read ? "" : "bg-brand-50/60"}`}
-                    >
-                      {n.actor ? (
-                        <Avatar name={nameOf(n.actor)} avatarUrl={n.actor.avatarUrl} />
-                      ) : (
-                        <Icon size={16} className={`shrink-0 mt-0.5 ${n.read ? "text-ink-300" : "text-brand-600"}`} />
-                      )}
-                      <span className="min-w-0 flex-1">
-                        <span className={`block text-sm ${n.read ? "text-ink-700" : "text-ink-900 font-medium"}`}>{n.message}</span>
-                        {n.title && <span className="block text-xs text-ink-500 truncate">{n.title}</span>}
-                        <span className="block text-xs text-ink-400 mt-0.5">{timeAgo(n.updatedAt)}</span>
-                      </span>
-                      {!n.read && <span className="w-2 h-2 rounded-full bg-brand-600 shrink-0 mt-1.5" aria-label="Unread" />}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            // On phones the list stops at half the screen and scrolls, so the page stays visible underneath
+            <div className="relative">
+              <ul
+                ref={listRef}
+                onScroll={checkScroll}
+                className="max-h-[50dvh] sm:max-h-96 overflow-y-auto overscroll-contain [scrollbar-width:thin] divide-y divide-line"
+              >
+                {items.map((n) => {
+                  const Icon = ICONS[n.kind] ?? MessageCircle;
+                  return (
+                    <li key={n.id}>
+                      <button
+                        onClick={() => openNotification(n)}
+                        className={`w-full flex gap-3 px-4 py-3 text-left transition hover:bg-canvas ${n.read ? "" : "bg-brand-50/60"}`}
+                      >
+                        {n.actor ? (
+                          <Avatar name={nameOf(n.actor)} avatarUrl={n.actor.avatarUrl} />
+                        ) : (
+                          <Icon size={16} className={`shrink-0 mt-0.5 ${n.read ? "text-ink-300" : "text-brand-600"}`} />
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className={`block text-sm ${n.read ? "text-ink-700" : "text-ink-900 font-medium"}`}>{n.message}</span>
+                          {n.title && <span className="block text-xs text-ink-500 truncate">{n.title}</span>}
+                          <span className="block text-xs text-ink-400 mt-0.5">{timeAgo(n.updatedAt)}</span>
+                        </span>
+                        {!n.read && <span className="w-2 h-2 rounded-full bg-brand-600 shrink-0 mt-1.5" aria-label="Unread" />}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {moreBelow && (
+                <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-surface to-transparent" />
+              )}
+            </div>
           )}
         </div>
       )}
