@@ -123,7 +123,7 @@ function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-[min(22rem,calc(100vw-2rem))] bg-surface border border-line rounded-xl shadow-lg overflow-hidden z-30">
+        <div className="fixed inset-x-4 top-[4.5rem] sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-[22rem] bg-surface border border-line rounded-xl shadow-lg overflow-hidden z-30">
           <div className="flex items-center justify-between px-4 py-3 border-b border-line">
             <p className="font-semibold text-ink-900">Notifications</p>
             {items?.some((n) => !n.read) && (
