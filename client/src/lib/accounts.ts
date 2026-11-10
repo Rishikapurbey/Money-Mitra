@@ -79,3 +79,15 @@ export function useAccounts(refreshKey?: unknown) {
   const defaultId = accounts.find((a) => a.isDefault)?.id ?? "";
   return { accounts, loaded, defaultId };
 }
+
+// One account over a recap's month or a year
+export interface AccountPeriod {
+  id: string;
+  name: string;
+  kind: "asset" | "liability";
+  type: string;
+  moneyIn: number;
+  moneyOut: number;
+  // For a credit card, what was owed at the end
+  balance: number;
+}

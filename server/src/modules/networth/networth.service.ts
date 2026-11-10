@@ -269,6 +269,36 @@ export async function netWorthSummary(userId: string, tzOffset: number, now = ne
   return { summary: { netWorth: totals.netWorth, changeThisMonth, lastUpdated, stale }, notified };
 }
 
+// Each account over a period, for the monthly recap and yearly review: money in (income and transfers
+// in), money out (spending and transfers out) and its balance at the end. Accounts added after the
+// period, or removed before it, are left out; so are ones with no balance known by its end.
+export async function accountsOver(userId: string, from: Date, to: Date) {
+  const range = { gte: from, lt: to };
+  const [items, { values, flows }, sums, transfers] = await Promise.all([
+    prisma.netWorthItem.findMany({
+      where: { userId, createdAt: { lt: to }, OR: [{ archivedAt: null }, { archivedAt: { gte: from } }] },
+      orderBy: [{ isDefault: "desc" }, { kind: "asc" }, { createdAt: "asc" }],
+      select: { id: true, name: true, kind: true, type: true },
+    }),
+    netWorthData(userId),
+    prisma.transaction.groupBy({ by: ["accountId", "type"], where: { userId, accountId: { not: null }, date: range }, _sum: { amount: true } }),
+    prisma.transfer.findMany({ where: { userId, date: range }, select: { fromId: true, toId: true, amount: true } }),
+  ]);
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const sumOf = (id: string, type: string) => sums.find((s) => s.accountId === id && s.type === type)?._sum.amount ?? 0;
+  const moved = (pick: (t: (typeof transfers)[number]) => boolean) => transfers.filter(pick).reduce((sum, t) => sum + t.amount, 0);
+  const end = new Date(to.getTime() - 1);
+  return items
+    .filter((i) => isAccount(i.kind, i.type))
+    .map((i) => ({
+      ...i,
+      moneyIn: round2(sumOf(i.id, "income") + moved((t) => t.toId === i.id)),
+      moneyOut: round2(sumOf(i.id, "expense") + moved((t) => t.fromId === i.id)),
+      balance: accountAt(values, i.id, flows, end)?.value ?? null,
+    }))
+    .filter((a) => a.balance !== null);
+}
+
 // How net worth moved over a period, for the monthly recap and yearly review
 export async function netWorthOver(userId: string, from: Date, to: Date) {
   const { values, flows } = await netWorthData(userId);

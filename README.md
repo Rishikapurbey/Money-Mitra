@@ -44,7 +44,7 @@ the way.
 - Savings goals with contributions, history and a suggested monthly amount
 - Recurring transactions: added automatically (salary, SIPs) or as bill reminders you mark paid or skip, monthly or yearly
 - Import past months from a bank statement CSV, with undo
-- Accounts, like in a UPI app: each entry is paid from or received in a bank account, cash or credit card (a default one is pre-filled), and each balance moves with its own entries
+- Accounts, like in a UPI app: each entry is paid from or received in a bank account, cash or credit card (a default one is pre-filled), and each balance moves with its own entries; balances show on Home, and the monthly recap and yearly review show money in and out of each account
 - Transfers between your own accounts (ATM withdrawals, paying a card bill) that never count as spending; a warning with one-tap Move money when an account goes below zero, and credit card limits with an 80% warning
 - Net worth: what you own minus what you owe, with history; account balances update themselves from the Tracker
 - A monthly recap and a yearly review, plus plain observations about your month ("What we noticed this month")

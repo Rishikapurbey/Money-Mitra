@@ -25,6 +25,22 @@ export const faqs = [
 // Only useful once someone is using the app
 export const appFaqs = [
   {
+    q: "How do accounts work?",
+    a: "Add your bank accounts, cash and credit cards in Tracker > Net worth, and type in what each holds today. From then on, every income or expense you add says which account it was paid from or received in, and that account's balance moves by itself. The one marked Default is filled in for you; you can pick another each time.",
+  },
+  {
+    q: "What's a transfer, and why doesn't it count as spending?",
+    a: "A transfer moves your own money between two of your accounts: taking cash out of an ATM, moving savings into your salary account, or paying a credit card bill. You haven't spent or earned anything, so budgets and totals ignore it; only the two balances change. Choose the Transfer tab when adding a transaction.",
+  },
+  {
+    q: "What happens if I spend more than an account holds?",
+    a: "Its balance goes below zero and turns red, and we'll suggest moving money in from another account, for example from your savings. If your bank shows a different balance, use Update value on the Net worth page to set the real one; your entries from then on are counted from that.",
+  },
+  {
+    q: "How are credit cards counted?",
+    a: "A credit card is something you owe. Spending on it adds to what you owe and refunds lower it, so your net worth goes down when you spend, not when you pay the bill. Paying the bill is a transfer from your bank to the card. Add the card's limit to see how much of it you've used, with a warning at 80%.",
+  },
+  {
     q: "How do recurring transactions work?",
     a: "Tick \"Repeat every month\" when you add a transaction, such as rent or salary. Each month's entry is added automatically the next time you open Money Mitra, even if you were away for a while. You can pause or stop it from the Recurring card in the Tracker.",
   },

@@ -1,3 +1,4 @@
+import AccountsSummary from "../components/AccountsSummary";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -308,6 +309,8 @@ export default function YearReview() {
     </Card>
   );
 
+  const accounts = <AccountsSummary accounts={review.accounts ?? []} endLabel={review.inProgress ? "Now" : "On 31 Dec"} />;
+
   const goals = review.goals.length > 0 && (
     <Card title="Your goals">
       {review.goalsAdded > 0 && (
@@ -369,6 +372,7 @@ export default function YearReview() {
           </div>
           <div className="space-y-6">
             {highlights}
+            {accounts}
             {budgets}
             {goals}
           </div>
@@ -376,6 +380,7 @@ export default function YearReview() {
       ) : (
         <>
           {highlights}
+          {accounts}
           {monthsCard}
           <div className="grid gap-6 md:grid-cols-2 items-start">
             {categories}

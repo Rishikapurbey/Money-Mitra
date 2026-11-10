@@ -104,3 +104,32 @@ describe("account alerts", () => {
     expect(((await overview(user)).items as Item[])[0]!.creditLimit).toBeNull();
   });
 });
+
+describe("accounts over a period", () => {
+  it("adds up money in and out of each account, with its balance at the end", async () => {
+    const { accountsOver } = await import("../src/modules/networth/networth.service");
+    const prisma = (await import("../src/db/prisma")).default;
+    const user = await createUser("tr_period");
+    const userId = (await prisma.user.findUniqueOrThrow({ where: { email: user.email } })).id;
+    const bank = await add(user, { kind: "asset", type: "bank", name: "HDFC", value: 10000 });
+    const cash = await add(user, { kind: "asset", type: "cash", name: "Wallet", value: 0 });
+    await add(user, { kind: "asset", type: "gold", name: "Gold", value: 9 });
+    // Start both balances well before the period
+    await prisma.netWorthValue.updateMany({ where: { userId }, data: { recordedAt: new Date("2026-08-01T00:00:00Z") } });
+    await prisma.netWorthItem.updateMany({ where: { userId }, data: { createdAt: new Date("2026-08-01T00:00:00Z") } });
+
+    const at = (day: string) => `2026-09-${day}T06:00:00.000Z`;
+    await spend(user, { type: "income", category: "Salary", amount: 50000, accountId: bank.id, date: at("01") }).expect(201);
+    await spend(user, { amount: 3000, accountId: bank.id, date: at("05") }).expect(201);
+    await transfer(user, { fromId: bank.id, toId: cash.id, amount: 2000, date: at("06") }).expect(201);
+    await spend(user, { amount: 500, accountId: cash.id, date: at("07") }).expect(201);
+    // Outside the period: counted in the balance before it, not in the totals
+    await spend(user, { amount: 1000, accountId: bank.id, date: "2026-08-20T06:00:00.000Z" }).expect(201);
+
+    const accounts = await accountsOver(userId, new Date("2026-09-01T00:00:00Z"), new Date("2026-10-01T00:00:00Z"));
+    expect(accounts.map(({ name, moneyIn, moneyOut, balance }) => ({ name, moneyIn, moneyOut, balance }))).toEqual([
+      { name: "HDFC", moneyIn: 50000, moneyOut: 5000, balance: 54000 },
+      { name: "Wallet", moneyIn: 2000, moneyOut: 500, balance: 1500 },
+    ]);
+  });
+});

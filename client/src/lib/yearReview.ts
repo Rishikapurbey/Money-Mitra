@@ -1,3 +1,4 @@
+import type { AccountPeriod } from "./accounts";
 import type { RecapTotals } from "./recap";
 
 // A whole year (or the year so far), worked out by the server from the user's entries
@@ -21,6 +22,8 @@ export interface YearReview {
   highlights: string[];
   // How net worth moved during the year (so far); null without values from before it
   netWorth: { start: number; end: number; change: number } | null;
+  // Money in and out of each account over the period, and its balance at the end
+  accounts: AccountPeriod[];
   // The year of the user's first entry, and the next year that has started; null when there isn't one
   firstYear: string | null;
   nextYear: string | null;

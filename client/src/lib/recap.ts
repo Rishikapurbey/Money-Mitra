@@ -1,3 +1,4 @@
+import type { AccountPeriod } from "./accounts";
 // A look back at a finished month, worked out by the server from the user's entries
 
 export interface RecapTotals {
@@ -30,6 +31,8 @@ export interface Recap {
   learnSlug: string;
   // How net worth moved during the month; null without values from before it
   netWorth: { start: number; end: number; change: number } | null;
+  // Money in and out of each account over the period, and its balance at the end
+  accounts: AccountPeriod[];
   // Bills set to "remind me to pay" that were due in the month; null when there were none
   bills: { onTime: number; total: number } | null;
   // The month of the user's first entry, and the next finished month; null when there isn't one

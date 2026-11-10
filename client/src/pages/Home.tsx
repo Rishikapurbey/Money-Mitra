@@ -18,6 +18,7 @@ import GettingStarted from "../components/GettingStarted";
 import InsightsCard from "../components/InsightsCard";
 import RecapCard from "../components/RecapCard";
 import NetWorthCard from "../components/NetWorthCard";
+import AccountsCard from "../components/AccountsCard";
 import BillsDueCard from "../components/BillsDueCard";
 import SharedCard from "../components/SharedCard";
 import type { Insight } from "../components/InsightsCard";
@@ -407,6 +408,7 @@ function Home() {
             {quickActionsNav}
             <BillsDueCard />
             <SharedCard />
+            <AccountsCard />
             <NetWorthCard />
             {comingUpCard}
             {newInDiscussCard}
@@ -421,6 +423,7 @@ function Home() {
           {quickActionsNav}
           <BillsDueCard />
           <SharedCard />
+          <AccountsCard />
           <NetWorthCard />
           {comingUpCard}
           {newInDiscussCard}

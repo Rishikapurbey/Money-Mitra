@@ -1,3 +1,4 @@
+import AccountsSummary from "../components/AccountsSummary";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -378,6 +379,14 @@ export default function MonthlyRecap() {
     </Card>
   );
 
+  const monthEnd = new Date(Number(recap.month.slice(0, 4)), Number(recap.month.slice(5, 7)), 0);
+  const accounts = (
+    <AccountsSummary
+      accounts={recap.accounts ?? []}
+      endLabel={`On ${monthEnd.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`}
+    />
+  );
+
   const stats = (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <Stat
@@ -412,12 +421,14 @@ export default function MonthlyRecap() {
           </div>
           <div className="space-y-6">
             {takeaways}
+            {accounts}
             {goals}
           </div>
         </div>
       ) : (
         <>
           {takeaways}
+          {accounts}
           <div className="grid gap-6 md:grid-cols-2 items-start">
             {categories}
             {budgets}

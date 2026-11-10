@@ -3,7 +3,7 @@ import { HttpError } from "../../lib/httpError";
 import { localMonth } from "../budgets/budgetAlert.service";
 import { MIN_TRANSACTIONS, computeRecap } from "./recap";
 import { MIN_YEAR_TRANSACTIONS, computeYearReview } from "./yearReview";
-import { netWorthOver } from "../networth/networth.service";
+import { accountsOver, netWorthOver } from "../networth/networth.service";
 import { billsInMonth } from "../recurring/recurring.service";
 
 const MINUTE = 60_000;
@@ -84,8 +84,12 @@ export async function getRecap(userId: string, month: string, tzOffset: number, 
     previousMonthName: prevBounds.shortName,
   });
   const next = shiftMonth(month, 1);
-  const [netWorth, bills] = await Promise.all([netWorthOver(userId, bounds.from, bounds.to), billsInMonth(userId, bounds.from, bounds.to, now)]);
-  return { ...recap, netWorth, bills, firstMonth: earliest, nextMonth: next < currentMonth ? next : null };
+  const [netWorth, bills, accounts] = await Promise.all([
+    netWorthOver(userId, bounds.from, bounds.to),
+    billsInMonth(userId, bounds.from, bounds.to, now),
+    accountsOver(userId, bounds.from, bounds.to),
+  ]);
+  return { ...recap, netWorth, bills, accounts, firstMonth: earliest, nextMonth: next < currentMonth ? next : null };
 }
 
 // Records a "ready" notification once; true when it was created just now
@@ -207,6 +211,7 @@ export async function getYearReview(userId: string, year: string, tzOffset: numb
   });
   const firstYear = earliest ? earliest.slice(0, 4) : null;
   const nextYear = String(Number(year) + 1);
-  const netWorth = await netWorthOver(userId, yearFrom, inProgress ? now : yearTo);
-  return { ...review, netWorth, firstYear, nextYear: nextYear <= currentYear ? nextYear : null };
+  const until = inProgress ? now : yearTo;
+  const [netWorth, accounts] = await Promise.all([netWorthOver(userId, yearFrom, until), accountsOver(userId, yearFrom, until)]);
+  return { ...review, netWorth, accounts, firstYear, nextYear: nextYear <= currentYear ? nextYear : null };
 }

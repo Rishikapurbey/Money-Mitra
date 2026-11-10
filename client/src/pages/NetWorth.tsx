@@ -119,12 +119,17 @@ function ItemRow({ item, accounts, onChanged }: { item: NetWorthItem; accounts: 
               <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 px-1.5 py-0.5 rounded">Default</span>
             )}
           </p>
-          <p className="text-xs text-ink-500">
-            {typeLabel(item.kind, item.type)} · {item.isAccount ? "balance typed in" : "updated"} {shortDate(item.updatedAt)}
-          </p>
-          {item.tracked && item.tracked.change !== 0 && (
+          {/* An account moved by the Tracker says where it started and how far it has moved since */}
+          {item.tracked && item.tracked.change !== 0 ? (
+            <>
+              <p className="text-xs text-ink-500">{typeLabel(item.kind, item.type)}</p>
+              <p className="text-xs text-ink-500">
+                {formatINR(item.tracked.recorded)} on {shortDate(item.updatedAt)}, {signedINR(item.tracked.change)} since
+              </p>
+            </>
+          ) : (
             <p className="text-xs text-ink-500">
-              {formatINR(item.tracked.recorded)} typed in, {signedINR(item.tracked.change)} from your Tracker since
+              {typeLabel(item.kind, item.type)} · updated {shortDate(item.updatedAt)}
             </p>
           )}
         </div>

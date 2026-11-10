@@ -651,9 +651,10 @@ function TransactionsCard({
                         {transferIcon("w-9 h-9")}
                         <div className="min-w-0">
                           <p className="font-medium text-ink-900">Transfer</p>
-                          <p className="text-sm text-ink-500 truncate flex items-center gap-1.5 min-w-0">
-                            {transferRoute(row.item)}
-                            {row.item.note && <span className="truncate">· {row.item.note}</span>}
+                          {/* Wraps onto a second line rather than cutting the account names short */}
+                          <p className="text-sm text-ink-500 line-clamp-2 break-words">
+                            {nameOfAccount(row.item.fromId)} → {nameOfAccount(row.item.toId)}
+                            {row.item.note && ` · ${row.item.note}`}
                           </p>
                         </div>
                       </div>
@@ -678,7 +679,7 @@ function TransactionsCard({
                           {repeatIcon(t)}
                         </p>
                         {(t.note || (showAccounts && t.accountId)) && (
-                          <p className="text-sm text-ink-500 truncate">
+                          <p className="text-sm text-ink-500 line-clamp-2 break-words">
                             {[showAccounts && t.accountId ? nameOfAccount(t.accountId) : "", t.note].filter(Boolean).join(" · ")}
                           </p>
                         )}
