@@ -3,7 +3,7 @@ import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
 import { parseTzOffset } from "../transactions/transaction.input";
 import { ITEM_TYPES } from "./networth";
 import type { ItemKind } from "./networth";
-import { createItem, getNetWorth, itemHistory, netWorthSummary, recordValue, removeItem, setMain, updateItem } from "./networth.service";
+import { createItem, getNetWorth, itemHistory, listAccounts, netWorthSummary, recordValue, removeItem, setDefault, updateItem } from "./networth.service";
 
 const router = Router();
 
@@ -45,7 +45,7 @@ router.post("/items", authMiddleware, async (req: AuthRequest, res) => {
   if (typeof fields === "string") return res.status(400).json({ error: fields });
   const value = parseValue(req.body.value);
   if (typeof value === "string") return res.status(400).json({ error: value });
-  res.status(201).json({ item: await createItem(req.userId, { ...fields, kind, value }) });
+  res.status(201).json({ item: await createItem(req.userId, { ...fields, kind, value, isDefault: req.body.isDefault === true }) });
 });
 
 router.put("/items/:id", authMiddleware, async (req: AuthRequest, res) => {
@@ -57,11 +57,17 @@ router.put("/items/:id", authMiddleware, async (req: AuthRequest, res) => {
   res.status(200).json({ item: await updateItem(req.userId, req.params.id as string, fields) });
 });
 
-router.put("/items/:id/main", authMiddleware, async (req: AuthRequest, res) => {
+router.put("/items/:id/default", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
-  if (typeof req.body.isMain !== "boolean") return res.status(400).json({ error: "Invalid request" });
-  await setMain(req.userId, req.params.id as string, req.body.isMain);
+  if (typeof req.body.isDefault !== "boolean") return res.status(400).json({ error: "Invalid request" });
+  await setDefault(req.userId, req.params.id as string, req.body.isDefault);
   res.status(200).json({ success: true });
+});
+
+// Bank accounts, cash and credit cards with balances, for "Paid from" and "Received in"
+router.get("/accounts", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  res.status(200).json({ accounts: await listAccounts(req.userId) });
 });
 
 router.post("/items/:id/values", authMiddleware, async (req: AuthRequest, res) => {

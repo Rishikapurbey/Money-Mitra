@@ -18,6 +18,8 @@ import { quickPicks, useCategories } from "../lib/categories";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { AlertCircle, TrendingUp, TrendingDown, Wallet2, Plus, ChevronLeft, ChevronRight, Upload, CalendarCheck } from "lucide-react";
 import { withBudgetAlert } from "../lib/budgetAlerts";
+import { useAccounts } from "../lib/accounts";
+import AccountSelect from "../components/AccountSelect";
 import type { BudgetAlert } from "../lib/budgetAlerts";
 
 const COLORS = [1, 2, 3, 4, 5, 6].map((n) => `var(--color-chart-${n})`);
@@ -88,6 +90,11 @@ function Tracker() {
   const formRef = useRef<HTMLFormElement>(null);
   // Reloaded along with the month's data, so a category added with a transaction appears straight away
   const { categories: savedCategories } = useCategories(transactions);
+  // Account balances change with every entry, so they reload with the month's data too
+  const { accounts, defaultId } = useAccounts(transactions);
+  // The account picked for this entry; null until chosen, which means the default account
+  const [accountChoice, setAccountChoice] = useState<string | null>(null);
+  const accountId = accountChoice ?? defaultId;
 
   const applyData = useCallback((data: DashboardData | null) => {
     if (data) {
@@ -130,6 +137,7 @@ function Tracker() {
     setRepeatMode("auto");
     setEditingId(null);
     setEditingShared(false);
+    setAccountChoice(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -140,7 +148,15 @@ function Tracker() {
     if (editingOriginalDate && toInputDate(new Date(editingOriginalDate)) === date) when = editingOriginalDate;
     else when = transactionTimestamp(date);
 
-    const body = { amount: parseFloat(amount), type, category, note, date: when, tzOffset: new Date().getTimezoneOffset() };
+    const body = {
+      amount: parseFloat(amount),
+      type,
+      category,
+      note,
+      date: when,
+      tzOffset: new Date().getTimezoneOffset(),
+      accountId: accountId || null,
+    };
     let createdId: string | null = null;
     let budgetAlert: BudgetAlert | null;
     try {
@@ -171,6 +187,7 @@ function Tracker() {
           frequency: repeatFrequency,
           tzOffset: new Date().getTimezoneOffset(),
           firstEntryId: createdId,
+          accountId: accountId || null,
           endDate: repeatEnd ? new Date(`${repeatEnd}T23:59:59`).toISOString() : null,
         });
         repeating = true;
@@ -205,6 +222,7 @@ function Tracker() {
     setNote(t.note || "");
     setDate(toInputDate(new Date(t.date)));
     setEditingOriginalDate(t.date);
+    setAccountChoice(t.accountId ?? "");
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
@@ -230,6 +248,7 @@ function Tracker() {
               note: t.note,
               date: t.date,
               tzOffset: new Date().getTimezoneOffset(),
+              accountId: t.accountId ?? null,
             });
             loadData();
             toast({ message: "Transaction restored" });
@@ -467,7 +486,7 @@ function Tracker() {
       </div>
       {editingShared && (
         <p className="text-xs text-ink-500">
-          This is your share of a group expense. You can change its category and note here; change the amount or date in{" "}
+          This is your share of a group expense. You can change its category, note and account here; change the amount or date in{" "}
           <Link to="/shared" className="font-medium text-brand-600 hover:underline">
             the group
           </Link>
@@ -520,6 +539,8 @@ function Tracker() {
         onChange={(e) => setNote(e.target.value)}
         className={`${inputClass} w-full`}
       />
+
+      <AccountSelect accounts={accounts} value={accountId} onChange={setAccountChoice} type={type} />
 
       {!editingId && (
         <div className="rounded-xl border border-line p-3 space-y-3">
@@ -691,6 +712,7 @@ function Tracker() {
       colorFor={colorFor}
       onEdit={handleEdit}
       onDelete={handleDelete}
+      accounts={accounts}
     />
   );
 

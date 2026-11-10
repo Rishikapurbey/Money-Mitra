@@ -84,7 +84,7 @@ export async function exportData(userId: string) {
       anonymousByDefault: true,
       upiId: true,
       createdAt: true,
-      transactions: { orderBy: { date: "desc" }, select: { amount: true, type: true, category: true, note: true, date: true } },
+      transactions: { orderBy: { date: "desc" }, select: { amount: true, type: true, category: true, note: true, date: true, account: { select: { name: true } } } },
       categories: { orderBy: { name: "asc" }, select: { name: true, type: true } },
       budgets: { select: { category: true, amount: true, createdAt: true } },
       goals: {
@@ -98,7 +98,7 @@ export async function exportData(userId: string) {
         },
       },
       recurring: {
-        select: { amount: true, type: true, category: true, note: true, mode: true, frequency: true, dayOfMonth: true, monthOfYear: true, endDate: true, paused: true },
+        select: { amount: true, type: true, category: true, note: true, mode: true, frequency: true, dayOfMonth: true, monthOfYear: true, endDate: true, paused: true, account: { select: { name: true } } },
       },
       netWorthItems: {
         select: {
@@ -106,6 +106,7 @@ export async function exportData(userId: string) {
           kind: true,
           type: true,
           value: true,
+          isDefault: true,
           archivedAt: true,
           createdAt: true,
           values: { select: { value: true, recordedAt: true }, orderBy: { recordedAt: "asc" } },

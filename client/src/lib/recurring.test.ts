@@ -14,6 +14,7 @@ describe("bills", () => {
   const now = new Date(2026, 9, 5, 10, 0); // 5 Oct, 10am local
   const rule = (overrides: Partial<RecurringRule> = {}): RecurringRule => ({
     id: "r",
+    accountId: null,
     amount: null,
     type: "expense",
     category: "Bills",

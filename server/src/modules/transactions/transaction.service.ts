@@ -2,6 +2,14 @@ import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
 import { computeInsights } from "./insights";
 import { rememberCategory } from "../categories/category.service";
+import { checkAccount, defaultAccountId } from "../networth/networth.service";
+
+// The account for a new entry: the one chosen, none, or the default when nothing was said
+export async function accountFor(userId: string, accountId: string | null | undefined) {
+  if (accountId === undefined) return defaultAccountId(userId);
+  if (accountId) await checkAccount(userId, accountId);
+  return accountId;
+}
 
 export interface DateRange {
   from?: Date | undefined;
@@ -19,11 +27,12 @@ export async function createTransaction(
   type: string,
   category: string,
   note?: string | null,
-  date?: Date
+  date?: Date,
+  accountId?: string | null
 ) {
-  const saved = await rememberCategory(userId, type, category);
+  const [saved, account] = await Promise.all([rememberCategory(userId, type, category), accountFor(userId, accountId)]);
   return prisma.transaction.create({
-    data: { userId, amount, type, category: saved, note: note ?? null, ...(date && { date }) },
+    data: { userId, amount, type, category: saved, note: note ?? null, accountId: account, ...(date && { date }) },
   });
 }
 
@@ -41,16 +50,19 @@ export interface TransactionSearch {
   category?: string | undefined;
   min?: number | undefined;
   max?: number | undefined;
+  // An account's id, or "none" for entries without one
+  account?: string | undefined;
 }
 
 export const SEARCH_PAGE_SIZE = 50;
 
 // One page of matching transactions (newest first), plus totals for every match, not just this page
 export async function searchTransactions(userId: string, search: TransactionSearch, cursor?: string) {
-  const { range, q, type, category, min, max } = search;
+  const { range, q, type, category, min, max, account } = search;
   const where = {
     userId,
     ...dateFilter(range),
+    ...(account && { accountId: account === "none" ? null : account }),
     ...(type && { type }),
     ...(category && { category }),
     ...((min !== undefined || max !== undefined) && {
@@ -149,15 +161,25 @@ export async function deleteTransaction(userId: string, id: string) {
 export async function updateTransaction(
   userId: string,
   id: string,
-  data: { amount?: number; type?: string; category?: string; note?: string | null; date?: Date | undefined }
+  data: { amount?: number; type?: string; category?: string; note?: string | null; date?: Date | undefined; accountId?: string | null | undefined }
 ) {
   const transaction = await prisma.transaction.findUnique({ where: { id } });
   if (!transaction || transaction.userId !== userId) throw new HttpError(404, "Transaction not found");
-  // A share of a group expense follows the group: only its category and note are the user's own
-  if (transaction.shareId) data = { ...(data.category !== undefined && { category: data.category }), ...(data.note !== undefined && { note: data.note }) };
-  const { date, ...rest } = data;
+  // A share of a group expense follows the group: only its category, note and account are the user's own
+  if (transaction.shareId) {
+    data = {
+      ...(data.category !== undefined && { category: data.category }),
+      ...(data.note !== undefined && { note: data.note }),
+      ...(data.accountId !== undefined && { accountId: data.accountId }),
+    };
+  }
+  if (data.accountId) await checkAccount(userId, data.accountId);
+  const { date, accountId, ...rest } = data;
   const category = await rememberCategory(userId, rest.type ?? transaction.type, rest.category ?? transaction.category);
-  return prisma.transaction.update({ where: { id }, data: { ...rest, category, ...(date && { date }) } });
+  return prisma.transaction.update({
+    where: { id },
+    data: { ...rest, category, ...(date && { date }), ...(accountId !== undefined && { accountId }) },
+  });
 }
 
 // Plain-English observations about [from, to), compared with the month before it ([prevFrom, from)).

@@ -14,7 +14,7 @@ import {
   getCategories,
   TransactionSearch,
 } from "./transaction.service";
-import { parseDate, parseTransaction, parseTzOffset } from "./transaction.input";
+import { parseAccountId, parseDate, parseTransaction, parseTzOffset } from "./transaction.input";
 
 const router = Router();
 
@@ -42,7 +42,8 @@ function parseSearch(query: Record<string, unknown>): TransactionSearch | string
     if (n !== undefined && (!Number.isFinite(n) || n < 0)) return "Amounts must be positive numbers";
   }
   if (min !== undefined && max !== undefined && min > max) return "Minimum amount can't be more than the maximum";
-  return { range, q: q || undefined, type, category: category || undefined, min, max };
+  const account = typeof query.account === "string" && query.account.length <= 50 ? query.account : undefined;
+  return { range, q: q || undefined, type, category: category || undefined, min, max, account };
 }
 
 // Expenses can push a budget past 80% or 100%; the alert, if any, is returned for a toast
@@ -55,8 +56,10 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
   if (typeof input === "string") return res.status(400).json({ error: input });
   const date = parseDate(req.body.date);
   if (date === null) return res.status(400).json({ error: "Invalid date" });
+  const accountId = parseAccountId(req.body.accountId);
+  if (accountId === false) return res.status(400).json({ error: "Choose one of your accounts" });
   const { amount, type, category, note } = input;
-  const transaction = await createTransaction(req.userId, amount, type, category, note, date);
+  const transaction = await createTransaction(req.userId, amount, type, category, note, date, accountId);
   const budgetAlert = await budgetAlertFor(req.userId, transaction, req.body.tzOffset);
   res.status(201).json({ transaction, budgetAlert });
 });
@@ -128,7 +131,9 @@ router.put("/:id", authMiddleware, async (req: AuthRequest, res) => {
   if (typeof input === "string") return res.status(400).json({ error: input });
   const date = parseDate(req.body.date);
   if (date === null) return res.status(400).json({ error: "Invalid date" });
-  const transaction = await updateTransaction(req.userId, id, { ...input, date });
+  const accountId = parseAccountId(req.body.accountId);
+  if (accountId === false) return res.status(400).json({ error: "Choose one of your accounts" });
+  const transaction = await updateTransaction(req.userId, id, { ...input, date, accountId });
   const budgetAlert = await budgetAlertFor(req.userId, transaction, req.body.tzOffset);
   res.status(200).json({ transaction, budgetAlert });
 });

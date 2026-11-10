@@ -7,6 +7,8 @@ import { useToast } from "../lib/toast";
 import { announceDataChange, onDataChange } from "../lib/dataEvents";
 import { ruleName, scheduleLabel, shortDate } from "../lib/recurring";
 import type { RecurringRule } from "../lib/recurring";
+import { useAccounts } from "../lib/accounts";
+import AccountSelect from "./AccountSelect";
 
 // Recurring transactions: what repeats, when it's next added, and pause, edit or stop
 function RecurringCard() {
@@ -19,6 +21,8 @@ function RecurringCard() {
   const [mode, setMode] = useState<RecurringRule["mode"]>("auto");
   const [frequency, setFrequency] = useState<RecurringRule["frequency"]>("monthly");
   const [monthOfYear, setMonthOfYear] = useState(0);
+  const [accountId, setAccountId] = useState("");
+  const { accounts } = useAccounts();
   const [error, setError] = useState("");
   const toast = useToast();
 
@@ -69,6 +73,7 @@ function RecurringCard() {
     setFrequency(rule.frequency);
     setMonthOfYear(rule.monthOfYear ?? new Date(rule.nextDue).getMonth());
     setEndDate(rule.endDate ? rule.endDate.slice(0, 10) : "");
+    setAccountId(rule.accountId ?? "");
     setError("");
   };
 
@@ -87,6 +92,7 @@ function RecurringCard() {
         monthOfYear: frequency === "yearly" ? monthOfYear : null,
         dayOfMonth: parseInt(day, 10),
         endDate: endDate ? new Date(`${endDate}T23:59:59`).toISOString() : null,
+        accountId: accountId || null,
       });
       replace(res.data.recurring);
       setEditing(null);
@@ -176,6 +182,7 @@ function RecurringCard() {
                       <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={`${inputClass} w-full mt-1`} />
                     </label>
                   </div>
+                  {accounts.length > 0 && <AccountSelect accounts={accounts} value={accountId} onChange={setAccountId} type={editing.type} compact />}
                   <button type="submit" className="bg-brand-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-brand-700 transition">
                     Save changes
                   </button>

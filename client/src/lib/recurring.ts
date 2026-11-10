@@ -15,6 +15,8 @@ export interface RecurringRule {
   nextDue: string;
   endDate: string | null;
   paused: boolean;
+  // The account its entries are paid from or received in
+  accountId: string | null;
 }
 
 // What a bill or recurring entry is called: its note, or else its category

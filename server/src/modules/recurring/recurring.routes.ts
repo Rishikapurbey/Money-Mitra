@@ -14,6 +14,7 @@ import {
   stopRecurring,
   updateRecurring,
 } from "./recurring.service";
+import { parseAccountId } from "../transactions/transaction.input";
 
 const router = Router();
 
@@ -47,7 +48,9 @@ function parseRecurring(body: Record<string, unknown>): RecurringInput | string 
     endDate = new Date(String(body.endDate));
     if (isNaN(endDate.getTime())) return "Invalid end date";
   }
-  return { amount, type, category, note: note || null, mode, frequency, dayOfMonth, monthOfYear, endDate };
+  const accountId = parseAccountId(body.accountId);
+  if (accountId === false) return "Choose one of your accounts";
+  return { amount, type, category, note: note || null, mode, frequency, dayOfMonth, monthOfYear, endDate, accountId };
 }
 
 router.get("/", authMiddleware, async (req: AuthRequest, res) => {

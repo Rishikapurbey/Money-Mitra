@@ -6,6 +6,8 @@ import { toInputDate, transactionTimestamp } from "../lib/dates";
 import { useToast } from "../lib/toast";
 import { quickPicks, useCategories } from "../lib/categories";
 import { withBudgetAlert } from "../lib/budgetAlerts";
+import { useAccounts } from "../lib/accounts";
+import AccountSelect from "./AccountSelect";
 
 interface QuickAddSheetProps {
   type: "expense" | "income";
@@ -28,6 +30,10 @@ function QuickAddSheet({ type: initialType, recentCategories, onClose, onSaved }
   const toast = useToast();
   const { categories } = useCategories();
   const picks = quickPicks(type === "expense" ? recentCategories : [], categories, type);
+  const { accounts, defaultId } = useAccounts();
+  // Null until picked, which means the default account
+  const [accountChoice, setAccountChoice] = useState<string | null>(null);
+  const accountId = accountChoice ?? defaultId;
 
   useEffect(() => {
     amountRef.current?.focus();
@@ -49,6 +55,7 @@ function QuickAddSheet({ type: initialType, recentCategories, onClose, onSaved }
         note,
         date: transactionTimestamp(date),
         tzOffset: new Date().getTimezoneOffset(),
+        accountId: accountId || null,
       });
       const saved = `${type === "income" ? "Income" : "Expense"} of ${formatINR(value)} added`;
       toast({ message: withBudgetAlert(saved, res.data.budgetAlert) });
@@ -163,6 +170,8 @@ function QuickAddSheet({ type: initialType, recentCategories, onClose, onSaved }
             className={`${inputClass} w-full`}
           />
         </div>
+
+        <AccountSelect accounts={accounts} value={accountId} onChange={setAccountChoice} type={type} />
 
         {error && <p className="text-sm text-loss bg-loss-soft px-3 py-2 rounded-lg">{error}</p>}
 

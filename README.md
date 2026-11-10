@@ -44,7 +44,8 @@ the way.
 - Savings goals with contributions, history and a suggested monthly amount
 - Recurring transactions: added automatically (salary, SIPs) or as bill reminders you mark paid or skip, monthly or yearly
 - Import past months from a bank statement CSV, with undo
-- Net worth: what you own minus what you owe, with history. Your main bank or cash account moves with your Tracker income and expenses
+- Accounts, like in a UPI app: each entry is paid from or received in a bank account, cash or credit card (a default one is pre-filled), and each balance moves with its own entries
+- Net worth: what you own minus what you owe, with history; account balances update themselves from the Tracker
 - A monthly recap and a yearly review, plus plain observations about your month ("What we noticed this month")
 
 ### Shared expenses
@@ -186,7 +187,7 @@ reset, email confirmation, and profile photos and covers (which load in `<img>` 
 | Recurring | `/api/recurring` | Recurring rules, catch-up on app open, paying or skipping bills |
 | Imports | `/api/imports` | CSV import and undo |
 | Recaps | `/api/recaps` | Monthly recap and yearly review |
-| Net worth | `/api/networth` | Items, values, history and the main account |
+| Net worth | `/api/networth` | Items, values, history, accounts and the default account |
 | Shared | `/api/shared` | Groups, people search, invites, join links, expenses, payments, balances |
 | Discuss | `/api/posts` | Questions, replies, votes, accepted answers, reports, search |
 | People | `/api/users`, `/api/follows` | Profiles, photos, covers, followers and follow requests |
@@ -212,8 +213,8 @@ reset, email confirmation, and profile photos and covers (which load in `<img>` 
   closely linked, so PostgreSQL was chosen over a document store.
 - **Exact splits.** Shared group amounts are stored in whole paise, so shares always add up
   to the total.
-- **Computed balances.** The main account's balance and net worth are calculated from the
-  last value entered plus Tracker activity since then, rather than stored, so edits and
+- **Computed balances.** Each account's balance and net worth are calculated from the
+  last value entered plus that account's Tracker entries since then, rather than stored, so edits and
   deletions are always reflected.
 - **Content as code.** Learn terms live in the client as a typed data file, so they can be
   added or corrected without a database change.

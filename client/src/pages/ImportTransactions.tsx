@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { accountName, useAccounts } from "../lib/accounts";
 import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { isAxiosError } from "axios";
@@ -194,6 +195,10 @@ export default function ImportTransactions() {
   const [newCategory, setNewCategory] = useState("");
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const { accounts, defaultId } = useAccounts();
+  // The account the whole file came from; null until picked, which means the default account
+  const [accountChoice, setAccountChoice] = useState<string | null>(null);
+  const accountId = accountChoice ?? defaultId;
 
   // Everything already saved, to spot duplicates and learn which categories the user picks
   useEffect(() => {
@@ -360,6 +365,7 @@ export default function ImportTransactions() {
       const { data } = await api.post("/imports", {
         fileName,
         tzOffset: new Date().getTimezoneOffset(),
+        accountId: accountId || null,
         rows: selected.map((i) => ({
           date: transactionTimestamp(i.day),
           amount: i.amount,
@@ -721,6 +727,22 @@ export default function ImportTransactions() {
           </p>
         )}
       </div>
+      {accounts.length > 0 && (
+        <div className="mt-5">
+          <label className="block text-sm font-medium text-ink-700">
+            Which account is this statement from?
+            <select value={accountId} onChange={(e) => setAccountChoice(e.target.value)} className={`${inputClass} w-full mt-1 font-normal`}>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {accountName(a)}
+                </option>
+              ))}
+              <option value="">No account</option>
+            </select>
+          </label>
+          <p className="mt-1 text-xs text-ink-500">Income is added to it and spending taken from it.</p>
+        </div>
+      )}
       {submitError && (
         <p role="alert" className="mt-4 text-sm text-loss bg-loss-soft px-3 py-2 rounded-lg">
           {submitError}

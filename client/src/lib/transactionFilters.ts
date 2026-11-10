@@ -7,6 +7,7 @@ export interface TransactionFilters {
   q: string;
   type: "all" | "income" | "expense";
   category: string; // "all" or a category name
+  account: string; // "all", an account id, or "none" for entries without one
   min: string; // amounts as typed, "" when not set
   max: string;
   range: RangeKey;
@@ -18,6 +19,7 @@ export const DEFAULT_FILTERS: TransactionFilters = {
   q: "",
   type: "all",
   category: "all",
+  account: "all",
   min: "",
   max: "",
   range: "month",
@@ -36,6 +38,7 @@ export function filtersFromParams(params: URLSearchParams): TransactionFilters {
     q: params.get("q") ?? "",
     type: type === "income" || type === "expense" ? type : "all",
     category: params.get("category") || "all",
+    account: params.get("account") || "all",
     min: params.get("min") ?? "",
     max: params.get("max") ?? "",
     range: range && RANGES.includes(range) ? range : "month",
@@ -92,6 +95,7 @@ export function searchQuery(filters: TransactionFilters, month: Date, now = new 
     ...(filters.q.trim() && { q: filters.q.trim() }),
     ...(filters.type !== "all" && { type: filters.type }),
     ...(filters.category !== "all" && { category: filters.category }),
+    ...(filters.account !== "all" && { account: filters.account }),
     ...(min !== undefined && { min }),
     ...(max !== undefined && { max }),
     ...(from && { from: from.toISOString() }),
@@ -104,12 +108,14 @@ interface Filterable {
   type: string;
   category: string;
   note?: string | null;
+  accountId?: string | null;
 }
 
 // The same rules the server applies, for filtering a month that is already loaded
 export function matchesFilters(t: Filterable, filters: TransactionFilters): boolean {
   if (filters.type !== "all" && t.type !== filters.type) return false;
   if (filters.category !== "all" && t.category !== filters.category) return false;
+  if (filters.account !== "all" && (t.accountId ?? "none") !== filters.account) return false;
   const min = amountOf(filters.min);
   const max = amountOf(filters.max);
   if (min !== undefined && t.amount < min) return false;

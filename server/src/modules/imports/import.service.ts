@@ -10,7 +10,8 @@ export const MAX_IMPORT_ROWS = 2000;
 export type ImportRow = TransactionInput & { date: Date };
 
 // Saves every row of a file at once (all or nothing), tagged with the import so it can be undone
-export async function importTransactions(userId: string, fileName: string, rows: ImportRow[]) {
+// Every row goes to the one account chosen for the file (null for none)
+export async function importTransactions(userId: string, fileName: string, rows: ImportRow[], accountId: string | null = null) {
   // New categories join the user's list once each; existing ones keep their spelling
   const spellings = new Map<string, string>();
   const keyOf = (row: ImportRow) => `${row.type}:${row.category.toLowerCase()}`;
@@ -29,6 +30,7 @@ export async function importTransactions(userId: string, fileName: string, rows:
         category: spellings.get(keyOf(row)) ?? row.category,
         note: row.note,
         date: row.date,
+        accountId,
       })),
     });
     return created;

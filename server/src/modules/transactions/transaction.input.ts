@@ -29,6 +29,14 @@ export function parseTransaction(body: Record<string, unknown>): TransactionInpu
   return { amount, type, category, note: note || null };
 }
 
+// The account an entry was paid from or received in: undefined when not sent (the default account for a
+// new entry, unchanged for an edit), null for no account, or an id to check against the user's accounts
+export function parseAccountId(value: unknown): string | null | undefined | false {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  return typeof value === "string" && value.length <= 50 ? value : false;
+}
+
 // The client's Date.getTimezoneOffset(), so "this month" means the user's month; UTC if missing
 export function parseTzOffset(value: unknown) {
   const n = Number(value ?? 0);

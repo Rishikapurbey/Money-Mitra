@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
 import { importLimiter } from "../../middleware/rateLimit";
-import { parseDate, parseTransaction, parseTzOffset } from "../transactions/transaction.input";
+import { parseAccountId, parseDate, parseTransaction, parseTzOffset } from "../transactions/transaction.input";
+import { accountFor } from "../transactions/transaction.service";
 import { ImportRow, MAX_IMPORT_ROWS, checkImportedBudgets, importTransactions, listImports, undoImport } from "./import.service";
 
 const router = Router();
@@ -32,7 +33,10 @@ router.post("/", authMiddleware, importLimiter, async (req: AuthRequest, res) =>
   const rows = parseRows(req.body.rows);
   if (typeof rows === "string") return res.status(400).json({ error: rows });
   const name = typeof req.body.fileName === "string" ? req.body.fileName.trim().slice(0, 100) : "";
-  const created = await importTransactions(req.userId, name || "Imported file", rows);
+  const accountId = parseAccountId(req.body.accountId);
+  if (accountId === false) return res.status(400).json({ error: "Choose one of your accounts" });
+  const account = await accountFor(req.userId, accountId);
+  const created = await importTransactions(req.userId, name || "Imported file", rows, account);
   const budgetAlert = await checkImportedBudgets(req.userId, rows, parseTzOffset(req.body.tzOffset));
   res.status(201).json({ import: { id: created.id, count: created.count }, budgetAlert });
 });

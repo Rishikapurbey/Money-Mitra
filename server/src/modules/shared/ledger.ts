@@ -62,8 +62,17 @@ export async function syncTracker(db: Db, expense: ExpenseForTracker, groupName:
         data: { ...fields, ...(categoryChanged && { category: await trackerCategory(userId, expense.category, db) }) },
       });
     } else {
+      // A new share is paid from the member's default account; they can change it in their Tracker
+      const account = await db.netWorthItem.findFirst({ where: { userId, isDefault: true, archivedAt: null }, select: { id: true } });
       await db.transaction.create({
-        data: { ...fields, userId, type: "expense", category: await trackerCategory(userId, expense.category, db), shareId: share.id },
+        data: {
+          ...fields,
+          userId,
+          type: "expense",
+          category: await trackerCategory(userId, expense.category, db),
+          shareId: share.id,
+          accountId: account?.id ?? null,
+        },
       });
     }
   }

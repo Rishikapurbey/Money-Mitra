@@ -85,6 +85,14 @@ describe("matchesFilters", () => {
     expect(matchesFilters(lunch, with_({ min: "400", max: "400" }))).toBe(true);
     expect(matchesFilters(lunch, with_({ min: "401" }))).toBe(false);
   });
+
+  it("filters by account, with entries that have none under \"none\"", () => {
+    expect(matchesFilters({ ...lunch, accountId: "hdfc" }, with_({ account: "hdfc" }))).toBe(true);
+    expect(matchesFilters({ ...lunch, accountId: "cash" }, with_({ account: "hdfc" }))).toBe(false);
+    expect(matchesFilters(lunch, with_({ account: "none" }))).toBe(true);
+    expect(matchesFilters({ ...lunch, accountId: "hdfc" }, with_({ account: "none" }))).toBe(false);
+    expect(searchQuery(with_({ account: "none", range: "all" }), new Date(2026, 8, 1))).toEqual({ account: "none" });
+  });
 });
 
 describe("totalsOf", () => {

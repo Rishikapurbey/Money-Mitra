@@ -9,7 +9,8 @@ import { useToast } from "../lib/toast";
 import { formatINR, inputClass, pageWidth } from "../lib/ui";
 import { useWideLayout } from "../lib/useMediaQuery";
 import { announceDataChange } from "../lib/dataEvents";
-import { ITEM_TYPES, MAIN_ACCOUNT_TYPES, signedINR, typeLabel } from "../lib/networth";
+import { ITEM_TYPES, signedINR, typeLabel } from "../lib/networth";
+import { isAccount } from "../lib/accounts";
 import type { ItemKind, NetWorthItem, NetWorthOverview } from "../lib/networth";
 
 const shortDate = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -49,7 +50,7 @@ function KindChoice({ value, onChange }: { value: ItemKind; onChange: (kind: Ite
 // One item: its value, a quick way to update it, and its past values
 function ItemRow({ item, onChanged }: { item: NetWorthItem; onChanged: () => void }) {
   const toast = useToast();
-  const [mode, setMode] = useState<"view" | "value" | "edit" | "remove" | "main">("view");
+  const [mode, setMode] = useState<"view" | "value" | "edit" | "remove">("view");
   const [value, setValue] = useState("");
   const [name, setName] = useState(item.name);
   const [type, setType] = useState(item.type);
@@ -83,16 +84,16 @@ function ItemRow({ item, onChanged }: { item: NetWorthItem; onChanged: () => voi
         <div className="min-w-0">
           <p className="font-medium text-ink-900 truncate flex items-center gap-2">
             <span className="truncate">{item.name}</span>
-            {item.isMain && (
-              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 px-1.5 py-0.5 rounded">Main account</span>
+            {item.isDefault && (
+              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 px-1.5 py-0.5 rounded">Default</span>
             )}
           </p>
           <p className="text-xs text-ink-500">
-            {typeLabel(item.kind, item.type)} · updated {shortDate(item.updatedAt)}
+            {typeLabel(item.kind, item.type)} · {item.isAccount ? "balance typed in" : "updated"} {shortDate(item.updatedAt)}
           </p>
           {item.tracked && item.tracked.change !== 0 && (
             <p className="text-xs text-ink-500">
-              {formatINR(item.tracked.recorded)} on {shortDate(item.updatedAt)}, then {signedINR(item.tracked.change)} from your Tracker
+              {formatINR(item.tracked.recorded)} typed in, {signedINR(item.tracked.change)} from your Tracker since
             </p>
           )}
         </div>
@@ -117,7 +118,7 @@ function ItemRow({ item, onChanged }: { item: NetWorthItem; onChanged: () => voi
             required
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder={item.kind === "asset" ? "What it's worth now" : "What you owe now"}
+            placeholder={item.isAccount ? (item.kind === "asset" ? "Balance now" : "What you owe on it now") : item.kind === "asset" ? "What it's worth now" : "What you owe now"}
             aria-label="New value"
             className={`${inputClass} py-1.5 text-sm w-48 tabular-nums`}
           />
@@ -155,43 +156,6 @@ function ItemRow({ item, onChanged }: { item: NetWorthItem; onChanged: () => voi
         </form>
       )}
 
-      {mode === "main" && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            run(async () => {
-              if (value !== "") await api.post(`/networth/items/${item.id}/values`, { value });
-              await api.put(`/networth/items/${item.id}/main`, { isMain: true });
-            }, `${item.name} is now your main account`);
-          }}
-          className="mt-3 rounded-xl bg-canvas border border-line p-3 text-sm space-y-2"
-        >
-          <p className="text-ink-700">
-            Tracker income and expenses dated from now on will change this balance. Type in what's in it today, so it starts from the right
-            amount.
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="number"
-              min="0"
-              step="any"
-              autoFocus
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder={`Today's balance (now ${formatINR(item.value)})`}
-              aria-label="Today's balance"
-              className={`${inputClass} py-1.5 text-sm w-60 tabular-nums`}
-            />
-            <button type="submit" className="px-3 py-1.5 rounded-lg text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 transition">
-              {value === "" ? "Keep the value and continue" : "Save"}
-            </button>
-            <button type="button" onClick={() => setMode("view")} aria-label="Cancel" className="text-ink-400 hover:text-ink-900">
-              <X size={16} />
-            </button>
-          </div>
-        </form>
-      )}
-
       {mode === "remove" && (
         <div className="mt-3 rounded-xl bg-canvas border border-line p-3 text-sm">
           <p className="text-ink-700">
@@ -222,26 +186,13 @@ function ItemRow({ item, onChanged }: { item: NetWorthItem; onChanged: () => voi
           <button onClick={toggleHistory} aria-expanded={history !== null} className="text-ink-500 hover:text-ink-900">
             {history ? "Hide history" : "History"}
           </button>
-          {item.isMain ? (
+          {item.isAccount && !item.isDefault && (
             <button
-              onClick={() => run(() => api.put(`/networth/items/${item.id}/main`, { isMain: false }), `${item.name} is no longer your main account`)}
+              onClick={() => run(() => api.put(`/networth/items/${item.id}/default`, { isDefault: true }), `New entries will start with ${item.name}`)}
               className="text-ink-500 hover:text-ink-900"
             >
-              Stop using as main account
+              Make default
             </button>
-          ) : (
-            item.kind === "asset" &&
-            MAIN_ACCOUNT_TYPES.includes(item.type) && (
-              <button
-                onClick={() => {
-                  setValue("");
-                  setMode("main");
-                }}
-                className="text-ink-500 hover:text-ink-900"
-              >
-                Make main account
-              </button>
-            )
           )}
           <button
             onClick={() => {
@@ -286,7 +237,7 @@ export default function NetWorth() {
   const [name, setName] = useState("");
   const [value, setValue] = useState("");
   const [adding, setAdding] = useState(false);
-  const [asMain, setAsMain] = useState(false);
+  const [asDefault, setAsDefault] = useState(false);
   const [formError, setFormError] = useState("");
 
   const load = useCallback(() => {
@@ -316,10 +267,9 @@ export default function NetWorth() {
     setAdding(true);
     setFormError("");
     try {
-      const res = await api.post("/networth/items", { kind, type, name, value });
-      if (canBeMain && asMain) await api.put(`/networth/items/${res.data.item.id}/main`, { isMain: true });
-      toast({ message: canBeMain && asMain ? `${name.trim()} added as your main account` : `${name.trim()} added` });
-      setAsMain(false);
+      const res = await api.post("/networth/items", { kind, type, name, value, isDefault: account && asDefault });
+      toast({ message: res.data.item.isDefault ? `${name.trim()} added as your default account` : `${name.trim()} added` });
+      setAsDefault(false);
       setName("");
       setValue("");
       changed();
@@ -330,8 +280,8 @@ export default function NetWorth() {
     }
   };
 
-  const canBeMain = kind === "asset" && MAIN_ACCOUNT_TYPES.includes(type);
-  const currentMain = data?.items.find((i) => i.isMain);
+  const account = isAccount(kind, type);
+  const currentDefault = data?.items.find((i) => i.isDefault);
 
   const header = (
     <div className="space-y-4">
@@ -341,7 +291,8 @@ export default function NetWorth() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Net worth</h1>
         <p className="mt-1 text-sm text-ink-500">
-          What you own minus what you owe. Your main account moves with your Tracker; update the other values whenever they change.
+          What you own minus what you owe. Bank accounts, cash and credit cards move with what you add in the Tracker; update the other
+          values whenever they change.
         </p>
       </div>
     </div>
@@ -413,15 +364,19 @@ export default function NetWorth() {
           />
         </div>
       </label>
-      {canBeMain && (
+      {account && (
+        <p className="text-xs text-ink-500">
+          {kind === "asset"
+            ? "Income you add in the Tracker for this account raises its balance, and spending lowers it."
+            : "Spending on this card in the Tracker adds to what you owe, and refunds lower it."}
+        </p>
+      )}
+      {account && currentDefault && (
         <label className="flex items-start gap-3 cursor-pointer">
-          <input type="checkbox" checked={asMain} onChange={(e) => setAsMain(e.target.checked)} className="mt-0.5 w-4 h-4 accent-brand-600" />
+          <input type="checkbox" checked={asDefault} onChange={(e) => setAsDefault(e.target.checked)} className="mt-0.5 w-4 h-4 accent-brand-600" />
           <span className="text-sm text-ink-900">
-            Make this my main account
-            <span className="block text-xs text-ink-500">
-              Tracker income and expenses from now on will change its balance
-              {currentMain ? `, instead of ${currentMain.name}` : ""}.
-            </span>
+            Make this my default account
+            <span className="block text-xs text-ink-500">New Tracker entries will start with it, instead of {currentDefault.name}.</span>
           </span>
         </label>
       )}

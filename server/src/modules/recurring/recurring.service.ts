@@ -5,6 +5,8 @@ import { rememberCategory } from "../categories/category.service";
 import { daysUntil, dueOccurrences, firstDue, nextOccurrence, occurrenceIn, toLocalDate } from "./recurrence";
 import type { Frequency } from "./recurrence";
 import { checkBudget } from "../budgets/budgetAlert.service";
+import { accountFor } from "../transactions/transaction.service";
+import { checkAccount } from "../networth/networth.service";
 
 export type Mode = "auto" | "remind";
 
@@ -20,6 +22,9 @@ export interface RecurringInput {
   // For yearly ones (0-11); taken from the start date when not given
   monthOfYear: number | null;
   endDate: Date | null;
+  // Where its entries are paid from or received in: undefined means the default account for a new
+  // rule and no change for an edit; null means no account
+  accountId?: string | null | undefined;
 }
 
 async function findOwned(userId: string, id: string) {
@@ -37,7 +42,7 @@ export async function createRecurring(
   userId: string,
   data: RecurringInput & { tzOffset: number; from: Date; firstEntryId: string | null }
 ) {
-  const { tzOffset, from, firstEntryId, ...fields } = data;
+  const { tzOffset, from, firstEntryId, accountId, ...fields } = data;
   if (fields.frequency === "yearly" && fields.monthOfYear === null) fields.monthOfYear = toLocalDate(from, tzOffset).month;
   let nextDue = firstDue(from, fields.dayOfMonth, tzOffset, fields.frequency, fields.monthOfYear);
 
@@ -50,8 +55,9 @@ export async function createRecurring(
   }
 
   fields.category = await rememberCategory(userId, fields.type, fields.category);
+  const account = await accountFor(userId, accountId);
   return prisma.$transaction(async (tx) => {
-    const rule = await tx.recurringTransaction.create({ data: { ...fields, tzOffset, nextDue, userId } });
+    const rule = await tx.recurringTransaction.create({ data: { ...fields, tzOffset, nextDue, userId, accountId: account } });
     if (firstEntryId) await tx.transaction.update({ where: { id: firstEntryId }, data: { recurringId: rule.id } });
     return rule;
   });
@@ -65,7 +71,12 @@ export async function updateRecurring(userId: string, id: string, data: Recurrin
     data.dayOfMonth === rule.dayOfMonth && data.frequency === rule.frequency && (data.frequency === "monthly" || data.monthOfYear === rule.monthOfYear);
   const nextDue = sameSchedule ? rule.nextDue : firstDue(new Date(), data.dayOfMonth, rule.tzOffset, data.frequency, data.monthOfYear);
   const category = await rememberCategory(userId, data.type, data.category);
-  return prisma.recurringTransaction.update({ where: { id }, data: { ...data, category, nextDue } });
+  const { accountId, ...fields } = data;
+  if (accountId) await checkAccount(userId, accountId);
+  return prisma.recurringTransaction.update({
+    where: { id },
+    data: { ...fields, category, nextDue, ...(accountId !== undefined && { accountId }) },
+  });
 }
 
 export async function setPaused(userId: string, id: string, paused: boolean) {
@@ -111,6 +122,7 @@ export async function catchUp(userId: string, now = new Date()) {
           note: rule.note,
           date,
           recurringId: rule.id,
+          accountId: rule.accountId,
         })),
       });
       return due.length;
@@ -191,7 +203,7 @@ export async function payBill(userId: string, id: string, amount: number, paidOn
   const rule = await findBill(userId, id);
   const bill = await settleBill(rule, async (tx) => {
     const entry = await tx.transaction.create({
-      data: { userId, amount, type: rule.type, category: rule.category, note: rule.note, date: paidOn, recurringId: rule.id },
+      data: { userId, amount, type: rule.type, category: rule.category, note: rule.note, date: paidOn, recurringId: rule.id, accountId: rule.accountId },
     });
     await tx.billPayment.create({ data: { userId, recurringId: rule.id, dueDate: rule.nextDue, paidAt: entry.date } });
   });

@@ -13,6 +13,8 @@ import {
   totalsOf,
 } from "../lib/transactionFilters";
 import type { RangeKey, TransactionFilters } from "../lib/transactionFilters";
+import { accountName } from "../lib/accounts";
+import type { Account } from "../lib/accounts";
 
 export interface Transaction {
   id: string;
@@ -24,6 +26,8 @@ export interface Transaction {
   recurringId?: string | null;
   // Set when this is the user's share of a shared group expense
   shareId?: string | null;
+  // The account it was paid from or received in
+  accountId?: string | null;
 }
 
 interface Totals {
@@ -48,6 +52,7 @@ interface TransactionsCardProps {
   colorFor: (category: string) => string;
   onEdit: (t: Transaction) => void;
   onDelete: (t: Transaction) => void;
+  accounts: Account[];
 }
 
 const monthName = (d: Date) => d.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
@@ -79,11 +84,12 @@ function customRangeLabel(from: string, to: string) {
 }
 
 // Removable summaries of the filters that are set
-function activeChips(filters: TransactionFilters): { label: string; clear: Partial<TransactionFilters> }[] {
+function activeChips(filters: TransactionFilters, nameOfAccount: (id: string) => string): { label: string; clear: Partial<TransactionFilters> }[] {
   const chips: { label: string; clear: Partial<TransactionFilters> }[] = [];
   if (filters.q.trim()) chips.push({ label: `“${filters.q.trim()}”`, clear: { q: "" } });
   if (filters.type !== "all") chips.push({ label: filters.type === "income" ? "Income" : "Expenses", clear: { type: "all" } });
   if (filters.category !== "all") chips.push({ label: filters.category, clear: { category: "all" } });
+  if (filters.account !== "all") chips.push({ label: nameOfAccount(filters.account), clear: { account: "all" } });
   if (filters.min) chips.push({ label: `Min ${formatINR(Number(filters.min) || 0)}`, clear: { min: "" } });
   if (filters.max) chips.push({ label: `Max ${formatINR(Number(filters.max) || 0)}`, clear: { max: "" } });
   if (filters.range !== "month") {
@@ -95,7 +101,7 @@ function activeChips(filters: TransactionFilters): { label: string; clear: Parti
   return chips;
 }
 
-function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colorFor, onEdit, onDelete }: TransactionsCardProps) {
+function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colorFor, onEdit, onDelete, accounts }: TransactionsCardProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigationType = useNavigationType();
   // The filters are kept here and copied to the URL. Reading them back from the URL on every keystroke
@@ -184,7 +190,14 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
     new Set([...allCategories, ...monthTransactions.map((t) => t.category), ...(filters.category !== "all" ? [filters.category] : [])])
   ).sort((a, b) => a.localeCompare(b));
 
-  const chips = activeChips(filters);
+  // Entries keep pointing at an account after it's removed from Net worth
+  const nameOfAccount = (id: string) => {
+    if (id === "none") return "No account";
+    const account = accounts.find((a) => a.id === id);
+    return account ? accountName(account) : "Removed account";
+  };
+  const showAccounts = accounts.length > 0;
+  const chips = activeChips(filters, nameOfAccount);
   const scopeLabel = {
     month: `in ${monthName(month)}`,
     "3m": "in the last 3 months",
@@ -284,6 +297,20 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
+          {showAccounts && (
+            <select
+              value={filters.account}
+              onChange={(e) => update({ account: e.target.value })}
+              aria-label="Account"
+              className={`${inputClass} py-1.5 text-sm max-w-48`}
+            >
+              <option value="all">All accounts</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>{accountName(a)}</option>
+              ))}
+              <option value="none">No account</option>
+            </select>
+          )}
           <button
             type="button"
             onClick={() => setMoreOpen(!moreOpen)}
@@ -443,6 +470,7 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
                 <th scope="col" className="text-left font-medium px-5 py-2.5 w-32">Date</th>
                 <th scope="col" className="text-left font-medium px-5 py-2.5">Category</th>
                 <th scope="col" className="text-left font-medium px-5 py-2.5">Note</th>
+                {showAccounts && <th scope="col" className="text-left font-medium px-5 py-2.5">Account</th>}
                 <th scope="col" className="text-right font-medium px-5 py-2.5">Amount</th>
                 <th scope="col" className="px-5 py-2.5 w-24"><span className="sr-only">Actions</span></th>
               </tr>
@@ -459,6 +487,9 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
                     </span>
                   </td>
                   <td className="px-5 py-3 text-ink-500 max-w-xs truncate">{t.note || "—"}</td>
+                  {showAccounts && (
+                    <td className="px-5 py-3 text-ink-500 max-w-40 truncate">{t.accountId ? nameOfAccount(t.accountId) : "—"}</td>
+                  )}
                   <td className="px-5 py-3 text-right">{amountBadge(t)}</td>
                   <td className="px-5 py-3">
                     <span className="flex items-center justify-end gap-3">
@@ -492,7 +523,11 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
                         {t.category}
                         {repeatIcon(t)}
                       </p>
-                      {t.note && <p className="text-sm text-ink-500 truncate">{t.note}</p>}
+                      {(t.note || (showAccounts && t.accountId)) && (
+                        <p className="text-sm text-ink-500 truncate">
+                          {[showAccounts && t.accountId ? nameOfAccount(t.accountId) : "", t.note].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
