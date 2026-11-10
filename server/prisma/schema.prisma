@@ -79,6 +79,7 @@ model User {
   categories          Category[]
   avatar              Avatar?
   cover               CoverPhoto?
+  transfers           Transfer[]
 }
 
 // A profile photo, kept apart from User so the image bytes are only read when the photo is requested.
@@ -425,6 +426,8 @@ model NetWorthItem {
   value        Float
   // The account new Tracker entries start with, like the primary account in a UPI app
   isDefault    Boolean                @default(false)
+  // For a credit card: how much can be owed on it, if the user gave it
+  creditLimit  Float?
   archivedAt   DateTime?
   createdAt    DateTime               @default(now())
   userId       String
@@ -433,8 +436,28 @@ model NetWorthItem {
   // For accounts (bank, cash, credit card): the Tracker entries that move its value
   transactions Transaction[]
   recurring    RecurringTransaction[]
+  transfersOut Transfer[]             @relation("transferFrom")
+  transfersIn  Transfer[]             @relation("transferTo")
 
   @@index([userId])
+}
+
+// Money moved between two of the user's own accounts, e.g. an ATM withdrawal or paying a credit card
+// bill. Neither income nor spending, so budgets and totals ignore it; only the two balances move.
+model Transfer {
+  id        String       @id @default(cuid())
+  amount    Float
+  date      DateTime     @default(now())
+  note      String?
+  createdAt DateTime     @default(now())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromId    String
+  from      NetWorthItem @relation("transferFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  toId      String
+  to        NetWorthItem @relation("transferTo", fields: [toId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
 }
 
 // One recorded value of an item, so net worth can be worked out for any past date

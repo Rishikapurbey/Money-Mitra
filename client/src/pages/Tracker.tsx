@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { isAxiosError } from "axios";
 import api from "../lib/api";
 import { useToast } from "../lib/toast";
 import { useTitle } from "../lib/useTitle";
@@ -18,7 +19,8 @@ import { quickPicks, useCategories } from "../lib/categories";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { AlertCircle, TrendingUp, TrendingDown, Wallet2, Plus, ChevronLeft, ChevronRight, Upload, CalendarCheck } from "lucide-react";
 import { withBudgetAlert } from "../lib/budgetAlerts";
-import { useAccounts } from "../lib/accounts";
+import { accountName, useAccounts, withAccountAlert } from "../lib/accounts";
+import type { AccountAlert, Transfer } from "../lib/accounts";
 import AccountSelect from "../components/AccountSelect";
 import type { BudgetAlert } from "../lib/budgetAlerts";
 
@@ -38,6 +40,7 @@ function repeatSummary(mode: "auto" | "remind", frequency: "monthly" | "yearly",
 
 interface DashboardData {
   transactions: Transaction[];
+  transfers: Transfer[];
   summary: { income: number; expense: number; balance: number; totalBalance: number; hasIncome: boolean };
   trend: { month: string; income: number; expense: number }[];
 }
@@ -50,12 +53,18 @@ async function fetchDashboard(month: Date): Promise<DashboardData | null> {
       from: addMonths(startOfMonth(new Date()), -5).toISOString(),
       tzOffset: new Date().getTimezoneOffset(),
     };
-    const [txRes, summaryRes, trendRes] = await Promise.all([
+    const [txRes, summaryRes, trendRes, transferRes] = await Promise.all([
       api.get("/transactions", { params: range }),
       api.get("/transactions/summary", { params: range }),
       api.get("/transactions/trend", { params: trendParams }),
+      api.get("/transfers", { params: range }),
     ]);
-    return { transactions: txRes.data.transactions, summary: summaryRes.data.summary, trend: trendRes.data.trend };
+    return {
+      transactions: txRes.data.transactions,
+      transfers: transferRes.data.transfers,
+      summary: summaryRes.data.summary,
+      trend: trendRes.data.trend,
+    };
   } catch {
     return null;
   }
@@ -63,6 +72,7 @@ async function fetchDashboard(month: Date): Promise<DashboardData | null> {
 
 function Tracker() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0, totalBalance: 0, hasIncome: true });
   const [trend, setTrend] = useState<{ month: string; income: number; expense: number }[]>([]);
   // An import can send the user here to see the month it covered (a YYYY-MM-DD day in that month)
@@ -95,10 +105,19 @@ function Tracker() {
   // The account picked for this entry; null until chosen, which means the default account
   const [accountChoice, setAccountChoice] = useState<string | null>(null);
   const accountId = accountChoice ?? defaultId;
+  // A transfer between two of the user's accounts: from the default account to the next one, until picked
+  const isTransfer = type === "transfer";
+  const [editingTransferId, setEditingTransferId] = useState<string | null>(null);
+  const [fromChoice, setFromChoice] = useState<string | null>(null);
+  const [toChoice, setToChoice] = useState<string | null>(null);
+  const fromId = fromChoice ?? (defaultId || accounts[0]?.id || "");
+  const toId = toChoice ?? (accounts.find((a) => a.id !== fromId)?.id ?? "");
+  const editing = Boolean(editingId || editingTransferId);
 
   const applyData = useCallback((data: DashboardData | null) => {
     if (data) {
       setTransactions(data.transactions);
+      setTransfers(data.transfers);
       setSummary(data.summary);
       setTrend(data.trend);
       setError("");
@@ -138,6 +157,45 @@ function Tracker() {
     setEditingId(null);
     setEditingShared(false);
     setAccountChoice(null);
+    setEditingTransferId(null);
+    setFromChoice(null);
+    setToChoice(null);
+  };
+
+  // Saves a transfer between two accounts; it never counts as income or spending
+  const saveTransfer = async (when: string) => {
+    const body = { fromId, toId, amount: parseFloat(amount), date: when, note };
+    let alert: AccountAlert | null;
+    try {
+      const res = editingTransferId ? await api.put(`/transfers/${editingTransferId}`, body) : await api.post("/transfers", body);
+      alert = res.data.accountAlert;
+    } catch (err) {
+      setError((isAxiosError(err) && err.response?.data?.error) || "We couldn't save that transfer. Please try again.");
+      return;
+    }
+    const wasEditing = Boolean(editingTransferId);
+    const nameOf = (id: string) => accounts.find((a) => a.id === id)?.name ?? "your account";
+    const saved = wasEditing ? "Transfer saved" : `${formatINR(body.amount)} moved from ${nameOf(fromId)} to ${nameOf(toId)}`;
+    resetForm();
+    const targetMonth = startOfMonth(new Date(when));
+    if (targetMonth.getTime() !== month.getTime()) setMonth(targetMonth);
+    else loadData();
+    announceDataChange();
+    toast({ message: withAccountAlert(saved, alert) });
+  };
+
+  // From an alert that an account went below zero: a transfer into it for the shortfall, from the
+  // account with the most money in it
+  const startMoveMoney = (alert: AccountAlert) => {
+    resetForm();
+    setType("transfer");
+    setToChoice(alert.accountId);
+    const source = accounts
+      .filter((a) => a.id !== alert.accountId && a.kind === "asset")
+      .sort((a, b) => b.value - a.value)[0];
+    if (source) setFromChoice(source.id);
+    setAmount(String(Math.abs(alert.value)));
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -147,6 +205,7 @@ function Tracker() {
     let when: string;
     if (editingOriginalDate && toInputDate(new Date(editingOriginalDate)) === date) when = editingOriginalDate;
     else when = transactionTimestamp(date);
+    if (isTransfer) return saveTransfer(when);
 
     const body = {
       amount: parseFloat(amount),
@@ -159,14 +218,12 @@ function Tracker() {
     };
     let createdId: string | null = null;
     let budgetAlert: BudgetAlert | null;
+    let accountAlert: AccountAlert | null;
     try {
-      if (editingId) {
-        budgetAlert = (await api.put(`/transactions/${editingId}`, body)).data.budgetAlert;
-      } else {
-        const res = await api.post("/transactions", body);
-        createdId = res.data.transaction.id;
-        budgetAlert = res.data.budgetAlert;
-      }
+      const res = editingId ? await api.put(`/transactions/${editingId}`, body) : await api.post("/transactions", body);
+      if (!editingId) createdId = res.data.transaction.id;
+      budgetAlert = res.data.budgetAlert;
+      accountAlert = res.data.accountAlert;
     } catch {
       setError("We couldn't save that transaction. Please try again.");
       return;
@@ -210,7 +267,49 @@ function Tracker() {
         : otherMonth
           ? `Transaction added to ${monthName(targetMonth)}`
           : "Transaction added";
-    toast({ message: withBudgetAlert(saved, budgetAlert) });
+    toast({
+      message: withAccountAlert(withBudgetAlert(saved, budgetAlert), accountAlert),
+      ...(accountAlert?.kind === "overdrawn" && { action: { label: "Move money", onClick: () => startMoveMoney(accountAlert) } }),
+    });
+  };
+
+  const handleEditTransfer = (t: Transfer) => {
+    resetForm();
+    setType("transfer");
+    setEditingTransferId(t.id);
+    setAmount(String(t.amount));
+    setNote(t.note || "");
+    setDate(toInputDate(new Date(t.date)));
+    setEditingOriginalDate(t.date);
+    setFromChoice(t.fromId);
+    setToChoice(t.toId);
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const handleDeleteTransfer = async (t: Transfer) => {
+    try {
+      await api.delete(`/transfers/${t.id}`);
+    } catch {
+      setError("We couldn't delete that transfer. Please try again.");
+      return;
+    }
+    loadData();
+    announceDataChange();
+    toast({
+      message: "Transfer deleted",
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          try {
+            await api.post("/transfers", { fromId: t.fromId, toId: t.toId, amount: t.amount, date: t.date, note: t.note });
+            loadData();
+            announceDataChange();
+          } catch {
+            setError("We couldn't restore that transfer. Please add it again.");
+          }
+        },
+      },
+    });
   };
 
   const handleEdit = (t: Transaction) => {
@@ -430,11 +529,11 @@ function Tracker() {
       ref={formRef}
       onSubmit={handleSubmit}
       className={`bg-surface p-6 rounded-2xl border space-y-4 transition ${
-        editingId ? "border-brand-500 ring-2 ring-brand-100" : "border-line"
+        editing ? "border-brand-500 ring-2 ring-brand-100" : "border-line"
       }`}
     >
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-ink-900">{editingId ? "Edit transaction" : "Add transaction"}</h2>
+        <h2 className="font-semibold text-ink-900">{editingTransferId ? "Edit transfer" : editingId ? "Edit transaction" : "Add transaction"}</h2>
         {editingId && (
           <span className="text-xs font-medium uppercase tracking-wider text-brand-700 bg-brand-50 px-2 py-1 rounded-md">
             Editing
@@ -442,13 +541,14 @@ function Tracker() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 p-1 bg-ink-100 rounded-xl text-sm font-medium">
-        {(["expense", "income"] as const).map((t) => (
+      <div className="grid grid-cols-3 p-1 bg-ink-100 rounded-xl text-sm font-medium">
+        {(["expense", "income", "transfer"] as const).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setType(t)}
-            disabled={editingShared}
+            // An entry can't turn into a transfer while being edited, or the other way round
+            disabled={editingShared || (t === "transfer" ? Boolean(editingId) : Boolean(editingTransferId))}
             className={`py-2 rounded-lg capitalize transition disabled:cursor-not-allowed ${
               type === t ? "bg-surface text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-700"
             }`}
@@ -494,42 +594,82 @@ function Tracker() {
         </p>
       )}
 
-      <div>
-        <input
-          type="text"
-          placeholder="Category (e.g. Food, Rent, Salary)"
-          maxLength={50}
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          list="tracker-categories"
-          autoComplete="off"
-          className={`${inputClass} w-full`}
-          required
-        />
-        <datalist id="tracker-categories">
-          {typeCategories.map((c) => (
-            <option key={c.id} value={c.name} />
-          ))}
-        </datalist>
-        {quickCategories.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {quickCategories.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCategory(c)}
-                className={`px-3 py-1 rounded-full text-sm border transition ${
-                  category === c
-                    ? "border-brand-500 bg-brand-50 text-brand-700"
-                    : "border-line text-ink-700 hover:border-ink-300"
-                }`}
-              >
-                {c}
-              </button>
+      {isTransfer && (
+        <div className="space-y-2">
+          {accounts.length < 2 ? (
+            <p className="text-sm text-ink-500 bg-canvas border border-line rounded-xl px-3 py-2.5">
+              Add at least two accounts in{" "}
+              <Link to="/tracker/net-worth" className="font-medium text-brand-700 hover:underline">
+                Net worth
+              </Link>{" "}
+              to move money between them, e.g. your bank account and cash.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "From", value: fromId, set: setFromChoice },
+                  { label: "To", value: toId, set: setToChoice },
+                ].map((field) => (
+                  <label key={field.label} className="block text-sm font-medium text-ink-700">
+                    {field.label}
+                    <select value={field.value} onChange={(e) => field.set(e.target.value)} className={`${inputClass} w-full mt-1 font-normal`}>
+                      {accounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {accountName(a)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-ink-500">
+                Moving your own money, like an ATM withdrawal or paying a credit card bill, isn't spending or income, so budgets
+                don't count it.
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
+      {!isTransfer && (
+        <div>
+          <input
+            type="text"
+            placeholder="Category (e.g. Food, Rent, Salary)"
+            maxLength={50}
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            list="tracker-categories"
+            autoComplete="off"
+            className={`${inputClass} w-full`}
+            required
+          />
+          <datalist id="tracker-categories">
+            {typeCategories.map((c) => (
+              <option key={c.id} value={c.name} />
             ))}
-          </div>
-        )}
-      </div>
+          </datalist>
+          {quickCategories.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {quickCategories.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCategory(c)}
+                  className={`px-3 py-1 rounded-full text-sm border transition ${
+                    category === c
+                      ? "border-brand-500 bg-brand-50 text-brand-700"
+                      : "border-line text-ink-700 hover:border-ink-300"
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <input
         type="text"
@@ -540,9 +680,9 @@ function Tracker() {
         className={`${inputClass} w-full`}
       />
 
-      <AccountSelect accounts={accounts} value={accountId} onChange={setAccountChoice} type={type} />
+      {!isTransfer && <AccountSelect accounts={accounts} value={accountId} onChange={setAccountChoice} type={type} />}
 
-      {!editingId && (
+      {!editingId && !isTransfer && (
         <div className="rounded-xl border border-line p-3 space-y-3">
           <label className="flex items-center gap-3 cursor-pointer">
             <input type="checkbox" checked={repeat} onChange={(e) => setRepeat(e.target.checked)} className="w-4 h-4 accent-brand-600" />
@@ -600,10 +740,14 @@ function Tracker() {
       )}
 
       <div className="flex gap-2">
-        <button type="submit" className="flex items-center gap-1.5 bg-brand-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-brand-700 transition">
-          <Plus size={16} /> {editingId ? "Save changes" : "Add transaction"}
+        <button
+          type="submit"
+          disabled={isTransfer && (accounts.length < 2 || fromId === toId)}
+          className="flex items-center gap-1.5 bg-brand-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-brand-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <Plus size={16} /> {editing ? "Save changes" : isTransfer ? "Add transfer" : "Add transaction"}
         </button>
-        {editingId && (
+        {editing && (
           <button type="button" onClick={resetForm} className="px-5 py-2.5 rounded-xl border border-line text-ink-700 hover:bg-ink-100 transition">
             Cancel
           </button>
@@ -713,6 +857,9 @@ function Tracker() {
       onEdit={handleEdit}
       onDelete={handleDelete}
       accounts={accounts}
+      monthTransfers={transfers}
+      onEditTransfer={handleEditTransfer}
+      onDeleteTransfer={handleDeleteTransfer}
     />
   );
 

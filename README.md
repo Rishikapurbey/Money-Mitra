@@ -45,6 +45,7 @@ the way.
 - Recurring transactions: added automatically (salary, SIPs) or as bill reminders you mark paid or skip, monthly or yearly
 - Import past months from a bank statement CSV, with undo
 - Accounts, like in a UPI app: each entry is paid from or received in a bank account, cash or credit card (a default one is pre-filled), and each balance moves with its own entries
+- Transfers between your own accounts (ATM withdrawals, paying a card bill) that never count as spending; a warning with one-tap Move money when an account goes below zero, and credit card limits with an 80% warning
 - Net worth: what you own minus what you owe, with history; account balances update themselves from the Tracker
 - A monthly recap and a yearly review, plus plain observations about your month ("What we noticed this month")
 
@@ -186,6 +187,7 @@ reset, email confirmation, and profile photos and covers (which load in `<img>` 
 | Budgets, goals | `/api/budgets`, `/api/goals` | Budgets per category; goals and contributions |
 | Recurring | `/api/recurring` | Recurring rules, catch-up on app open, paying or skipping bills |
 | Imports | `/api/imports` | CSV import and undo |
+| Transfers | `/api/transfers` | Moving money between your own accounts |
 | Recaps | `/api/recaps` | Monthly recap and yearly review |
 | Net worth | `/api/networth` | Items, values, history, accounts and the default account |
 | Shared | `/api/shared` | Groups, people search, invites, join links, expenses, payments, balances |

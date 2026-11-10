@@ -6,7 +6,7 @@ import { toInputDate, transactionTimestamp } from "../lib/dates";
 import { useToast } from "../lib/toast";
 import { quickPicks, useCategories } from "../lib/categories";
 import { withBudgetAlert } from "../lib/budgetAlerts";
-import { useAccounts } from "../lib/accounts";
+import { useAccounts, withAccountAlert } from "../lib/accounts";
 import AccountSelect from "./AccountSelect";
 
 interface QuickAddSheetProps {
@@ -58,7 +58,7 @@ function QuickAddSheet({ type: initialType, recentCategories, onClose, onSaved }
         accountId: accountId || null,
       });
       const saved = `${type === "income" ? "Income" : "Expense"} of ${formatINR(value)} added`;
-      toast({ message: withBudgetAlert(saved, res.data.budgetAlert) });
+      toast({ message: withAccountAlert(withBudgetAlert(saved, res.data.budgetAlert), res.data.accountAlert) });
       onSaved();
       onClose();
     } catch {

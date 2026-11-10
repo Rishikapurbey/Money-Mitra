@@ -12,6 +12,8 @@ export interface NetWorthItem {
   isAccount: boolean;
   // The account new Tracker entries start with
   isDefault: boolean;
+  // For a credit card: how much can be owed on it, if given
+  creditLimit: number | null;
   // For an account: the value typed in, and how its Tracker entries have moved it since
   tracked: { recorded: number; change: number } | null;
   updatedAt: string;

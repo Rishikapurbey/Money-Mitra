@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
 import { checkBudget } from "../budgets/budgetAlert.service";
+import { accountAlert } from "../networth/networth.service";
 import {
   createTransaction,
   getTransactions,
@@ -61,7 +62,7 @@ router.post("/", authMiddleware, async (req: AuthRequest, res) => {
   const { amount, type, category, note } = input;
   const transaction = await createTransaction(req.userId, amount, type, category, note, date, accountId);
   const budgetAlert = await budgetAlertFor(req.userId, transaction, req.body.tzOffset);
-  res.status(201).json({ transaction, budgetAlert });
+  res.status(201).json({ transaction, budgetAlert, accountAlert: await accountAlert(req.userId, transaction.accountId) });
 });
 
 router.get("/", authMiddleware, async (req: AuthRequest, res) => {
@@ -135,7 +136,7 @@ router.put("/:id", authMiddleware, async (req: AuthRequest, res) => {
   if (accountId === false) return res.status(400).json({ error: "Choose one of your accounts" });
   const transaction = await updateTransaction(req.userId, id, { ...input, date, accountId });
   const budgetAlert = await budgetAlertFor(req.userId, transaction, req.body.tzOffset);
-  res.status(200).json({ transaction, budgetAlert });
+  res.status(200).json({ transaction, budgetAlert, accountAlert: await accountAlert(req.userId, transaction.accountId) });
 });
 
 export default router;

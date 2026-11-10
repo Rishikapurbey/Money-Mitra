@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigationType, useSearchParams } from "react-router-dom";
-import { Pencil, Receipt, Repeat, Search, SlidersHorizontal, Trash2, UsersRound, X } from "lucide-react";
+import { ArrowLeftRight, ArrowRight, Pencil, Receipt, Repeat, Search, SlidersHorizontal, Trash2, UsersRound, X } from "lucide-react";
 import api from "../lib/api";
 import { formatINR, inputClass } from "../lib/ui";
 import {
@@ -14,7 +14,7 @@ import {
 } from "../lib/transactionFilters";
 import type { RangeKey, TransactionFilters } from "../lib/transactionFilters";
 import { accountName } from "../lib/accounts";
-import type { Account } from "../lib/accounts";
+import type { Account, Transfer } from "../lib/accounts";
 
 export interface Transaction {
   id: string;
@@ -53,7 +53,14 @@ interface TransactionsCardProps {
   onEdit: (t: Transaction) => void;
   onDelete: (t: Transaction) => void;
   accounts: Account[];
+  // The month's transfers between the user's own accounts
+  monthTransfers: Transfer[];
+  onEditTransfer: (t: Transfer) => void;
+  onDeleteTransfer: (t: Transfer) => void;
 }
+
+// A line in the list: an income or expense, or a transfer
+type Row = { kind: "entry"; item: Transaction } | { kind: "transfer"; item: Transfer };
 
 const monthName = (d: Date) => d.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 const shortDate = (day: string) =>
@@ -84,7 +91,10 @@ function customRangeLabel(from: string, to: string) {
 }
 
 // Removable summaries of the filters that are set
-function activeChips(filters: TransactionFilters, nameOfAccount: (id: string) => string): { label: string; clear: Partial<TransactionFilters> }[] {
+function activeChips(
+  filters: TransactionFilters,
+  nameOfAccount: (id: string) => string,
+): { label: string; clear: Partial<TransactionFilters> }[] {
   const chips: { label: string; clear: Partial<TransactionFilters> }[] = [];
   if (filters.q.trim()) chips.push({ label: `“${filters.q.trim()}”`, clear: { q: "" } });
   if (filters.type !== "all") chips.push({ label: filters.type === "income" ? "Income" : "Expenses", clear: { type: "all" } });
@@ -101,7 +111,19 @@ function activeChips(filters: TransactionFilters, nameOfAccount: (id: string) =>
   return chips;
 }
 
-function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colorFor, onEdit, onDelete, accounts }: TransactionsCardProps) {
+function TransactionsCard({
+  month,
+  monthTransactions,
+  isCurrentMonth,
+  wide,
+  colorFor,
+  onEdit,
+  onDelete,
+  accounts,
+  monthTransfers,
+  onEditTransfer,
+  onDeleteTransfer,
+}: TransactionsCardProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigationType = useNavigationType();
   // The filters are kept here and copied to the URL. Reading them back from the URL on every keystroke
@@ -124,6 +146,7 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
   const [loadingMore, setLoadingMore] = useState(false);
   const [retry, setRetry] = useState(0);
   const latestKey = useRef("");
+  const [rangeTransfers, setRangeTransfers] = useState<{ key: string; transfers: Transfer[] } | null>(null);
 
   const update = (changes: Partial<TransactionFilters>) => {
     const next = { ...filters, ...changes };
@@ -163,14 +186,31 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
     return () => clearTimeout(timer);
   }, [queryKey, monthTransactions, retry]);
 
+  // Transfers aren't income or spending, so they only show while no type, category, text or amount
+  // filter is set. For other date ranges they're fetched alongside the search.
+  const showTransfers = filters.type === "all" && filters.category === "all" && !filters.q.trim() && !filters.min && !filters.max;
+  const transferKey = searchMode && showTransfers && filters.account !== "none" ? queryKey : "";
+  useEffect(() => {
+    if (!transferKey) return;
+    let live = true;
+    const { from, to, account } = JSON.parse(transferKey) as { from?: string; to?: string; account?: string };
+    api
+      .get("/transfers", { params: { from, to, account } })
+      .then((res) => live && setRangeTransfers({ key: transferKey, transfers: res.data.transfers }))
+      .catch(() => live && setRangeTransfers({ key: transferKey, transfers: [] }));
+    return () => {
+      live = false;
+    };
+  }, [transferKey, monthTransactions]);
+
   const loadMore = async () => {
     if (!results?.nextCursor) return;
     setLoadingMore(true);
     try {
       const res = await api.get("/transactions/search", { params: { ...JSON.parse(queryKey), cursor: results.nextCursor } });
       if (latestKey.current === queryKey) {
-        setResults((prev) =>
-          prev && { ...prev, transactions: [...prev.transactions, ...res.data.transactions], nextCursor: res.data.nextCursor }
+        setResults(
+          (prev) => prev && { ...prev, transactions: [...prev.transactions, ...res.data.transactions], nextCursor: res.data.nextCursor },
         );
       }
     } catch {
@@ -186,8 +226,21 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
   const totals: Totals | null = searchMode ? (current?.totals ?? results?.totals ?? null) : totalsOf(monthMatches);
   const stale = searchMode && !current && !searchFailed;
 
+  const touches = (t: Transfer) => filters.account === "all" || t.fromId === filters.account || t.toId === filters.account;
+  let transfersShown: Transfer[] = [];
+  if (showTransfers && filters.account !== "none") {
+    transfersShown = searchMode ? (rangeTransfers?.key === transferKey ? rangeTransfers.transfers : []) : monthTransfers.filter(touches);
+    // While more entries are still to load, only show transfers down to the oldest entry loaded
+    const oldest = searchMode && current?.nextCursor ? list[list.length - 1]?.date : undefined;
+    if (oldest) transfersShown = transfersShown.filter((t) => t.date >= oldest);
+  }
+  const rows: Row[] = [
+    ...list.map((item) => ({ kind: "entry" as const, item })),
+    ...transfersShown.map((item) => ({ kind: "transfer" as const, item })),
+  ].sort((a, b) => (a.item.date < b.item.date ? 1 : a.item.date > b.item.date ? -1 : 0));
+
   const categoryOptions = Array.from(
-    new Set([...allCategories, ...monthTransactions.map((t) => t.category), ...(filters.category !== "all" ? [filters.category] : [])])
+    new Set([...allCategories, ...monthTransactions.map((t) => t.category), ...(filters.category !== "all" ? [filters.category] : [])]),
   ).sort((a, b) => a.localeCompare(b));
 
   // Entries keep pointing at an account after it's removed from Net worth
@@ -213,13 +266,39 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
             : "",
   }[filters.range];
 
-  const grouped = list.reduce((acc: { label: string; items: Transaction[] }[], t) => {
-    const label = dayLabel(t.date);
+  const grouped = rows.reduce((acc: { label: string; items: Row[] }[], row) => {
+    const label = dayLabel(row.item.date);
     const last = acc[acc.length - 1];
-    if (last && last.label === label) last.items.push(t);
-    else acc.push({ label, items: [t] });
+    if (last && last.label === label) last.items.push(row);
+    else acc.push({ label, items: [row] });
     return acc;
   }, []);
+
+  const transferIcon = (size: string) => (
+    <span className={`${size} rounded-full shrink-0 flex items-center justify-center bg-ink-100 text-ink-500`}>
+      <ArrowLeftRight size={15} />
+    </span>
+  );
+  const transferRoute = (t: Transfer) => (
+    <span className="inline-flex items-center gap-1 min-w-0">
+      <span className="truncate">{nameOfAccount(t.fromId)}</span>
+      <ArrowRight size={12} className="shrink-0 text-ink-400" />
+      <span className="truncate">{nameOfAccount(t.toId)}</span>
+    </span>
+  );
+  const transferAmount = (t: Transfer, extra = "") => (
+    <span className={`px-2.5 py-1 rounded-lg font-semibold tabular-nums text-ink-700 bg-ink-100 ${extra}`}>{formatINR(t.amount)}</span>
+  );
+  const transferActions = (t: Transfer, gap: string) => (
+    <span className={`flex items-center justify-end ${gap}`}>
+      <button onClick={() => onEditTransfer(t)} aria-label="Edit transfer" className="text-ink-300 hover:text-brand-600 transition">
+        <Pencil size={16} />
+      </button>
+      <button onClick={() => onDeleteTransfer(t)} aria-label="Delete transfer" className="text-ink-300 hover:text-loss transition">
+        <Trash2 size={16} />
+      </button>
+    </span>
+  );
 
   const avatar = (t: Transaction, size: string) => (
     <span
@@ -236,7 +315,8 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
         t.type === "income" ? "text-gain bg-gain-soft" : "text-loss bg-loss-soft"
       }`}
     >
-      {t.type === "income" ? "+" : "−"}{formatINR(t.amount)}
+      {t.type === "income" ? "+" : "−"}
+      {formatINR(t.amount)}
     </span>
   );
 
@@ -294,7 +374,9 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
           >
             <option value="all">All categories</option>
             {categoryOptions.map((c) => (
-              <option key={c} value={c}>{c}</option>
+              <option key={c} value={c}>
+                {c}
+              </option>
             ))}
           </select>
           {showAccounts && (
@@ -306,7 +388,9 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
             >
               <option value="all">All accounts</option>
               {accounts.map((a) => (
-                <option key={a.id} value={a.id}>{accountName(a)}</option>
+                <option key={a.id} value={a.id}>
+                  {accountName(a)}
+                </option>
               ))}
               <option value="none">No account</option>
             </select>
@@ -408,7 +492,10 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
 
   // What the filters add up to, so "how much did I spend on X?" has an answer
   const totalsBar = filtering && totals && (
-    <p className={`px-5 py-3 bg-canvas border-b border-line text-sm text-ink-700 transition-opacity ${stale ? "opacity-50" : ""}`} aria-live="polite">
+    <p
+      className={`px-5 py-3 bg-canvas border-b border-line text-sm text-ink-700 transition-opacity ${stale ? "opacity-50" : ""}`}
+      aria-live="polite"
+    >
       <span className="font-semibold text-ink-900">
         {totals.count} transaction{totals.count === 1 ? "" : "s"}
       </span>
@@ -432,7 +519,7 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
     );
   } else if (searchMode && !results) {
     body = <p className="p-5 text-sm text-ink-500">Searching…</p>;
-  } else if (!searchMode && monthTransactions.length === 0 && !filtering) {
+  } else if (!searchMode && monthTransactions.length === 0 && monthTransfers.length === 0 && !filtering) {
     body = (
       <div className="px-5 py-14 text-center">
         <div className="mx-auto w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center">
@@ -444,16 +531,13 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
         </p>
       </div>
     );
-  } else if (list.length === 0) {
+  } else if (rows.length === 0) {
     body = (
       <div className={`px-5 py-10 text-center transition-opacity ${stale ? "opacity-50" : ""}`}>
         <p className="font-medium text-ink-900">No transactions match these filters</p>
         <p className="mt-1 text-sm text-ink-500">
           {filters.range === "month" ? "Try a wider date range, or " : "Try "}
-          <button
-            onClick={clearAll}
-            className="font-medium text-brand-700 underline underline-offset-2 hover:no-underline"
-          >
+          <button onClick={clearAll} className="font-medium text-brand-700 underline underline-offset-2 hover:no-underline">
             clearing the filters
           </button>
           .
@@ -467,45 +551,87 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
           <table className="w-full text-sm">
             <thead className="bg-canvas text-xs uppercase tracking-wider text-ink-500">
               <tr>
-                <th scope="col" className="text-left font-medium px-5 py-2.5 w-32">Date</th>
-                <th scope="col" className="text-left font-medium px-5 py-2.5">Category</th>
-                <th scope="col" className="text-left font-medium px-5 py-2.5">Note</th>
-                {showAccounts && <th scope="col" className="text-left font-medium px-5 py-2.5">Account</th>}
-                <th scope="col" className="text-right font-medium px-5 py-2.5">Amount</th>
-                <th scope="col" className="px-5 py-2.5 w-24"><span className="sr-only">Actions</span></th>
+                <th scope="col" className="text-left font-medium px-5 py-2.5 w-32">
+                  Date
+                </th>
+                <th scope="col" className="text-left font-medium px-5 py-2.5">
+                  Category
+                </th>
+                <th scope="col" className="text-left font-medium px-5 py-2.5">
+                  Note
+                </th>
+                {showAccounts && (
+                  <th scope="col" className="text-left font-medium px-5 py-2.5">
+                    Account
+                  </th>
+                )}
+                <th scope="col" className="text-right font-medium px-5 py-2.5">
+                  Amount
+                </th>
+                <th scope="col" className="px-5 py-2.5 w-24">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {list.map((t) => (
-                <tr key={t.id} className="hover:bg-canvas transition">
-                  <td className="px-5 py-3 text-ink-500 whitespace-nowrap">{dayLabel(t.date)}</td>
-                  <td className="px-5 py-3">
-                    <span className="flex items-center gap-3 min-w-0">
-                      {avatar(t, "w-8 h-8 text-xs")}
-                      <span className="font-medium text-ink-900 truncate">{t.category}</span>
-                      {repeatIcon(t)}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-ink-500 max-w-xs truncate">{t.note || "—"}</td>
-                  {showAccounts && (
-                    <td className="px-5 py-3 text-ink-500 max-w-40 truncate">{t.accountId ? nameOfAccount(t.accountId) : "—"}</td>
-                  )}
-                  <td className="px-5 py-3 text-right">{amountBadge(t)}</td>
-                  <td className="px-5 py-3">
-                    <span className="flex items-center justify-end gap-3">
-                      <button onClick={() => onEdit(t)} aria-label={`Edit ${t.category}`} className="text-ink-300 hover:text-brand-600 transition">
-                        <Pencil size={16} />
-                      </button>
-                      {/* A shared expense is removed from its group, which takes the share out of here too */}
-                      {!t.shareId && (
-                        <button onClick={() => onDelete(t)} aria-label={`Delete ${t.category}`} className="text-ink-300 hover:text-loss transition">
-                          <Trash2 size={16} />
+              {rows.map((row) => {
+                if (row.kind === "transfer") {
+                  return (
+                    <tr key={`transfer-${row.item.id}`} className="hover:bg-canvas transition">
+                      <td className="px-5 py-3 text-ink-500 whitespace-nowrap">{dayLabel(row.item.date)}</td>
+                      <td className="px-5 py-3">
+                        <span className="flex items-center gap-3 min-w-0">
+                          {transferIcon("w-8 h-8")}
+                          <span className="font-medium text-ink-900">Transfer</span>
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-ink-500 max-w-xs truncate">{row.item.note || "—"}</td>
+                      {showAccounts && <td className="px-5 py-3 text-ink-500 max-w-56">{transferRoute(row.item)}</td>}
+                      <td className="px-5 py-3 text-right">{transferAmount(row.item)}</td>
+                      <td className="px-5 py-3">{transferActions(row.item, "gap-3")}</td>
+                    </tr>
+                  );
+                }
+                const t = row.item;
+                return (
+                  <tr key={t.id} className="hover:bg-canvas transition">
+                    <td className="px-5 py-3 text-ink-500 whitespace-nowrap">{dayLabel(t.date)}</td>
+                    <td className="px-5 py-3">
+                      <span className="flex items-center gap-3 min-w-0">
+                        {avatar(t, "w-8 h-8 text-xs")}
+                        <span className="font-medium text-ink-900 truncate">{t.category}</span>
+                        {repeatIcon(t)}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-ink-500 max-w-xs truncate">{t.note || "—"}</td>
+                    {showAccounts && (
+                      <td className="px-5 py-3 text-ink-500 max-w-40 truncate">{t.accountId ? nameOfAccount(t.accountId) : "—"}</td>
+                    )}
+                    <td className="px-5 py-3 text-right">{amountBadge(t)}</td>
+                    <td className="px-5 py-3">
+                      <span className="flex items-center justify-end gap-3">
+                        <button
+                          onClick={() => onEdit(t)}
+                          aria-label={`Edit ${t.category}`}
+                          className="text-ink-300 hover:text-brand-600 transition"
+                        >
+                          <Pencil size={16} />
                         </button>
-                      )}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+                        {/* A shared expense is removed from its group, which takes the share out of here too */}
+                        {!t.shareId && (
+                          <button
+                            onClick={() => onDelete(t)}
+                            aria-label={`Delete ${t.category}`}
+                            className="text-ink-300 hover:text-loss transition"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         ) : (
@@ -514,35 +640,64 @@ function TransactionsCard({ month, monthTransactions, isCurrentMonth, wide, colo
               <p className="px-5 py-2 bg-canvas text-xs font-medium uppercase tracking-wider text-ink-500 border-b border-line">
                 {group.label}
               </p>
-              {group.items.map((t) => (
-                <div key={t.id} className="flex justify-between items-center gap-4 px-5 py-4 border-b border-line last:border-0 hover:bg-canvas transition">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {avatar(t, "w-9 h-9 text-sm")}
-                    <div className="min-w-0">
-                      <p className="font-medium text-ink-900 truncate flex items-center gap-1.5">
-                        {t.category}
-                        {repeatIcon(t)}
-                      </p>
-                      {(t.note || (showAccounts && t.accountId)) && (
-                        <p className="text-sm text-ink-500 truncate">
-                          {[showAccounts && t.accountId ? nameOfAccount(t.accountId) : "", t.note].filter(Boolean).join(" · ")}
+              {group.items.map((row) => {
+                if (row.kind === "transfer") {
+                  return (
+                    <div
+                      key={`transfer-${row.item.id}`}
+                      className="flex justify-between items-center gap-4 px-5 py-4 border-b border-line last:border-0 hover:bg-canvas transition"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {transferIcon("w-9 h-9")}
+                        <div className="min-w-0">
+                          <p className="font-medium text-ink-900">Transfer</p>
+                          <p className="text-sm text-ink-500 truncate flex items-center gap-1.5 min-w-0">
+                            {transferRoute(row.item)}
+                            {row.item.note && <span className="truncate">· {row.item.note}</span>}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        {transferAmount(row.item, "text-sm")}
+                        {transferActions(row.item, "gap-3")}
+                      </div>
+                    </div>
+                  );
+                }
+                const t = row.item;
+                return (
+                  <div
+                    key={t.id}
+                    className="flex justify-between items-center gap-4 px-5 py-4 border-b border-line last:border-0 hover:bg-canvas transition"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {avatar(t, "w-9 h-9 text-sm")}
+                      <div className="min-w-0">
+                        <p className="font-medium text-ink-900 truncate flex items-center gap-1.5">
+                          {t.category}
+                          {repeatIcon(t)}
                         </p>
+                        {(t.note || (showAccounts && t.accountId)) && (
+                          <p className="text-sm text-ink-500 truncate">
+                            {[showAccounts && t.accountId ? nameOfAccount(t.accountId) : "", t.note].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {amountBadge(t, "text-sm")}
+                      <button onClick={() => onEdit(t)} aria-label="Edit" className="text-ink-300 hover:text-brand-600 transition">
+                        <Pencil size={16} />
+                      </button>
+                      {!t.shareId && (
+                        <button onClick={() => onDelete(t)} aria-label="Delete" className="text-ink-300 hover:text-loss transition">
+                          <Trash2 size={16} />
+                        </button>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    {amountBadge(t, "text-sm")}
-                    <button onClick={() => onEdit(t)} aria-label="Edit" className="text-ink-300 hover:text-brand-600 transition">
-                      <Pencil size={16} />
-                    </button>
-                    {!t.shareId && (
-                      <button onClick={() => onDelete(t)} aria-label="Delete" className="text-ink-300 hover:text-loss transition">
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ))
         )}

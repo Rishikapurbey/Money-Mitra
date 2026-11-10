@@ -16,7 +16,11 @@ export interface ItemInput {
   type: string;
   value: number;
   isDefault?: boolean;
+  creditLimit?: number | null;
 }
+
+// Only a credit card has a limit
+const limitFor = (type: string, creditLimit: number | null | undefined) => (type === "credit_card" ? (creditLimit ?? null) : null);
 
 async function findOwned(userId: string, id: string) {
   const item = await prisma.netWorthItem.findUnique({ where: { id } });
@@ -33,24 +37,34 @@ async function recordedValues(userId: string): Promise<RecordedValue[]> {
   return values.map((v) => ({ itemId: v.itemId, kind: v.item.kind, value: v.value, recordedAt: v.recordedAt }));
 }
 
-// Each account's Tracker entries, as their effect on its value. Entries dated after an account was
-// removed don't count, since it's worth zero from then on.
+// Each account's Tracker entries and transfers, as their effect on its value. Anything dated after an
+// account was removed doesn't count, since it's worth zero from then on.
 async function accountFlows(userId: string) {
   const accounts = await prisma.netWorthItem.findMany({ where: { userId }, select: { id: true, kind: true, type: true, archivedAt: true } });
   const live = accounts.filter((a) => isAccount(a.kind, a.type));
   const byId = new Map(live.map((a) => [a.id, a]));
   const flows = new Map<string, AccountFlow[]>();
   if (live.length === 0) return flows;
-  const transactions = await prisma.transaction.findMany({
-    where: { userId, accountId: { in: live.map((a) => a.id) } },
-    select: { accountId: true, date: true, amount: true, type: true },
-  });
-  for (const t of transactions) {
-    const account = byId.get(t.accountId as string)!;
-    if (account.archivedAt && t.date > account.archivedAt) continue;
+  const ids = live.map((a) => a.id);
+  const [transactions, transfers] = await Promise.all([
+    prisma.transaction.findMany({
+      where: { userId, accountId: { in: ids } },
+      select: { accountId: true, date: true, amount: true, type: true },
+    }),
+    prisma.transfer.findMany({ where: { userId }, select: { fromId: true, toId: true, date: true, amount: true } }),
+  ]);
+  const push = (accountId: string, date: Date, type: string, amount: number) => {
+    const account = byId.get(accountId);
+    if (!account || (account.archivedAt && date > account.archivedAt)) return;
     const list = flows.get(account.id) ?? [];
-    list.push({ date: t.date, amount: flowAmount(account.kind, t.type, t.amount) });
+    list.push({ date, amount: flowAmount(account.kind, type, amount) });
     flows.set(account.id, list);
+  };
+  for (const t of transactions) push(t.accountId as string, t.date, t.type, t.amount);
+  // A transfer leaves one account like spending and arrives in the other like income
+  for (const t of transfers) {
+    push(t.fromId, t.date, "expense", t.amount);
+    push(t.toId, t.date, "income", t.amount);
   }
   return flows;
 }
@@ -80,7 +94,7 @@ export async function getNetWorth(userId: string, tzOffset: number, now = new Da
     prisma.netWorthItem.findMany({
       where: { userId, archivedAt: null },
       orderBy: [{ kind: "asc" }, { createdAt: "asc" }],
-      select: { id: true, name: true, kind: true, type: true, value: true, isDefault: true, createdAt: true },
+      select: { id: true, name: true, kind: true, type: true, value: true, isDefault: true, creditLimit: true, createdAt: true },
     }),
     netWorthData(userId),
   ]);
@@ -117,17 +131,33 @@ export async function createItem(userId: string, input: ItemInput) {
     const isDefault = account && (input.isDefault === true || !hasDefault);
     if (isDefault) await tx.netWorthItem.updateMany({ where: { userId, isDefault: true }, data: { isDefault: false } });
     const item = await tx.netWorthItem.create({
-      data: { userId, name: input.name, kind: input.kind, type: input.type, value: input.value, isDefault },
+      data: {
+        userId,
+        name: input.name,
+        kind: input.kind,
+        type: input.type,
+        value: input.value,
+        isDefault,
+        creditLimit: limitFor(input.type, input.creditLimit),
+      },
     });
     await tx.netWorthValue.create({ data: { userId, itemId: item.id, value: input.value } });
     return item;
   });
 }
 
-export async function updateItem(userId: string, id: string, data: { name: string; type: string }) {
+export async function updateItem(userId: string, id: string, data: { name: string; type: string; creditLimit?: number | null | undefined }) {
   const item = await findOwned(userId, id);
-  // Only an account can stay the default
-  return prisma.netWorthItem.update({ where: { id }, data: { ...data, ...(!isAccount(item.kind, data.type) && { isDefault: false }) } });
+  const { creditLimit, ...fields } = data;
+  return prisma.netWorthItem.update({
+    where: { id },
+    data: {
+      ...fields,
+      // Only an account can stay the default, and only a card keeps a limit
+      ...(!isAccount(item.kind, data.type) && { isDefault: false }),
+      ...(creditLimit !== undefined || data.type !== "credit_card" ? { creditLimit: limitFor(data.type, creditLimit) } : {}),
+    },
+  });
 }
 
 // Makes an account the one new Tracker entries start with (or stops it being that)
@@ -148,13 +178,27 @@ export async function listAccounts(userId: string, now = new Date()) {
     prisma.netWorthItem.findMany({
       where: { userId, archivedAt: null },
       orderBy: [{ isDefault: "desc" }, { kind: "asc" }, { createdAt: "asc" }],
-      select: { id: true, name: true, kind: true, type: true, value: true, isDefault: true },
+      select: { id: true, name: true, kind: true, type: true, value: true, isDefault: true, creditLimit: true },
     }),
     netWorthData(userId),
   ]);
   return items
     .filter((i) => isAccount(i.kind, i.type))
     .map((i) => ({ ...i, value: accountAt(values, i.id, flows, now)?.value ?? i.value }));
+}
+
+// Something worth telling the user after money moves in an account: a bank account or cash below
+// zero, or a credit card at 80% of its limit or over it. Null when all is well.
+export async function accountAlert(userId: string, accountId: string | null) {
+  if (!accountId) return null;
+  const account = (await listAccounts(userId)).find((a) => a.id === accountId);
+  if (!account) return null;
+  const base = { accountId: account.id, name: account.name, value: account.value };
+  if (account.kind === "asset") return account.value < 0 ? { kind: "overdrawn" as const, ...base } : null;
+  const limit = account.creditLimit;
+  if (!limit) return null;
+  if (account.value > limit) return { kind: "over_limit" as const, ...base, limit };
+  return account.value >= limit * 0.8 ? { kind: "near_limit" as const, ...base, limit } : null;
 }
 
 // The account a new entry goes to when none is chosen: the default, if there is one

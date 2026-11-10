@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { isAxiosError } from "axios";
-import { ArrowLeft, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import api from "../lib/api";
 import { useTitle } from "../lib/useTitle";
@@ -10,8 +10,9 @@ import { formatINR, inputClass, pageWidth } from "../lib/ui";
 import { useWideLayout } from "../lib/useMediaQuery";
 import { announceDataChange } from "../lib/dataEvents";
 import { ITEM_TYPES, signedINR, typeLabel } from "../lib/networth";
-import { isAccount } from "../lib/accounts";
+import { accountName, isAccount, withAccountAlert } from "../lib/accounts";
 import type { ItemKind, NetWorthItem, NetWorthOverview } from "../lib/networth";
+import type { AccountAlert } from "../lib/accounts";
 
 const shortDate = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 const monthLabel = (key: string) => {
@@ -47,10 +48,39 @@ function KindChoice({ value, onChange }: { value: ItemKind; onChange: (kind: Ite
   );
 }
 
-// One item: its value, a quick way to update it, and its past values
-function ItemRow({ item, onChanged }: { item: NetWorthItem; onChanged: () => void }) {
+// How much of a card's limit is used, as a bar that turns amber at 80% and red past the limit
+function LimitBar({ owed, limit }: { owed: number; limit: number }) {
+  const used = owed / limit;
+  const colour = used > 1 ? "bg-loss" : used >= 0.8 ? "bg-warn" : "bg-brand-500";
+  return (
+    <div className="mt-1.5 max-w-60">
+      <div className="h-1.5 rounded-full bg-ink-100 overflow-hidden">
+        <div className={`h-full rounded-full ${colour}`} style={{ width: `${Math.min(100, Math.max(0, used * 100))}%` }} />
+      </div>
+      <p className={`mt-1 text-xs ${used > 1 ? "text-loss font-medium" : "text-ink-500"}`}>
+        {used > 1 ? `${formatINR(owed - limit)} over the ${formatINR(limit)} limit` : `${formatINR(owed)} of ${formatINR(limit)} limit used`}
+      </p>
+    </div>
+  );
+}
+
+// One item: its value, a quick way to update it, and its past values. `accounts` are the user's
+// other accounts, for moving money into this one.
+function ItemRow({ item, accounts, onChanged }: { item: NetWorthItem; accounts: NetWorthItem[]; onChanged: () => void }) {
   const toast = useToast();
-  const [mode, setMode] = useState<"view" | "value" | "edit" | "remove">("view");
+  const [mode, setMode] = useState<"view" | "value" | "edit" | "remove" | "move">("view");
+  const [creditLimit, setCreditLimit] = useState("");
+  const sources = accounts.filter((a) => a.id !== item.id && a.kind === "asset").sort((a, b) => b.value - a.value);
+  const [moveFrom, setMoveFrom] = useState("");
+  const [moveAmount, setMoveAmount] = useState("");
+  const overdrawn = item.isAccount && item.kind === "asset" && item.value < 0;
+  // Moving money in: covering a shortfall, or paying a card's bill
+  const startMove = (amount: number) => {
+    setMoveFrom(sources[0]?.id ?? "");
+    setMoveAmount(String(Math.round(amount * 100) / 100));
+    setError("");
+    setMode("move");
+  };
   const [value, setValue] = useState("");
   const [name, setName] = useState(item.name);
   const [type, setType] = useState(item.type);
@@ -60,11 +90,12 @@ function ItemRow({ item, onChanged }: { item: NetWorthItem; onChanged: () => voi
   const run = async (task: () => Promise<unknown>, done: string) => {
     setError("");
     try {
-      await task();
+      // A transfer can leave the account it came from below zero, which the toast mentions
+      const alert = await task();
       setMode("view");
       setHistory(null);
       onChanged();
-      toast({ message: done });
+      toast({ message: withAccountAlert(done, alert && typeof alert === "object" && "kind" in alert ? (alert as AccountAlert) : null) });
     } catch (err) {
       setError(errorText(err, "We couldn't save that. Please try again."));
     }
@@ -97,10 +128,72 @@ function ItemRow({ item, onChanged }: { item: NetWorthItem; onChanged: () => voi
             </p>
           )}
         </div>
-        <p className={`shrink-0 font-semibold tabular-nums ${item.kind === "liability" ? "text-ink-700" : "text-ink-900"}`}>
+        <p
+          className={`shrink-0 font-semibold tabular-nums ${overdrawn ? "text-loss" : item.kind === "liability" ? "text-ink-700" : "text-ink-900"}`}
+        >
           {formatINR(item.value)}
         </p>
       </div>
+      {item.type === "credit_card" && item.creditLimit && <LimitBar owed={item.value} limit={item.creditLimit} />}
+
+      {overdrawn && mode !== "move" && (
+        <div className="mt-3 flex items-start gap-2 rounded-xl bg-loss-soft px-3 py-2.5 text-sm">
+          <AlertTriangle size={16} className="shrink-0 mt-0.5 text-loss" />
+          <p className="flex-1 text-ink-700">
+            You've spent {formatINR(-item.value)} more than {item.name} held.{" "}
+            {sources.length > 0 ? "Move money in from another account to cover it." : "Update its balance if your bank shows something else."}
+          </p>
+          {sources.length > 0 && (
+            <button onClick={() => startMove(-item.value)} className="shrink-0 font-medium text-brand-700 hover:underline">
+              Move money
+            </button>
+          )}
+        </div>
+      )}
+
+      {mode === "move" && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const from = sources.find((a) => a.id === moveFrom);
+            run(async () => {
+              const res = await api.post("/transfers", { fromId: moveFrom, toId: item.id, amount: moveAmount });
+              return res.data.accountAlert;
+            }, `${formatINR(Number(moveAmount))} moved from ${from?.name ?? "your account"} to ${item.name}`);
+          }}
+          className="mt-3 rounded-xl bg-canvas border border-line p-3 text-sm space-y-2"
+        >
+          <p className="text-ink-700">
+            {item.kind === "liability" ? `Pay ${item.name}'s bill from` : `Move money into ${item.name} from`}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <select value={moveFrom} onChange={(e) => setMoveFrom(e.target.value)} aria-label="From" className={`${inputClass} py-1.5 text-sm`}>
+              {sources.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {accountName(a)} ({formatINR(a.value)})
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min="0.01"
+              step="any"
+              required
+              value={moveAmount}
+              onChange={(e) => setMoveAmount(e.target.value)}
+              aria-label="Amount"
+              className={`${inputClass} py-1.5 text-sm w-36 tabular-nums`}
+            />
+            <button type="submit" className="px-3 py-1.5 rounded-lg text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 transition">
+              {item.kind === "liability" ? "Pay" : "Move"}
+            </button>
+            <button type="button" onClick={() => setMode("view")} aria-label="Cancel" className="text-ink-400 hover:text-ink-900">
+              <X size={16} />
+            </button>
+          </div>
+          <p className="text-xs text-ink-500">It's recorded as a transfer, so it isn't counted as spending or income.</p>
+        </form>
+      )}
 
       {mode === "value" && (
         <form
@@ -135,7 +228,16 @@ function ItemRow({ item, onChanged }: { item: NetWorthItem; onChanged: () => voi
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            run(() => api.put(`/networth/items/${item.id}`, { name, type, kind: item.kind }), "Saved");
+            run(
+              () =>
+                api.put(`/networth/items/${item.id}`, {
+                  name,
+                  type,
+                  kind: item.kind,
+                  ...(type === "credit_card" && { creditLimit: creditLimit === "" ? null : creditLimit }),
+                }),
+              "Saved"
+            );
           }}
           className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto] items-center"
         >
@@ -147,6 +249,18 @@ function ItemRow({ item, onChanged }: { item: NetWorthItem; onChanged: () => voi
               </option>
             ))}
           </select>
+          {type === "credit_card" && (
+            <input
+              type="number"
+              min="1"
+              step="any"
+              value={creditLimit}
+              onChange={(e) => setCreditLimit(e.target.value)}
+              placeholder="Credit limit (optional)"
+              aria-label="Credit limit"
+              className={`${inputClass} py-1.5 text-sm tabular-nums sm:col-span-2`}
+            />
+          )}
           <button type="submit" className="px-3 py-1.5 rounded-lg text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 transition">
             Save
           </button>
@@ -186,6 +300,11 @@ function ItemRow({ item, onChanged }: { item: NetWorthItem; onChanged: () => voi
           <button onClick={toggleHistory} aria-expanded={history !== null} className="text-ink-500 hover:text-ink-900">
             {history ? "Hide history" : "History"}
           </button>
+          {item.type === "credit_card" && item.value > 0 && sources.length > 0 && (
+            <button onClick={() => startMove(item.value)} className="text-ink-500 hover:text-ink-900">
+              Pay bill
+            </button>
+          )}
           {item.isAccount && !item.isDefault && (
             <button
               onClick={() => run(() => api.put(`/networth/items/${item.id}/default`, { isDefault: true }), `New entries will start with ${item.name}`)}
@@ -198,6 +317,7 @@ function ItemRow({ item, onChanged }: { item: NetWorthItem; onChanged: () => voi
             onClick={() => {
               setName(item.name);
               setType(item.type);
+              setCreditLimit(item.creditLimit ? String(item.creditLimit) : "");
               setMode("edit");
             }}
             aria-label={`Edit ${item.name}`}
@@ -238,6 +358,7 @@ export default function NetWorth() {
   const [value, setValue] = useState("");
   const [adding, setAdding] = useState(false);
   const [asDefault, setAsDefault] = useState(false);
+  const [newLimit, setNewLimit] = useState("");
   const [formError, setFormError] = useState("");
 
   const load = useCallback(() => {
@@ -267,9 +388,17 @@ export default function NetWorth() {
     setAdding(true);
     setFormError("");
     try {
-      const res = await api.post("/networth/items", { kind, type, name, value, isDefault: account && asDefault });
+      const res = await api.post("/networth/items", {
+        kind,
+        type,
+        name,
+        value,
+        isDefault: account && asDefault,
+        ...(type === "credit_card" && newLimit !== "" && { creditLimit: newLimit }),
+      });
       toast({ message: res.data.item.isDefault ? `${name.trim()} added as your default account` : `${name.trim()} added` });
       setAsDefault(false);
+      setNewLimit("");
       setName("");
       setValue("");
       changed();
@@ -364,6 +493,23 @@ export default function NetWorth() {
           />
         </div>
       </label>
+      {type === "credit_card" && (
+        <label className="block text-sm font-medium text-ink-700">
+          Credit limit <span className="font-normal text-ink-500">(optional)</span>
+          <div className="relative mt-1">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 font-normal">₹</span>
+            <input
+              type="number"
+              min="1"
+              step="any"
+              value={newLimit}
+              onChange={(e) => setNewLimit(e.target.value)}
+              className={`${inputClass} w-full !pl-8 font-normal tabular-nums`}
+            />
+          </div>
+          <span className="mt-1 block text-xs font-normal text-ink-500">We'll tell you when you've used 80% of it.</span>
+        </label>
+      )}
       {account && (
         <p className="text-xs text-ink-500">
           {kind === "asset"
@@ -458,7 +604,7 @@ export default function NetWorth() {
       ) : (
         <ul className="mt-1 divide-y divide-line">
           {items.map((i) => (
-            <ItemRow key={i.id} item={i} onChanged={changed} />
+            <ItemRow key={i.id} item={i} accounts={data.items.filter((a) => a.isAccount)} onChanged={changed} />
           ))}
         </ul>
       )}

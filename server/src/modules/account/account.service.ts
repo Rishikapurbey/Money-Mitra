@@ -100,6 +100,10 @@ export async function exportData(userId: string) {
       recurring: {
         select: { amount: true, type: true, category: true, note: true, mode: true, frequency: true, dayOfMonth: true, monthOfYear: true, endDate: true, paused: true, account: { select: { name: true } } },
       },
+      transfers: {
+        orderBy: { date: "desc" },
+        select: { amount: true, date: true, note: true, from: { select: { name: true } }, to: { select: { name: true } } },
+      },
       netWorthItems: {
         select: {
           name: true,
@@ -107,6 +111,7 @@ export async function exportData(userId: string) {
           type: true,
           value: true,
           isDefault: true,
+          creditLimit: true,
           archivedAt: true,
           createdAt: true,
           values: { select: { value: true, recordedAt: true }, orderBy: { recordedAt: "asc" } },

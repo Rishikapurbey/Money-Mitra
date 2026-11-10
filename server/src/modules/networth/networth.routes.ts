@@ -18,12 +18,17 @@ function parseValue(raw: unknown): number | string {
   return Math.round(value * 100) / 100;
 }
 
-function parseNameAndType(body: Record<string, unknown>, kind: ItemKind): { name: string; type: string } | string {
+function parseNameAndType(body: Record<string, unknown>, kind: ItemKind): { name: string; type: string; creditLimit?: number | null } | string {
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const type = typeof body.type === "string" ? body.type : "";
   if (!name || name.length > 60) return "Name is required (up to 60 characters)";
   if (!(type in ITEM_TYPES[kind])) return "Choose a type";
-  return { name, type };
+  // A card's limit is optional: empty or null clears it, and leaving it out keeps it
+  if (body.creditLimit === undefined) return { name, type };
+  if (body.creditLimit === null || body.creditLimit === "") return { name, type, creditLimit: null };
+  const limit = Number(body.creditLimit);
+  if (!Number.isFinite(limit) || limit <= 0 || limit > MAX_VALUE) return "Credit limit must be more than zero";
+  return { name, type, creditLimit: Math.round(limit * 100) / 100 };
 }
 
 router.get("/", authMiddleware, async (req: AuthRequest, res) => {
