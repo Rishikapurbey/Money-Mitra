@@ -1,6 +1,8 @@
 import { randomBytes } from "crypto";
+import type { Prisma } from "@prisma/client";
 import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
+import { DELETED_USERNAME } from "../../lib/validation";
 import { identity, identitySelect } from "../../lib/identity";
 import { findPerson } from "../follows/follow.service";
 import { markGroupRead } from "../notifications/notification.service";
@@ -212,6 +214,61 @@ export async function inviteUser(userId: string, groupId: string, username: stri
 }
 
 // Adds a friend who isn't on Money Mitra, by name only
+export const MIN_SEARCH = 3;
+const SEARCH_LIMIT = 5;
+
+// Suggestions while typing a username to invite: people whose username or display name starts with
+// what was typed (or a later word of the name does). People the viewer already knows come first,
+// then an exact username, then the rest alphabetically. Only public identity is returned, plus
+// whether they're already in this group.
+export async function searchPeople(userId: string, groupId: string, query: string) {
+  await membership(userId, groupId);
+  const q = query.trim().replace(/^@/, "");
+  if (q.length < MIN_SEARCH || q.length > 40) return [];
+
+  const matches: Prisma.UserWhereInput = {
+    OR: [
+      { username: { startsWith: q, mode: "insensitive" } },
+      { displayName: { startsWith: q, mode: "insensitive" } },
+      { displayName: { contains: ` ${q}`, mode: "insensitive" } },
+    ],
+    NOT: [{ id: userId }, { username: DELETED_USERNAME }],
+  };
+  const [follows, groupmates] = await Promise.all([
+    prisma.follow.findMany({
+      where: { status: "accepted", OR: [{ followerId: userId }, { followingId: userId }] },
+      select: { followerId: true, followingId: true },
+    }),
+    prisma.groupMember.findMany({
+      where: { status: "active", userId: { not: null }, group: { members: { some: { userId, status: "active" } } } },
+      select: { userId: true },
+      distinct: ["userId"],
+    }),
+  ]);
+  const known = new Set([...follows.flatMap((f) => [f.followerId, f.followingId]), ...groupmates.map((m) => m.userId as string)]);
+  known.delete(userId);
+
+  const select = { id: true, ...identitySelect } as const;
+  const [close, exact, others] = await Promise.all([
+    prisma.user.findMany({ where: { AND: [matches, { id: { in: [...known] } }] }, select, take: SEARCH_LIMIT, orderBy: { username: "asc" } }),
+    prisma.user.findFirst({ where: { AND: [matches, { username: { equals: q, mode: "insensitive" } }] }, select }),
+    prisma.user.findMany({ where: matches, select, take: SEARCH_LIMIT * 2, orderBy: { username: "asc" } }),
+  ]);
+  const lower = q.toLowerCase();
+  const rank = (u: { id: string; username: string }) =>
+    known.has(u.id) ? 0 : u.username.toLowerCase() === lower ? 1 : u.username.toLowerCase().startsWith(lower) ? 2 : 3;
+  const people = [...new Map([...close, ...(exact ? [exact] : []), ...others].map((u) => [u.id, u])).values()]
+    .sort((a, b) => rank(a) - rank(b) || a.username.localeCompare(b.username))
+    .slice(0, SEARCH_LIMIT);
+
+  const inGroup = await prisma.groupMember.findMany({
+    where: { groupId, userId: { in: people.map((p) => p.id) }, status: { in: ["active", "invited"] } },
+    select: { userId: true, status: true },
+  });
+  const statusOf = new Map(inGroup.map((m) => [m.userId, m.status]));
+  return people.map((p) => ({ ...identity(p), inGroup: (statusOf.get(p.id) ?? null) as "active" | "invited" | null }));
+}
+
 export async function addNameOnly(userId: string, groupId: string, name: string) {
   const { actor } = await membership(userId, groupId);
   await checkRoom(groupId);

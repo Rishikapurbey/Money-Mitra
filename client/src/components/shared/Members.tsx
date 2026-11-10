@@ -8,6 +8,8 @@ import { inputClass } from "../../lib/ui";
 import { joinLink } from "../../lib/shared";
 import type { GroupMember } from "../../lib/shared";
 import Avatar from "../Avatar";
+import PersonPicker from "./PersonPicker";
+import type { PersonResult } from "./PersonPicker";
 
 const errorText = (err: unknown, fallback: string) => (isAxiosError(err) && err.response?.data?.error) || fallback;
 
@@ -120,6 +122,8 @@ export function AddMemberForm({ groupId, onAdded }: { groupId: string; onAdded: 
   const toast = useToast();
   const [onApp, setOnApp] = useState(true);
   const [value, setValue] = useState("");
+  // A person picked from the suggestions; otherwise the typed text is used as their username
+  const [selected, setSelected] = useState<PersonResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -128,9 +132,10 @@ export function AddMemberForm({ groupId, onAdded }: { groupId: string; onAdded: 
     setBusy(true);
     setError("");
     try {
-      const res = await api.post(`/shared/groups/${groupId}/members`, onApp ? { username: value } : { name: value });
+      const res = await api.post(`/shared/groups/${groupId}/members`, onApp ? { username: selected?.username ?? value } : { name: value });
       toast({ message: onApp ? `Invite sent to ${res.data.member.name}` : `${res.data.member.name} added` });
       setValue("");
+      setSelected(null);
       onAdded();
     } catch (err) {
       setError(errorText(err, "We couldn't add them. Please try again."));
@@ -154,6 +159,7 @@ export function AddMemberForm({ groupId, onAdded }: { groupId: string; onAdded: 
             aria-checked={onApp === o.value}
             onClick={() => {
               setOnApp(o.value);
+              setSelected(null);
               setError("");
             }}
             className={`py-2 rounded-lg transition ${onApp === o.value ? "bg-surface text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-700"}`}
@@ -162,25 +168,44 @@ export function AddMemberForm({ groupId, onAdded }: { groupId: string; onAdded: 
           </button>
         ))}
       </div>
-      <label className="block text-sm font-medium text-ink-700">
-        {onApp ? "Their username" : "Their name"}
-        <div className="relative mt-1">
-          {onApp && <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 font-normal">@</span>}
+      {onApp ? (
+        <div className="text-sm font-medium text-ink-700">
+          <label htmlFor={`invite-${groupId}`}>Their username</label>
+          <PersonPicker
+            id={`invite-${groupId}`}
+            groupId={groupId}
+            value={value}
+            onChange={setValue}
+            selected={selected}
+            onSelect={(person) => {
+              setSelected(person);
+              setError("");
+            }}
+            onNotOnApp={() => {
+              setOnApp(false);
+              setValue("");
+              setError("");
+            }}
+          />
+        </div>
+      ) : (
+        <label className="block text-sm font-medium text-ink-700">
+          Their name
           <input
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            maxLength={onApp ? 21 : 40}
+            maxLength={40}
             required
-            autoCapitalize={onApp ? "none" : "words"}
+            autoCapitalize="words"
             autoCorrect="off"
-            placeholder={onApp ? "username" : "e.g. Ravi"}
-            className={`${inputClass} w-full font-normal ${onApp ? "!pl-8" : ""}`}
+            placeholder="e.g. Ravi"
+            className={`${inputClass} w-full mt-1 font-normal`}
           />
-        </div>
-      </label>
+        </label>
+      )}
       <p className="text-xs text-ink-500">
         {onApp
-          ? "They'll get an invite and join once they accept."
+          ? "Type at least 3 letters of their username or name to see matching people. They'll get an invite and join once they accept."
           : "Only the group keeps track of their share. You can send them a link later so they can join and take over their spot."}
       </p>
       {error && <p role="alert" className="text-sm text-loss bg-loss-soft px-3 py-2 rounded-lg">{error}</p>}

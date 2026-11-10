@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
-import { sharedLimiter } from "../../middleware/rateLimit";
+import { peopleSearchLimiter, sharedLimiter } from "../../middleware/rateLimit";
 import { text } from "../../lib/validation";
 import { parseDate, parseTzOffset } from "../transactions/transaction.input";
 import { addExpense, addSettlement, deleteExpense, deleteSettlement, updateExpense } from "./expense.service";
@@ -19,6 +19,7 @@ import {
   listGroups,
   removeMember,
   renameGroup,
+  searchPeople,
   setArchived,
   shareLink,
   sharedSummary,
@@ -117,6 +118,12 @@ router.put("/groups/:id/archive", authMiddleware, async (req: AuthRequest, res) 
 });
 
 // Either { username } to invite someone on Money Mitra, or { name } for a friend who isn't
+// Suggestions while typing a username to invite
+router.get("/groups/:id/people", authMiddleware, peopleSearchLimiter, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  res.status(200).json({ people: await searchPeople(req.userId, req.params.id as string, text(req.query.q)) });
+});
+
 router.post("/groups/:id/members", authMiddleware, sharedLimiter, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   const groupId = req.params.id as string;

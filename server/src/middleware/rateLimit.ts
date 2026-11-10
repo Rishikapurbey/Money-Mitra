@@ -48,3 +48,6 @@ export const importLimiter = limiter(60, 20, "You've imported a lot of files rec
 
 // Creating groups and inviting people: generous for real use, but stops invite spam
 export const sharedLimiter = limiter(10, 60, "You're making changes very quickly. Please wait a few minutes and try again.");
+
+// Suggestions arrive as people type, so this allows plenty of searches while stopping anyone listing every user
+export const peopleSearchLimiter = limiter(10, 150, "You're searching very quickly. Please wait a few minutes and try again.");

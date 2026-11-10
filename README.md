@@ -48,7 +48,7 @@ the way.
 - A monthly recap and a yearly review, plus plain observations about your month ("What we noticed this month")
 
 ### Shared expenses
-- Groups for trips, flats and outings; invite people by username, or add friends who aren't on the app by name
+- Groups for trips, flats and outings; invite people on Money Mitra (matching people are suggested as you type their username or name), or add friends who aren't on the app by name
 - A join link lets a friend take over the spot they were added under
 - Split equally or by exact amounts; each person's share goes into their own Tracker
 - Balances, the fewest payments needed to settle up, and recorded paybacks (never counted as spending)
@@ -187,7 +187,7 @@ reset, email confirmation, and profile photos and covers (which load in `<img>` 
 | Imports | `/api/imports` | CSV import and undo |
 | Recaps | `/api/recaps` | Monthly recap and yearly review |
 | Net worth | `/api/networth` | Items, values, history and the main account |
-| Shared | `/api/shared` | Groups, invites, join links, expenses, payments, balances |
+| Shared | `/api/shared` | Groups, people search, invites, join links, expenses, payments, balances |
 | Discuss | `/api/posts` | Questions, replies, votes, accepted answers, reports, search |
 | People | `/api/users`, `/api/follows` | Profiles, photos, covers, followers and follow requests |
 | Notifications | `/api/notifications` | The bell |
