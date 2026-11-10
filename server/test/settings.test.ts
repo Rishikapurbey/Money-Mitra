@@ -43,3 +43,18 @@ describe("feedback", () => {
     await api().post("/api/feedback").send({ kind: "idea", message: "Not logged in at all" }).expect(401);
   });
 });
+
+describe("UPI ID", () => {
+  it("saves, checks and removes it", async () => {
+    const user = await createUser("upiset");
+    const save = (upiId: unknown) => api().put("/api/account/upi").set("Authorization", user.auth).send({ upiId });
+
+    expect((await save("  Name.1@OKSBI ").expect(200)).body).toEqual({ upiId: "name.1@oksbi" });
+    expect((await api().get("/api/auth/me").set("Authorization", user.auth).expect(200)).body.user.upiId).toBe("name.1@oksbi");
+
+    for (const bad of ["name", "@oksbi", "name@", "na me@oksbi", "name@ok sbi", "name@1bank"]) {
+      expect((await save(bad).expect(400)).body.error).toBe("Enter a UPI ID like name@okaxis");
+    }
+    expect((await save("").expect(200)).body).toEqual({ upiId: null });
+  });
+});

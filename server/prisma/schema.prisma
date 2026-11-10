@@ -40,6 +40,8 @@ model User {
   isPrivate           Boolean                @default(false)
   // Pre-ticks "anonymous" when asking or replying in Discuss
   anonymousByDefault  Boolean                @default(false)
+  // Shown only to group members who owe this person, so they can pay with a UPI app
+  upiId               String?
   // When the photo last changed, so its URL changes and browsers fetch the new one; null means no photo
   avatarUpdatedAt     DateTime?
   // The profile banner: an uploaded photo (when coverUpdatedAt is set), else a built-in design, else the default

@@ -1,5 +1,7 @@
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/;
+// A UPI ID (VPA) like name@okaxis or 9876543210@ybl
+const UPI_PATTERN = /^[a-z0-9][a-z0-9._-]{1,255}@[a-z][a-z0-9.]{1,63}$/;
 
 // Placeholder account that owns Discuss posts after their author deletes their account
 export const DELETED_USERNAME = "deleted_user";
@@ -23,6 +25,11 @@ export function usernameProblem(username: string): string | null {
     return "Username must be 3 to 20 characters: letters, numbers and underscores only";
   }
   if (RESERVED_USERNAMES.includes(username.toLowerCase())) return "That username isn't available";
+  return null;
+}
+
+export function upiProblem(upiId: string): string | null {
+  if (!UPI_PATTERN.test(upiId)) return "Enter a UPI ID like name@okaxis";
   return null;
 }
 

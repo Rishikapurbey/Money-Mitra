@@ -92,6 +92,7 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
       bio: true,
       isPrivate: true,
       anonymousByDefault: true,
+      upiId: true,
       avatarUpdatedAt: true,
       coverUpdatedAt: true,
       coverPreset: true,

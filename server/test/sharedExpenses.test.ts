@@ -43,8 +43,8 @@ describe("adding expenses", () => {
     ]);
     expect([balanceOf(group, a), balanceOf(group, b), balanceOf(group, ravi)]).toEqual([666.66, -333.33, -333.33]);
     expect(group.suggestedPayments).toEqual([
-      { fromMemberId: b, toMemberId: a, amount: 333.33 },
-      { fromMemberId: ravi, toMemberId: a, amount: 333.33 },
+      { fromMemberId: b, toMemberId: a, amount: 333.33, upiId: null },
+      { fromMemberId: ravi, toMemberId: a, amount: 333.33, upiId: null },
     ]);
     expect(group.activity[0].message).toBe(`${owner.username} added Dinner (₹1,000)`);
   });
@@ -254,5 +254,34 @@ describe("notices and the Home summary", () => {
     const [fm, om] = (await groupOf(friend, other)).members.map((m: Member) => m.id);
     await addExpense(owner, other, { description: "Rent", amount: 2000, paidById: om, split: { type: "equal", memberIds: [fm, om] } }).expect(201);
     expect(await summaryOf(owner)).toMatchObject({ owe: 0, owed: 1500, invites: 0 });
+  });
+});
+
+describe("UPI pay links", () => {
+  it("shows the payee's UPI ID only to the person who owes them", async () => {
+    const { owner, friend, id, a, b, ravi } = await setUp("upi");
+    await api().put("/api/account/upi").set("Authorization", owner.auth).send({ upiId: "Asha.K@OkAxis" }).expect(200);
+    await addExpense(owner, id, { description: "Hotel", amount: 900, paidById: a, split: { type: "equal", memberIds: [a, b, ravi] } }).expect(201);
+
+    // The friend owes the owner, so they get the UPI ID; Ravi's line is not theirs to pay
+    const friendView = await groupOf(friend, id);
+    expect(friendView.suggestedPayments).toEqual([
+      { fromMemberId: b, toMemberId: a, amount: 300, upiId: "asha.k@okaxis" },
+      { fromMemberId: ravi, toMemberId: a, amount: 300, upiId: null },
+    ]);
+    // The owner is the one being paid, so their own view never needs it, and nothing else in the group carries it
+    const ownerView = await groupOf(owner, id);
+    expect(ownerView.suggestedPayments.every((p: { upiId: string | null }) => p.upiId === null)).toBe(true);
+    expect(JSON.stringify(friendView.members)).not.toContain("okaxis");
+  });
+
+  it("hides the UPI ID once the payee has left the group", async () => {
+    const { owner, friend, id, a, b } = await setUp("upileft");
+    await api().put("/api/account/upi").set("Authorization", friend.auth).send({ upiId: "friend@ybl" }).expect(200);
+    await addExpense(owner, id, { description: "Fuel", amount: 400, paidById: b, split: { type: "exact", shares: [{ memberId: a, amount: 400 }] } }).expect(201);
+    expect((await groupOf(owner, id)).suggestedPayments[0].upiId).toBe("friend@ybl");
+
+    await prisma.groupMember.update({ where: { id: b }, data: { status: "left" } });
+    expect((await groupOf(owner, id)).suggestedPayments[0].upiId).toBeNull();
   });
 });

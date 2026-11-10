@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { isAxiosError } from "axios";
-import { Archive, ArchiveRestore, ArrowLeft, ArrowRight, HandCoins, LogOut, Pencil, Plus, Receipt, Trash2, X } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, ArrowRight, HandCoins, IndianRupee, LogOut, Pencil, Plus, Receipt, Trash2, X } from "lucide-react";
 import api from "../lib/api";
 import { useTitle } from "../lib/useTitle";
 import { useToast } from "../lib/toast";
@@ -12,6 +12,7 @@ import { myPosition } from "../lib/shared";
 import type { GroupDetail, Payment, SharedExpense, Settlement } from "../lib/shared";
 import ExpenseForm from "../components/shared/ExpenseForm";
 import SettleForm from "../components/shared/SettleForm";
+import UpiPayPanel from "../components/shared/UpiPayPanel";
 import { AddMemberForm, MemberRow } from "../components/shared/Members";
 
 const errorText = (err: unknown, fallback: string) => (isAxiosError(err) && err.response?.data?.error) || fallback;
@@ -24,7 +25,11 @@ const shortDate = (iso: string) => {
 const outlineButton =
   "inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium text-ink-700 border border-line bg-surface hover:bg-ink-100 transition";
 
-type Panel = { kind: "expense"; expense?: SharedExpense } | { kind: "settle"; suggestion: Payment | null } | null;
+type Panel =
+  | { kind: "expense"; expense?: SharedExpense }
+  | { kind: "settle"; suggestion: Payment | null }
+  | { kind: "pay"; payment: Payment & { upiId: string } }
+  | null;
 
 function ExpenseRow({
   group,
@@ -404,6 +409,7 @@ export default function SharedGroup() {
         <div className="max-lg:contents space-y-6 min-w-0">
           {panel?.kind === "expense" && <ExpenseForm key={panel.expense?.id ?? "new"} group={group} expense={panel.expense} onDone={done} />}
           {panel?.kind === "settle" && <SettleForm key={JSON.stringify(panel.suggestion)} group={group} suggestion={panel.suggestion} onDone={done} />}
+          {panel?.kind === "pay" && <UpiPayPanel key={JSON.stringify(panel.payment)} group={group} payment={panel.payment} onDone={done} />}
 
           <section className="max-lg:order-1 dark-panel bg-ink-900 rounded-2xl p-6 text-white">
             <p className="text-ink-300 text-xs font-medium uppercase tracking-wider">Your balance</p>
@@ -479,21 +485,40 @@ export default function SharedGroup() {
                 </ul>
                 <h3 className="mt-5 text-xs font-medium uppercase tracking-wider text-ink-500">Simplest way to settle</h3>
                 <ul className="mt-2 divide-y divide-line">
-                  {group.suggestedPayments.map((p) => (
-                    <li key={`${p.fromMemberId}-${p.toMemberId}`} className="flex items-center gap-2 py-2.5 text-sm">
-                      <span className="min-w-0 flex-1 flex items-center gap-1.5 text-ink-700">
-                        <span className="truncate">{nameOf(p.fromMemberId)}</span>
-                        <ArrowRight size={13} className="shrink-0 text-ink-400" />
-                        <span className="truncate">{nameOf(p.toMemberId)}</span>
-                      </span>
-                      <span className="shrink-0 tabular-nums font-medium text-ink-900">{formatINR(p.amount)}</span>
-                      {!group.archived && (
-                        <button onClick={() => openPanel({ kind: "settle", suggestion: p })} className="shrink-0 ml-1 text-xs font-medium text-brand-600 hover:underline">
-                          Record
-                        </button>
-                      )}
-                    </li>
-                  ))}
+                  {group.suggestedPayments.map((p) => {
+                    const upiId = p.upiId;
+                    const payee = group.members.find((m) => m.id === p.toMemberId);
+                    // Only lines the viewer pays can have a pay button; name-only friends can't add a UPI ID
+                    const mine = p.fromMemberId === group.myMemberId && !group.archived;
+                    return (
+                      <li key={`${p.fromMemberId}-${p.toMemberId}`} className="py-2.5 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="min-w-0 flex-1 flex items-center gap-1.5 text-ink-700">
+                            <span className="truncate">{nameOf(p.fromMemberId)}</span>
+                            <ArrowRight size={13} className="shrink-0 text-ink-400" />
+                            <span className="truncate">{nameOf(p.toMemberId)}</span>
+                          </span>
+                          <span className="shrink-0 tabular-nums font-medium text-ink-900">{formatINR(p.amount)}</span>
+                          {!group.archived && (
+                            <button onClick={() => openPanel({ kind: "settle", suggestion: p })} className="shrink-0 ml-1 text-xs font-medium text-brand-600 hover:underline">
+                              Record
+                            </button>
+                          )}
+                        </div>
+                        {mine && upiId && (
+                          <button
+                            onClick={() => openPanel({ kind: "pay", payment: { ...p, upiId } })}
+                            className="mt-2 w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 transition"
+                          >
+                            <IndianRupee size={14} /> Pay {formatINR(p.amount)} with UPI
+                          </button>
+                        )}
+                        {mine && !upiId && payee?.person && (
+                          <p className="mt-1 text-xs text-ink-500">{payee.name} hasn't added a UPI ID, so pay them your usual way and tap Record.</p>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </>
             )}

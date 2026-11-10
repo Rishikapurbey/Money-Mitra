@@ -57,6 +57,21 @@ export interface Payment {
   fromMemberId: string;
   toMemberId: string;
   amount: number;
+  // The payee's UPI ID, sent only on lines the viewer pays and only when the payee has added one
+  upiId?: string | null;
+}
+
+// A standard UPI payment link: phones open it in GPay, PhonePe, Paytm or the bank's app, and its QR code
+// scans the same way. The UPI ID is already checked to be plain letters, digits, dots, dashes and @.
+export function upiLink({ upiId, name, amount, note }: { upiId: string; name: string; amount: number; note: string }) {
+  const params = [
+    `pa=${upiId}`,
+    `pn=${encodeURIComponent(name.slice(0, 50))}`,
+    `am=${amount.toFixed(2)}`,
+    "cu=INR",
+    `tn=${encodeURIComponent(note.slice(0, 50))}`,
+  ];
+  return `upi://pay?${params.join("&")}`;
 }
 
 export interface GroupDetail {

@@ -16,6 +16,8 @@ export interface Me {
   bio: string | null;
   isPrivate: boolean;
   anonymousByDefault: boolean;
+  // Shown only to group members who owe this person
+  upiId: string | null;
   avatarUrl: string | null;
   // The profile banner: an uploaded image, else a built-in design (null for the default)
   coverUrl: string | null;

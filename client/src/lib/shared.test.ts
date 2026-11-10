@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { memberNames, myPosition, splitEqually, unassigned } from "./shared";
+import { memberNames, myPosition, splitEqually, unassigned, upiLink } from "./shared";
 import type { GroupMember } from "./shared";
 
 const member = (name: string, isMe = false): GroupMember => ({ id: name, status: "active", name, person: null, isMe, linkShared: false });
@@ -30,5 +30,20 @@ describe("split helpers", () => {
     expect(myPosition(expense, "me")).toEqual({ kind: "lent", amount: 600 });
     expect(myPosition(expense, "b")).toEqual({ kind: "owe", amount: 600 });
     expect(myPosition(expense, "c")).toEqual({ kind: "none", amount: 0 });
+  });
+});
+
+describe("upiLink", () => {
+  it("builds a standard UPI payment link with the amount in rupees and paise", () => {
+    expect(upiLink({ upiId: "asha@okaxis", name: "Asha K", amount: 450, note: "Money Mitra: Goa & back" })).toBe(
+      "upi://pay?pa=asha@okaxis&pn=Asha%20K&am=450.00&cu=INR&tn=Money%20Mitra%3A%20Goa%20%26%20back"
+    );
+    expect(upiLink({ upiId: "a@ybl", name: "A", amount: 333.33, note: "x" })).toContain("am=333.33&");
+  });
+
+  it("keeps the name and note short enough for UPI apps", () => {
+    const link = upiLink({ upiId: "a@ybl", name: "N".repeat(80), amount: 1, note: "T".repeat(80) });
+    expect(link).toContain(`pn=${"N".repeat(50)}&`);
+    expect(link.endsWith(`tn=${"T".repeat(50)}`)).toBe(true);
   });
 });

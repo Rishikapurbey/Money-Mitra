@@ -126,7 +126,7 @@ export async function getGroup(userId: string, groupId: string) {
   const [group, balance, expenses, settlements, activity] = await Promise.all([
     prisma.sharedGroup.findUniqueOrThrow({
       where: { id: groupId },
-      include: { members: { orderBy: { createdAt: "asc" }, include: memberInclude } },
+      include: { members: { orderBy: { createdAt: "asc" }, include: { user: { select: { ...memberInclude.user.select, upiId: true } } } } },
     }),
     groupBalances(groupId),
     prisma.sharedExpense.findMany({
@@ -144,6 +144,12 @@ export async function getGroup(userId: string, groupId: string) {
     ...settlements.flatMap((s) => [s.fromMemberId, s.toMemberId]),
   ]);
   const members = group.members.filter((m) => m.status !== "left" || mentioned.has(m.id) || (balance.get(m.id) ?? 0) !== 0);
+  // A UPI ID is only ever shown to the person who owes its owner, and only while both are in the group
+  const payeeUpi = (p: { fromMemberId: string; toMemberId: string }) => {
+    if (p.fromMemberId !== me.id) return null;
+    const payee = group.members.find((m) => m.id === p.toMemberId);
+    return payee?.status === "active" ? (payee.user?.upiId ?? null) : null;
+  };
 
   return {
     id: group.id,
@@ -161,7 +167,7 @@ export async function getGroup(userId: string, groupId: string) {
       shares: e.shares.map((s) => ({ memberId: s.memberId, amount: toRupees(s.amount) })),
     })),
     settlements: settlements.map((s) => ({ id: s.id, fromMemberId: s.fromMemberId, toMemberId: s.toMemberId, amount: toRupees(s.amount), date: s.date })),
-    suggestedPayments: simplifyDebts(balance).map((p) => ({ ...p, amount: toRupees(p.amount) })),
+    suggestedPayments: simplifyDebts(balance).map((p) => ({ ...p, amount: toRupees(p.amount), upiId: payeeUpi(p) })),
     activity: activity.map((a) => ({ id: a.id, message: a.message, createdAt: a.createdAt })),
   };
 }

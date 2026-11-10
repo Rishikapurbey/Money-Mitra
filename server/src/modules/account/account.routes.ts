@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
 import { accountLimiter, emailChangeLimiter, photoLimiter, resendVerificationLimiter } from "../../middleware/rateLimit";
-import { emailProblem, passwordProblem, text, usernameProblem } from "../../lib/validation";
-import { changeEmail, changePassword, changeUsername, deleteAccount, exportData, logoutEverywhere, setNotificationPreferences } from "./account.service";
+import { emailProblem, passwordProblem, text, upiProblem, usernameProblem } from "../../lib/validation";
+import { changeEmail, changePassword, changeUsername, deleteAccount, exportData, logoutEverywhere, setNotificationPreferences, setUpiId } from "./account.service";
 import type { NotificationPreferences } from "./account.service";
 
 import {
@@ -141,6 +141,17 @@ router.put("/email-preferences", authMiddleware, async (req: AuthRequest, res) =
   }
   if (Object.keys(changes).length === 0) return res.status(400).json({ error: "Nothing to change" });
   res.status(200).json(await setNotificationPreferences(req.userId, changes));
+});
+
+// The UPI ID group members use to pay this person back; empty removes it
+router.put("/upi", authMiddleware, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  const upiId = text(req.body.upiId).toLowerCase();
+  if (upiId) {
+    const problem = upiProblem(upiId);
+    if (problem) return res.status(400).json({ error: problem });
+  }
+  res.status(200).json(await setUpiId(req.userId, upiId || null));
 });
 
 router.get("/export", authMiddleware, async (req: AuthRequest, res) => {

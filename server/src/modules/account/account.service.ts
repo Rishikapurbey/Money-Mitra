@@ -66,6 +66,11 @@ export async function setNotificationPreferences(userId: string, changes: Notifi
   });
 }
 
+// Empty clears it
+export async function setUpiId(userId: string, upiId: string | null) {
+  return prisma.user.update({ where: { id: userId }, data: { upiId }, select: { upiId: true } });
+}
+
 // Everything stored for this user, without the password hash
 export async function exportData(userId: string) {
   const user = await prisma.user.findUnique({
@@ -77,6 +82,7 @@ export async function exportData(userId: string) {
       bio: true,
       isPrivate: true,
       anonymousByDefault: true,
+      upiId: true,
       createdAt: true,
       transactions: { orderBy: { date: "desc" }, select: { amount: true, type: true, category: true, note: true, date: true } },
       categories: { orderBy: { name: "asc" }, select: { name: true, type: true } },

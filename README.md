@@ -52,6 +52,7 @@ the way.
 - A join link lets a friend take over the spot they were added under
 - Split equally or by exact amounts; each person's share goes into their own Tracker
 - Balances, the fewest payments needed to settle up, and recorded paybacks (never counted as spending)
+- Pay with UPI: opens your UPI app (or shows a QR code on a computer) with the friend's UPI ID and amount filled in, then records the payback once you confirm
 - Any member can edit an expense; every change is kept in the group's activity history
 
 ### Learn and calculators
@@ -74,6 +75,7 @@ the way.
 
 - Nobody can see another person's finances. Profiles show identity and Discuss activity only.
 - In a shared group, members see only what's added to that group, never anyone's Tracker, budgets, goals or net worth.
+- A UPI ID is shown only to a group member who owes its owner, only while both are in the group, and never on profiles.
 - Anonymous posts store the real author internally for moderation, but the API never sends it to other users.
 - Profile photos and covers are cropped and resized on the device before upload, which also removes hidden details such as location.
 
@@ -177,7 +179,7 @@ reset, email confirmation, and profile photos and covers (which load in `<img>` 
 | Area | Base route | Covers |
 | --- | --- | --- |
 | Auth | `/api/auth` | Signup, login, current user, password reset, email confirmation |
-| Account | `/api/account` | Profile, photo, cover, username, email, password, privacy, notification settings, data export, deletion |
+| Account | `/api/account` | Profile, photo, cover, username, email, password, privacy, UPI ID, notification settings, data export, deletion |
 | Transactions | `/api/transactions` | Add, edit, delete, search; monthly summary, trend and insights |
 | Categories | `/api/categories` | Your category list, rename and merge |
 | Budgets, goals | `/api/budgets`, `/api/goals` | Budgets per category; goals and contributions |

@@ -14,6 +14,7 @@ import {
   Tags,
   Trash2,
   UserRound,
+  Wallet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { pageWidth } from "../../lib/ui";
@@ -23,6 +24,7 @@ import type { AppContext } from "../../components/AppLayout";
 import { DeleteAccountSection, ProfileSection, SecuritySection } from "./AccountSections";
 import { AppearanceSection, CategoriesSection, DataSection, NotificationsSection, PrivacySection } from "./PreferenceSections";
 import { AboutSection, FeedbackSection, HelpSection } from "./SupportSections";
+import { PaymentsSection } from "./PaymentsSection";
 
 interface Section {
   slug: string;
@@ -40,6 +42,7 @@ const GROUPS: { title: string; sections: Section[] }[] = [
     sections: [
       { slug: "profile", label: "Profile", hint: "Photo, name and bio", icon: UserRound, component: ProfileSection },
       { slug: "security", label: "Login & security", hint: "Email, password, devices", icon: ShieldCheck, component: SecuritySection },
+      { slug: "payments", label: "Payments", hint: "UPI ID for settling up", icon: Wallet, component: PaymentsSection },
     ],
   },
   {
