@@ -26,7 +26,7 @@ import { useWideLayout } from "../lib/useMediaQuery";
 import Avatar from "../components/Avatar";
 import FollowButton from "../components/FollowButton";
 import MessageButton from "../components/MessageButton";
-import BlockButton from "../components/BlockButton";
+import ProfileMenu from "../components/ProfileMenu";
 import { CoverBand } from "../components/ProfileCover";
 
 type Result = ProfileData | "not-found" | "error";
@@ -144,7 +144,7 @@ function Profile() {
     <div className="flex flex-wrap items-center gap-2">
       {!profile.blockedByMe && profile.followStatus && <FollowButton username={profile.username} status={profile.followStatus} onChange={reload} />}
       {!profile.blockedByMe && <MessageButton username={profile.username} />}
-      <BlockButton username={profile.username} name={name} blocked={profile.blockedByMe} onChange={reload} />
+      <ProfileMenu username={profile.username} name={name} blocked={profile.blockedByMe} onChange={reload} />
     </div>
   );
 

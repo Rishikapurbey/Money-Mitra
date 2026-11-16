@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { isAxiosError } from "axios";
-import { ArrowLeft, SendHorizontal } from "lucide-react";
+import { ArrowLeft, Ban, Flag, SendHorizontal, Trash2, UserRound } from "lucide-react";
 import api from "../lib/api";
 import { announceChatsChange } from "../lib/dataEvents";
 import { useToast } from "../lib/toast";
 import { DELETED_TEXT, MAX_MESSAGE, MESSAGE_REPORT_REASONS, dayLabel, mergeMessages, messageTime, personName, seenMessageId, startsNewDay } from "../lib/chat";
 import type { ChatInfo, ChatMessage } from "../lib/chat";
 import Avatar from "../components/Avatar";
+import ActionMenu from "../components/ActionMenu";
 
 // How often an open chat checks for new messages
 const REFRESH_MS = 4_000;
@@ -22,7 +23,7 @@ function ReportForm({ onSend, onCancel }: { onSend: (reason: string, block: bool
   const [alsoBlock, setAlsoBlock] = useState(true);
   const [sending, setSending] = useState(false);
   return (
-    <div className="mt-1 w-full max-w-sm rounded-xl border border-line bg-surface p-3 text-sm space-y-2">
+    <div className="mt-1 w-full max-w-sm rounded-xl border border-line bg-surface shadow-lg p-4 text-sm space-y-3">
       <p className="font-medium text-ink-900">Why are you reporting this?</p>
       <div className="flex flex-wrap gap-1.5">
         {MESSAGE_REPORT_REASONS.map((r) => (
@@ -42,7 +43,7 @@ function ReportForm({ onSend, onCancel }: { onSend: (reason: string, block: bool
         Block them too
       </label>
       <p className="text-xs text-ink-500">Only this message is sent to the Money Mitra team. They aren't told who reported it.</p>
-      <div className="flex gap-3">
+      <div className="flex gap-2">
         <button
           type="button"
           disabled={!reason || sending}
@@ -51,11 +52,15 @@ function ReportForm({ onSend, onCancel }: { onSend: (reason: string, block: bool
             await onSend(reason, alsoBlock);
             setSending(false);
           }}
-          className="font-medium text-loss hover:underline disabled:opacity-40 disabled:no-underline"
+          className="flex-1 px-3 py-2 rounded-lg bg-loss text-white font-medium hover:opacity-90 disabled:opacity-40 transition"
         >
           {sending ? "Sending…" : "Send report"}
         </button>
-        <button type="button" onClick={onCancel} className="text-ink-500 hover:underline">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex-1 px-3 py-2 rounded-lg border border-line font-medium text-ink-900 hover:bg-ink-100 transition"
+        >
           Cancel
         </button>
       </div>
@@ -102,34 +107,42 @@ function Bubble({
         {messageTime(message.createdAt)}
         {seen && " · Seen"}
       </span>
-      {options && !mine && (
-        reporting ? (
+      {/* Tapping a message opens a small menu under it: delete your own, or report theirs */}
+      {options &&
+        (reporting ? (
           <ReportForm onSend={onReport} onCancel={() => setReporting(false)} />
         ) : (
-          <button onClick={() => setReporting(true)} className="mt-1 text-xs font-medium text-loss hover:underline">
-            Report
-          </button>
-        )
-      )}
-      {options && mine && (
-        <div className="mt-1 flex items-center gap-2 text-xs">
-          {confirming ? (
-            <>
-              <span className="text-ink-500">Delete for everyone?</span>
-              <button onClick={onUnsend} className="font-medium text-loss hover:underline">
-                Delete
+          <div role="menu" className="mt-1 w-60 bg-surface border border-line rounded-xl shadow-lg py-1 text-sm">
+            {mine && confirming ? (
+              <div className="px-4 py-3 space-y-3">
+                <div>
+                  <p className="font-medium text-ink-900">Delete for everyone?</p>
+                  <p className="mt-1 text-xs text-ink-500">Both of you will see "This message was deleted".</p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={onUnsend} className="flex-1 px-3 py-2 rounded-lg bg-loss text-white font-medium hover:opacity-90 transition">
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => setConfirming(false)}
+                    className="flex-1 px-3 py-2 rounded-lg border border-line font-medium text-ink-900 hover:bg-ink-100 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                role="menuitem"
+                onClick={() => (mine ? setConfirming(true) : setReporting(true))}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-loss hover:bg-ink-100 transition"
+              >
+                {mine ? <Trash2 size={16} /> : <Flag size={16} />}
+                {mine ? "Delete for everyone" : "Report message"}
               </button>
-              <button onClick={() => setConfirming(false)} className="text-ink-500 hover:underline">
-                Cancel
-              </button>
-            </>
-          ) : (
-            <button onClick={() => setConfirming(true)} className="font-medium text-loss hover:underline">
-              Delete for everyone
-            </button>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        ))}
     </div>
   );
 }
@@ -148,8 +161,6 @@ function Chat() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [optionsFor, setOptionsFor] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [confirmBlock, setConfirmBlock] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   // Where to scroll after the next render: the bottom, or back to where reading was before older messages loaded
@@ -286,7 +297,6 @@ function Chat() {
     try {
       if (blocked) await api.post(`/blocks/${info.person.username}`);
       else await api.delete(`/blocks/${info.person.username}`);
-      setConfirmBlock(false);
       // Blocking clears their message request, so the badge and inbox should refresh
       announceChatsChange();
       toast({ message: blocked ? `${personName(info.person)} is blocked` : `${personName(info.person)} is unblocked` });
@@ -360,47 +370,42 @@ function Chat() {
             <span className="font-medium text-ink-500">Deleted user</span>
           </span>
         )}
-        <div className="ml-auto flex items-center gap-3 text-sm shrink-0">
-          {confirmBlock ? (
-            <>
-              <span className="hidden sm:inline text-ink-500">They won't be able to message or follow you.</span>
-              <button onClick={() => setBlocked(true)} className="font-medium text-loss hover:underline">
-                Block
-              </button>
-              <button onClick={() => setConfirmBlock(false)} className="text-ink-500 hover:underline">
-                Cancel
-              </button>
-            </>
-          ) : confirmDelete ? (
-            <>
-              <span className="hidden sm:inline text-ink-500">Delete for you?</span>
-              <button onClick={removeChat} className="font-medium text-loss hover:underline">
-                Delete
-              </button>
-              <button onClick={() => setConfirmDelete(false)} className="text-ink-500 hover:underline">
-                Cancel
-              </button>
-            </>
-          ) : (
-            <>
-              {info.person &&
-                (info.blockedByMe ? (
-                  <button onClick={() => setBlocked(false)} className="font-medium text-brand-600 hover:underline">
-                    Unblock
-                  </button>
-                ) : (
-                  <button onClick={() => setConfirmBlock(true)} className="text-ink-500 hover:text-ink-900">
-                    Block
-                  </button>
-                ))}
-              {!isRequest && (
-                <button onClick={() => setConfirmDelete(true)} className="text-ink-500 hover:text-ink-900">
-                  Delete chat
-                </button>
-              )}
-            </>
-          )}
-        </div>
+        <ActionMenu
+          vertical
+          label="Chat options"
+          className="ml-auto shrink-0"
+          actions={[
+            ...(info.person
+              ? [
+                  { label: "View profile", icon: UserRound, onSelect: () => navigate(`/u/${info.person!.username}`) },
+                  info.blockedByMe
+                    ? { label: `Unblock ${name}`, icon: Ban, onSelect: () => setBlocked(false) }
+                    : {
+                        label: `Block ${name}`,
+                        icon: Ban,
+                        danger: true,
+                        onSelect: () => setBlocked(true),
+                        confirm: {
+                          title: `Block ${name}?`,
+                          body: "They won't be able to message you, follow you, see your profile or find you in search. They aren't told.",
+                          action: "Block",
+                        },
+                      },
+                ]
+              : []),
+            ...(!isRequest
+              ? [
+                  {
+                    label: "Delete chat",
+                    icon: Trash2,
+                    danger: true,
+                    onSelect: removeChat,
+                    confirm: { title: "Delete this chat?", body: "It's removed only for you. A new message brings it back.", action: "Delete" },
+                  },
+                ]
+              : []),
+          ]}
+        />
       </header>
 
       <div ref={scroller} className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-2" aria-live="polite">
