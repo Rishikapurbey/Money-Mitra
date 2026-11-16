@@ -7,12 +7,14 @@ import Avatar from "./Avatar";
 function PersonRow({
   person,
   children,
+  className = "",
 }: {
   person: { username: string; displayName: string | null; avatarUrl: string | null };
   children?: ReactNode;
+  className?: string;
 }) {
   return (
-    <li className="flex items-center gap-3 px-5 py-3.5">
+    <li className={`flex items-center gap-3 px-5 py-3.5 ${className}`}>
       <Link to={`/u/${person.username}`} className="flex items-center gap-3 min-w-0 flex-1 group">
         <Avatar name={nameOf(person)} avatarUrl={person.avatarUrl} size="lg" />
         <span className="min-w-0">

@@ -71,3 +71,44 @@ describe("searching for people to invite", () => {
     await api().get(`/api/shared/groups/${id}/people`).query({ q: "srch" }).set("Authorization", outsider.auth).expect(404);
   });
 });
+
+describe("the search page", () => {
+  type Found = { username: string; displayName: string | null; avatarUrl: string | null; following: string | null; followsYou: boolean };
+  const find = async (user: User, q: string) =>
+    (await api().get("/api/search/people").query({ q }).set("Authorization", user.auth).expect(200)).body.people as Found[];
+  const follow = (from: User, to: User) => api().post(`/api/follows/${to.username}`).set("Authorization", from.auth).expect(200);
+
+  it("finds people by username or name from two letters, and says how you're connected", async () => {
+    const me = await createUser("pgme");
+    const friend = await createUser("pgfriend");
+    const fan = await createUser("pgfan");
+    const shy = await createUser("pgshy");
+    await prisma.user.update({ where: { email: friend.email }, data: { displayName: "Zubin Mehta" } });
+    await api().put("/api/account/privacy").set("Authorization", shy.auth).send({ isPrivate: true }).expect(200);
+
+    await follow(me, friend);
+    await follow(fan, me);
+    await follow(me, shy); // a request, since the profile is private
+
+    expect(await find(me, "p")).toEqual([]);
+    const people = await find(me, "pg");
+    expect(people.map((p) => p.username)).not.toContain(me.username);
+    const byName = Object.fromEntries(people.map((p) => [p.username, p]));
+    expect(byName[friend.username]).toMatchObject({ displayName: "Zubin Mehta", following: "accepted", followsYou: false });
+    expect(byName[fan.username]).toMatchObject({ following: null, followsYou: true });
+    expect(byName[shy.username]).toMatchObject({ following: "pending", followsYou: false });
+
+    // A later word of the name matches too, and "@" is ignored
+    expect((await find(me, "meh")).map((p) => p.username)).toEqual([friend.username]);
+    expect((await find(me, `@${shy.username}`)).map((p) => p.username)).toEqual([shy.username]);
+    // Identity only
+    expect(Object.keys(people[0]!).sort()).toEqual(["avatarUrl", "displayName", "following", "followsYou", "username"]);
+  });
+
+  it("shows up to 20 people, and needs a login", async () => {
+    for (let i = 0; i < 22; i++) await createUser("manyq");
+    const me = await createUser("manyme");
+    expect(await find(me, "manyq")).toHaveLength(20);
+    await api().get("/api/search/people").query({ q: "manyq" }).expect(401);
+  });
+});

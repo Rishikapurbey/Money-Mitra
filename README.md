@@ -66,6 +66,7 @@ the way.
 - Post under your name or anonymously, per question and per reply
 - Reports hide a post after three reports, and the team is emailed
 - Profiles with a photo, cover, name and bio; private profiles and Instagram-style follow requests
+- Search for people by name or @username from the top bar; people you know come first, and each result says whether you follow each other
 - A notification bell for replies, follows, budgets, bills, recaps and shared groups; reply emails you can turn off
 
 ### Account and app
@@ -113,7 +114,7 @@ money-mitra/
     ├── prisma/             # Schema and migrations
     ├── src/modules/        # account, admin, auth, budgets, categories, feedback, follows, goals,
     │                       # imports, networth, notifications, posts, profiles, recaps,
-    │                       # recurring, shared, transactions
+    │                       # recurring, search, shared, transactions
     └── test/               # API tests
 ```
 
@@ -198,7 +199,7 @@ reset, email confirmation, and profile photos and covers (which load in `<img>` 
 | Net worth | `/api/networth` | Items, values, history, accounts and the default account |
 | Shared | `/api/shared` | Groups, people search, invites, join links, expenses, payments, balances |
 | Discuss | `/api/posts` | Questions, replies, votes, accepted answers, reports, search |
-| People | `/api/users`, `/api/follows` | Profiles, photos, covers, followers and follow requests |
+| People | `/api/users`, `/api/follows`, `/api/search` | Profiles, photos, covers, followers, follow requests and people search |
 | Notifications | `/api/notifications` | The bell |
 | Feedback | `/api/feedback` | Feedback from Settings |
 | Admin | `/api/admin` | Counts, reports and people for the admin page; Not found for everyone else |

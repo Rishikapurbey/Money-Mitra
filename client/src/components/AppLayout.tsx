@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { House, PieChart, MessagesSquare, BookOpen, LogOut, ChevronDown, Calculator, Settings, Download, UserRound, UsersRound, ChartColumn } from "lucide-react";
+import { House, PieChart, MessagesSquare, BookOpen, LogOut, ChevronDown, Calculator, Settings, Download, UserRound, UsersRound, ChartColumn, Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import api from "../lib/api";
 import { Logo } from "./Logo";
@@ -124,6 +124,15 @@ function AppLayout() {
           </nav>
 
           <div className="ml-auto flex items-center gap-1">
+            <NavLink
+              to="/search"
+              aria-label="Search people"
+              className={({ isActive }) =>
+                `p-2 rounded-xl transition ${isActive ? "text-ink-900 bg-ink-100" : "text-ink-500 hover:text-ink-900 hover:bg-ink-100"}`
+              }
+            >
+              <Search size={20} />
+            </NavLink>
             <ThemeToggle />
             <NotificationBell />
             <div ref={menuRef} className="relative">
