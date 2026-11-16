@@ -5,6 +5,7 @@ import api from "../lib/api";
 import AuthLayout, { authInputClass } from "../components/AuthLayout";
 import { useSubmit } from "../lib/useSubmit";
 import { useTitle } from "../lib/useTitle";
+import PasswordInput from "../components/PasswordInput";
 
 function ResetPassword() {
   useTitle("Reset password");
@@ -71,26 +72,26 @@ function ResetPassword() {
         )}
         <label className="block">
           <span className="text-sm font-medium text-ink-700">New password</span>
-          <input
-            type="password"
+          <PasswordInput
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             minLength={8}
             maxLength={72}
-            className={`${authInputClass} mt-1.5`}
+            className={authInputClass}
+            wrapperClassName="mt-1.5"
             required
           />
           <span className="mt-1 block text-xs text-ink-500">At least 8 characters, with a letter and a number.</span>
         </label>
         <label className="block">
           <span className="text-sm font-medium text-ink-700">Confirm new password</span>
-          <input
-            type="password"
+          <PasswordInput
             autoComplete="new-password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            className={`${authInputClass} mt-1.5`}
+            className={authInputClass}
+            wrapperClassName="mt-1.5"
             required
           />
         </label>

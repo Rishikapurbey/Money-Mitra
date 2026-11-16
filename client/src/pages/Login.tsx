@@ -5,6 +5,7 @@ import { takeReturnTo } from "../lib/returnTo";
 import AuthLayout, { authInputClass } from "../components/AuthLayout";
 import { useSubmit } from "../lib/useSubmit";
 import { useTitle } from "../lib/useTitle";
+import PasswordInput from "../components/PasswordInput";
 
 function Login() {
   useTitle("Log in");
@@ -46,14 +47,14 @@ function Login() {
               Forgot password?
             </Link>
           </span>
-          <input
-            type="password"
+          <PasswordInput
             placeholder="Your password"
             name="password"
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className={`${authInputClass} mt-1.5`}
+            className={authInputClass}
+            wrapperClassName="mt-1.5"
             required
           />
         </label>

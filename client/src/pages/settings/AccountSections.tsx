@@ -10,6 +10,7 @@ import { inputClass } from "../../lib/ui";
 import { useToast } from "../../lib/toast";
 import { Panel, SectionHeader, Status } from "./shared";
 import { errorMessage, idle, primaryButton, secondaryButton, useSettings } from "./context";
+import PasswordInput from "../../components/PasswordInput";
 
 function PhotoPanel() {
   const { me, updateMe } = useSettings();
@@ -344,12 +345,12 @@ function EmailPanel() {
           </label>
           <label className="block">
             <span className="text-sm font-medium text-ink-700">Current password</span>
-            <input
-              type="password"
+            <PasswordInput
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={`${inputClass} w-full mt-1.5`}
+              className={`${inputClass} w-full`}
+              wrapperClassName="mt-1.5"
               required
             />
           </label>
@@ -432,25 +433,25 @@ export function SecuritySection() {
         <form onSubmit={savePassword} className="space-y-4">
           <label className="block">
             <span className="text-sm font-medium text-ink-700">Current password</span>
-            <input
-              type="password"
+            <PasswordInput
               autoComplete="current-password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              className={`${inputClass} w-full mt-1.5`}
+              className={`${inputClass} w-full`}
+              wrapperClassName="mt-1.5"
               required
             />
           </label>
           <label className="block">
             <span className="text-sm font-medium text-ink-700">New password</span>
-            <input
-              type="password"
+            <PasswordInput
               autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               minLength={8}
               maxLength={72}
-              className={`${inputClass} w-full mt-1.5`}
+              className={`${inputClass} w-full`}
+              wrapperClassName="mt-1.5"
               required
             />
             <span className="mt-1 block text-xs text-ink-500">At least 8 characters, with a letter and a number.</span>
@@ -518,12 +519,12 @@ export function DeleteAccountSection() {
         <form onSubmit={deleteAccount} className="space-y-4">
           <label className="block">
             <span className="text-sm font-medium text-ink-700">Enter your password to confirm</span>
-            <input
-              type="password"
+            <PasswordInput
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={`${inputClass} w-full mt-1.5`}
+              className={`${inputClass} w-full`}
+              wrapperClassName="mt-1.5"
               required
             />
           </label>
