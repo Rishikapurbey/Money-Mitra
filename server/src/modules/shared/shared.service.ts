@@ -71,10 +71,19 @@ async function memberOf(groupId: string, memberId: string) {
   return member;
 }
 
+// Deletes groups with everything in them. Expenses and paybacks go first: they point at members,
+// and Postgres may otherwise remove the members first and refuse the delete.
+const deleteGroups = (groupIds: string[]) => [
+  prisma.expenseShare.deleteMany({ where: { expense: { groupId: { in: groupIds } } } }),
+  prisma.sharedExpense.deleteMany({ where: { groupId: { in: groupIds } } }),
+  prisma.settlement.deleteMany({ where: { groupId: { in: groupIds } } }),
+  prisma.sharedGroup.deleteMany({ where: { id: { in: groupIds } } }),
+];
+
 // A group with nobody left who can open it is deleted
 async function deleteIfEmpty(groupId: string) {
   const users = await prisma.groupMember.count({ where: { groupId, status: "active", userId: { not: null } } });
-  if (users === 0) await prisma.sharedGroup.delete({ where: { id: groupId } });
+  if (users === 0) await prisma.$transaction(deleteGroups([groupId]));
 }
 
 const clearInvite = (userId: string, inviterId: string | null, groupName: string) =>
@@ -366,7 +375,7 @@ export async function releaseMemberships(userId: string) {
   const alone = active.map((m) => m.groupId).filter((id) => !shared.has(id));
 
   return [
-    prisma.sharedGroup.deleteMany({ where: { id: { in: alone } } }),
+    ...deleteGroups(alone),
     prisma.groupMember.deleteMany({ where: { userId, status: "invited", joinedAt: null } }),
     prisma.groupMember.updateMany({ where: { userId, status: "invited" }, data: { status: "left" } }),
     prisma.groupMember.updateMany({ where: { userId }, data: { name: user.displayName || user.username } }),
