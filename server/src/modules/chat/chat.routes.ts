@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { authMiddleware, AuthRequest } from "../../middleware/auth.middleware";
-import { chatStartLimiter, messageLimiter } from "../../middleware/rateLimit";
+import { chatStartLimiter, messageLimiter, reportLimiter } from "../../middleware/rateLimit";
 import { text } from "../../lib/validation";
 import {
   acceptRequest,
   deleteForMe,
   getConversation,
   listConversations,
+  reportMessage,
   sendMessage,
   startConversation,
   unreadCounts,
@@ -50,6 +51,13 @@ router.post("/:id/messages", authMiddleware, messageLimiter, async (req: AuthReq
 router.delete("/:id/messages/:messageId", authMiddleware, async (req: AuthRequest, res) => {
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   res.status(200).json({ message: await unsendMessage(req.userId, req.params.id as string, req.params.messageId as string) });
+});
+
+router.post("/:id/messages/:messageId/report", authMiddleware, reportLimiter, async (req: AuthRequest, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
+  const reason = text(req.body?.reason);
+  const alsoBlock = req.body?.block === true;
+  res.status(200).json(await reportMessage(req.userId, req.params.id as string, req.params.messageId as string, reason, alsoBlock));
 });
 
 router.post("/:id/accept", authMiddleware, async (req: AuthRequest, res) => {

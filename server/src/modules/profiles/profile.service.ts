@@ -4,6 +4,7 @@ import { DELETED_USERNAME } from "../../lib/validation";
 import { HIDE_AFTER_REPORTS } from "../posts/post.service";
 import { avatarUrl, coverUrl, identity, identitySelect } from "../../lib/identity";
 import { acceptAllRequests, canSeeActivity, followCounts, followStatus, pendingRequestCount } from "../follows/follow.service";
+import { blockBetween } from "../blocks/block.service";
 
 const RECENT = 20;
 
@@ -17,6 +18,9 @@ export async function getProfile(viewerId: string, username: string) {
   if (!user) throw new HttpError(404, "Profile not found");
 
   const isMe = user.id === viewerId;
+  // Someone who blocked the viewer looks like an account that doesn't exist
+  const blocked = await blockBetween(viewerId, user.id);
+  if (blocked.byThem) throw new HttpError(404, "Profile not found");
   const [counts, status, followsYou, pendingRequests, visible] = await Promise.all([
     followCounts(user.id),
     isMe ? null : followStatus(viewerId, user.id),
@@ -38,8 +42,10 @@ export async function getProfile(viewerId: string, username: string) {
     followsYou,
     // Only on your own profile
     pendingRequests,
+    // The viewer blocked them: the profile shows only who they are, with Unblock
+    blockedByMe: blocked.byMe,
   };
-  if (!visible) return { ...profile, activity: null };
+  if (!visible || blocked.byMe) return { ...profile, activity: null };
 
   const [posts, replies] = await Promise.all([
     prisma.post.findMany({

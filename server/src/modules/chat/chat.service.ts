@@ -3,6 +3,9 @@ import prisma from "../../db/prisma";
 import { HttpError } from "../../lib/httpError";
 import { DELETED_USERNAME } from "../../lib/validation";
 import { identity, identitySelect } from "../../lib/identity";
+import { escapeHtml } from "../../lib/html";
+import { sendEmail } from "../../lib/email";
+import { block, blockBetween, refuseIfBlocked } from "../blocks/block.service";
 
 // One-to-one chat. Text only; nothing from anyone's Tracker can ever be attached.
 
@@ -35,6 +38,7 @@ export async function startConversation(userId: string, username: string) {
   });
   if (!person) throw new HttpError(404, "Profile not found");
   if (person.id === userId) throw new HttpError(400, "You can't message yourself");
+  await refuseIfBlocked(userId, person.id, "You've blocked this account. Unblock them to message.", "You can't message this account");
 
   const key = pairKey(userId, person.id);
   const existing = await prisma.conversation.findUnique({ where: { pairKey: key }, select: { id: true } });
@@ -71,9 +75,12 @@ const gone = (other: Other) => !other || other.user.username === DELETED_USERNAM
 // The other person as shown in the app; null once they've deleted their account ("Deleted user")
 const personOf = (other: Other) => (gone(other) ? null : identity(other!.user));
 
-// Why this person can't send a message right now, or null when they can
-async function cannotSend(userId: string, conversationId: string, other: Other) {
+// Why this person can't send a message right now, or null when they can. Someone who was blocked
+// isn't told so: they just can't message the account.
+async function cannotSend(userId: string, conversationId: string, other: Other, blocked: { byMe: boolean; byThem: boolean }) {
   if (gone(other)) return "This account has been deleted";
+  if (blocked.byMe) return "You've blocked this account. Unblock them to send messages.";
+  if (blocked.byThem) return "You can't message this account";
   if (other!.status === "request") {
     const sent = await prisma.message.count({ where: { conversationId, senderId: userId, deletedAt: null } });
     if (sent > 0) return "You can send more once they accept your message request";
@@ -102,7 +109,8 @@ export async function getConversation(userId: string, conversationId: string, be
   if (me.status === "accepted" && !before) {
     await prisma.conversationMember.update({ where: { id: me.id }, data: { lastReadAt: new Date() } });
   }
-  const reason = await cannotSend(userId, conversationId, other);
+  const blocked = gone(other) ? { byMe: false, byThem: false } : await blockBetween(userId, other!.userId);
+  const reason = await cannotSend(userId, conversationId, other, blocked);
   return {
     conversation: {
       id: conversationId,
@@ -114,6 +122,7 @@ export async function getConversation(userId: string, conversationId: string, be
       seenUpTo: !gone(other) && other!.status === "accepted" ? other!.lastReadAt : null,
       canSend: reason === null,
       cannotSendReason: reason,
+      blockedByMe: blocked.byMe,
     },
     messages: rows.slice(0, PAGE).reverse().map((m) => messageView(m, userId)),
     hasMore: rows.length > PAGE,
@@ -125,7 +134,8 @@ export async function sendMessage(userId: string, conversationId: string, body: 
   if (!text) throw new HttpError(400, "Write a message first");
   if (text.length > MAX_MESSAGE) throw new HttpError(400, `Messages can be up to ${MAX_MESSAGE.toLocaleString("en-IN")} characters`);
   const { me, other } = await load(userId, conversationId);
-  const reason = await cannotSend(userId, conversationId, other);
+  const blocked = gone(other) ? { byMe: false, byThem: false } : await blockBetween(userId, other!.userId);
+  const reason = await cannotSend(userId, conversationId, other, blocked);
   if (reason) throw new HttpError(403, reason);
 
   const now = new Date();
@@ -255,6 +265,49 @@ export async function exportMessages(userId: string) {
       return { with: withName, messages };
     })
     .filter((c) => c.messages.length > 0);
+}
+
+export const MESSAGE_REPORT_REASONS: Record<string, string> = {
+  spam: "Spam",
+  abusive: "Abusive or harassing",
+  scam: "Scam or fraud",
+  other: "Other",
+};
+
+// Reports someone else's message to the admin, keeping a copy of its text, and blocks the sender
+// too when asked. The admin only ever sees reported messages, never the rest of a chat.
+export async function reportMessage(userId: string, conversationId: string, messageId: string, reason: string, alsoBlock: boolean) {
+  if (!MESSAGE_REPORT_REASONS[reason]) throw new HttpError(400, "Choose a reason");
+  const { other } = await load(userId, conversationId);
+  const message = await prisma.message.findUnique({ where: { id: messageId }, include: { sender: { select: { id: true, username: true } } } });
+  if (!message || message.conversationId !== conversationId) throw new HttpError(404, "Message not found");
+  if (message.senderId === userId) throw new HttpError(400, "You can't report your own message");
+  if (message.deletedAt) throw new HttpError(400, "This message was deleted");
+
+  const already = await prisma.messageReport.findUnique({ where: { messageId_reporterId: { messageId, reporterId: userId } } });
+  if (!already) {
+    const senderGone = message.sender.username === DELETED_USERNAME;
+    await prisma.messageReport.create({
+      data: { messageId, reporterId: userId, senderId: senderGone ? null : message.senderId, body: message.body, reason },
+    });
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (adminEmail) {
+      const label = MESSAGE_REPORT_REASONS[reason]!;
+      const appUrl = (process.env.APP_URL ?? "http://127.0.0.1:5173").replace(/\/$/, "");
+      const from = senderGone ? "a deleted account" : `@${message.sender.username}`;
+      const text = `A message from ${from} was reported as: ${label}\n\n${message.body}\n\nSee all reports: ${appUrl}/admin`;
+      const html = `
+  <div style="font-family: Arial, sans-serif; max-width: 520px; color: #0f1b2d;">
+    <h2 style="margin-bottom: 8px;">A message was reported</h2>
+    <p><strong>Reason:</strong> ${escapeHtml(label)}<br><strong>From:</strong> ${escapeHtml(from)}</p>
+    <blockquote style="margin: 16px 0; padding: 12px 16px; background: #f5f7fa; border-left: 3px solid #b4363f; white-space: pre-line;">${escapeHtml(message.body)}</blockquote>
+    <p><a href="${appUrl}/admin">See all reports</a></p>
+  </div>`;
+      sendEmail({ to: adminEmail, subject: `Message report: ${label}`, text, html }).catch((err) => console.error("Message report email failed:", err));
+    }
+  }
+  if (alsoBlock && !gone(other)) await block(userId, other!.user.username);
+  return { reported: true, blocked: alsoBlock && !gone(other) };
 }
 
 // When someone deletes their account their messages stay, shown as "Deleted user" (like Discuss).

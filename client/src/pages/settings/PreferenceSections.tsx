@@ -7,6 +7,8 @@ import { csvField } from "../../lib/csv";
 import { setTheme, useTheme } from "../../lib/theme";
 import type { ThemeChoice } from "../../lib/theme";
 import CategoriesCard from "../../components/CategoriesCard";
+import PersonRow from "../../components/PersonRow";
+import type { AuthorProfile } from "../../lib/discuss";
 import { Panel, SectionHeader, Status, Toggle } from "./shared";
 import { errorMessage, idle, secondaryButton, useSettings } from "./context";
 
@@ -159,8 +161,55 @@ export function PrivacySection() {
           }
         />
       </Panel>
+      <BlockedAccounts />
       <Status {...state} />
     </>
+  );
+}
+
+// People you've blocked, newest first, each with Unblock
+function BlockedAccounts() {
+  const [blocked, setBlocked] = useState<AuthorProfile[] | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api
+      .get("/blocks")
+      .then((res) => setBlocked(res.data.blocked))
+      .catch(() => setError("We couldn't load the accounts you've blocked."));
+  }, []);
+
+  const unblock = async (username: string) => {
+    try {
+      await api.delete(`/blocks/${username}`);
+      setBlocked((current) => current?.filter((p) => p.username !== username) ?? null);
+    } catch (err) {
+      setError(errorMessage(err, "We couldn't unblock them. Please try again."));
+    }
+  };
+
+  return (
+    <Panel
+      title="Blocked accounts"
+      description="People you block can't message you, follow you, see your profile or find you in search. They aren't told."
+    >
+      {error && <p className="text-sm text-loss">{error}</p>}
+      {blocked === null ? (
+        !error && <div className="h-12 rounded-xl bg-ink-100 animate-pulse" />
+      ) : blocked.length === 0 ? (
+        <p className="text-sm text-ink-500">You haven't blocked anyone. You can block someone from their profile or a chat.</p>
+      ) : (
+        <ul className="-mx-5 divide-y divide-line">
+          {blocked.map((p) => (
+            <PersonRow key={p.username} person={p}>
+              <button onClick={() => unblock(p.username)} className={secondaryButton}>
+                Unblock
+              </button>
+            </PersonRow>
+          ))}
+        </ul>
+      )}
+    </Panel>
   );
 }
 

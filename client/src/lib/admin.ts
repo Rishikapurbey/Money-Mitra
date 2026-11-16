@@ -21,6 +21,19 @@ export interface AdminReport {
   lastReportedAt: string;
 }
 
+// A reported chat message: only its text (as it was when reported), who sent it, why and how often
+export interface AdminMessageReport {
+  id: string;
+  text: string;
+  // null once the sender deleted their account
+  sender: { username: string; displayName: string | null; avatarUrl: string | null } | null;
+  reports: number;
+  reasons: { reason: string; count: number }[];
+  // The sender has since deleted the message for everyone
+  unsent: boolean;
+  lastReportedAt: string;
+}
+
 export interface AdminOverview {
   users: { total: number; verified: number; newThisWeek: number; newThisMonth: number };
   active: { today: number; week: number; month: number };
@@ -28,6 +41,7 @@ export interface AdminOverview {
   features: { key: string; label: string; users: number }[];
   discuss: { questions: number; replies: number; questionsThisWeek: number; repliesThisWeek: number };
   reports: AdminReport[];
+  messageReports: AdminMessageReport[];
   people: { total: number; shown: AdminPerson[] };
 }
 

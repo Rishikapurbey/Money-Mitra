@@ -25,6 +25,7 @@ import transferRoutes from "./modules/transfers/transfer.routes";
 import adminRoutes from "./modules/admin/admin.routes";
 import searchRoutes from "./modules/search/search.routes";
 import chatRoutes from "./modules/chat/chat.routes";
+import blockRoutes from "./modules/blocks/block.routes";
 
 dotenv.config();
 
@@ -73,6 +74,7 @@ app.use("/api/transfers", transferRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/chats", chatRoutes);
+app.use("/api/blocks", blockRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "Money Mitra API is running" });

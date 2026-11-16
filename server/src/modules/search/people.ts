@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import prisma from "../../db/prisma";
 import { DELETED_USERNAME } from "../../lib/validation";
 import { identitySelect } from "../../lib/identity";
+import { blockedIds } from "../blocks/block.service";
 
 const MAX_QUERY = 40;
 
@@ -13,13 +14,15 @@ export async function matchPeople(userId: string, query: string, { minLength, li
   const q = query.trim().replace(/^@/, "");
   if (q.length < minLength || q.length > MAX_QUERY) return [];
 
+  // People either side has blocked never appear
+  const hidden = await blockedIds(userId);
   const matches: Prisma.UserWhereInput = {
     OR: [
       { username: { startsWith: q, mode: "insensitive" } },
       { displayName: { startsWith: q, mode: "insensitive" } },
       { displayName: { contains: ` ${q}`, mode: "insensitive" } },
     ],
-    NOT: [{ id: userId }, { username: DELETED_USERNAME }],
+    NOT: [{ id: userId }, { username: DELETED_USERNAME }, { id: { in: hidden } }],
   };
   const [follows, groupmates] = await Promise.all([
     prisma.follow.findMany({

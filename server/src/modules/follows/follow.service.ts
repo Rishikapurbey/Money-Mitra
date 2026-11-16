@@ -3,6 +3,7 @@ import { HttpError } from "../../lib/httpError";
 import { DELETED_USERNAME } from "../../lib/validation";
 import { identity, identitySelect } from "../../lib/identity";
 import { clearFollowRequest, notifyPerson } from "../notifications/notification.service";
+import { blockBetween, refuseIfBlocked } from "../blocks/block.service";
 
 // How the viewer relates to someone: not following, waiting for them to accept, or following
 export type FollowStatus = "none" | "requested" | "following";
@@ -41,6 +42,7 @@ export async function canSeeActivity(viewerId: string, target: { id: string; isP
 export async function follow(viewerId: string, username: string) {
   const target = await findPerson(username);
   if (target.id === viewerId) throw new HttpError(400, "You can't follow yourself");
+  await refuseIfBlocked(viewerId, target.id, "Unblock them to follow");
 
   const key = { followerId_followingId: { followerId: viewerId, followingId: target.id } };
   const existing = await prisma.follow.findUnique({ where: key });
@@ -127,6 +129,7 @@ const LIST_LIMIT = 200;
 // Someone's followers, or the people they follow, each with the viewer's own follow status
 export async function listPeople(viewerId: string, username: string, which: "followers" | "following") {
   const target = await findPerson(username);
+  if ((await blockBetween(viewerId, target.id)).byThem) throw new HttpError(404, "Profile not found");
   if (!(await canSeeActivity(viewerId, target))) throw new HttpError(403, "This profile is private");
 
   const follows = await prisma.follow.findMany({

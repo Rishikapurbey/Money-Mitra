@@ -28,7 +28,16 @@ export interface ChatInfo {
   seenUpTo: string | null;
   canSend: boolean;
   cannotSendReason: string | null;
+  blockedByMe: boolean;
 }
+
+// Matches the server's reasons for reporting a message
+export const MESSAGE_REPORT_REASONS: { key: string; label: string }[] = [
+  { key: "spam", label: "Spam" },
+  { key: "abusive", label: "Abusive or harassing" },
+  { key: "scam", label: "Scam or fraud" },
+  { key: "other", label: "Other" },
+];
 
 export const personName = (person: AuthorProfile | null) => (person ? person.displayName || person.username : "Deleted user");
 

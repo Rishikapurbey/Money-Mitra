@@ -8,7 +8,7 @@ import { useTitle } from "../lib/useTitle";
 import { pageWidth } from "../lib/ui";
 import { nameOf } from "../lib/me";
 import { activePhrase, lastActiveLabel, percentOf, plural, shortDate, weekLabel } from "../lib/admin";
-import type { AdminOverview, AdminPerson, AdminReport } from "../lib/admin";
+import type { AdminMessageReport, AdminOverview, AdminPerson, AdminReport } from "../lib/admin";
 import Avatar from "../components/Avatar";
 import NotFound from "./NotFound";
 
@@ -92,6 +92,32 @@ function ReportItem({ item }: { item: AdminReport }) {
       </Link>
       {item.excerpt && <p className="mt-1 text-sm text-ink-700 break-words">{item.excerpt}</p>}
       <p className="mt-1 text-sm text-ink-500">{item.reasons.map((r) => (r.count > 1 ? `${r.reason} (${r.count})` : r.reason)).join(", ")}</p>
+    </li>
+  );
+}
+
+function MessageReportItem({ item }: { item: AdminMessageReport }) {
+  return (
+    <li className="py-4 first:pt-0 last:pb-0">
+      <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
+        {item.unsent && <span className="rounded-md bg-ink-100 text-ink-700 px-2 py-0.5">Since deleted by sender</span>}
+        <span className="text-ink-500 font-normal">
+          {plural(item.reports, "report")}, last on {shortDate(item.lastReportedAt)}
+        </span>
+      </div>
+      <p className="mt-2 text-sm text-ink-900 break-words">{item.text}</p>
+      <p className="mt-1 text-sm text-ink-500">
+        From{" "}
+        {item.sender ? (
+          <Link to={`/u/${item.sender.username}`} className="font-medium text-ink-700 hover:underline">
+            {nameOf(item.sender)} (@{item.sender.username})
+          </Link>
+        ) : (
+          "a deleted account"
+        )}
+        {" · "}
+        {item.reasons.map((r) => (r.count > 1 ? `${r.reason} (${r.count})` : r.reason)).join(", ")}
+      </p>
     </li>
   );
 }
@@ -238,6 +264,23 @@ export default function Admin() {
           )}
         </Card>
       </div>
+
+      <Card title="Reported messages" aside={data.messageReports.length > 0 ? "Newest first" : undefined}>
+        {data.messageReports.length === 0 ? (
+          <p className="text-sm text-ink-500">No chat messages have been reported.</p>
+        ) : (
+          <>
+            <ul className="divide-y divide-line">
+              {data.messageReports.map((m) => (
+                <MessageReportItem key={m.id} item={m} />
+              ))}
+            </ul>
+            <p className="mt-4 border-t border-line pt-4 text-xs text-ink-500">
+              Only reported messages appear here, as they were when reported. Nothing else from anyone's chats is shown.
+            </p>
+          </>
+        )}
+      </Card>
 
       <Card title="People" aside={people.shown.length < people.total ? `Newest ${people.shown.length} of ${people.total}` : "Newest first"}>
         <div className="hidden sm:grid sm:grid-cols-[minmax(0,1fr)_8rem_8rem_7rem] sm:gap-4 pb-2 border-b border-line text-xs font-medium uppercase tracking-wider text-ink-500">

@@ -5,7 +5,7 @@ import { ArrowLeft, SendHorizontal } from "lucide-react";
 import api from "../lib/api";
 import { announceChatsChange } from "../lib/dataEvents";
 import { useToast } from "../lib/toast";
-import { DELETED_TEXT, MAX_MESSAGE, dayLabel, mergeMessages, messageTime, personName, seenMessageId, startsNewDay } from "../lib/chat";
+import { DELETED_TEXT, MAX_MESSAGE, MESSAGE_REPORT_REASONS, dayLabel, mergeMessages, messageTime, personName, seenMessageId, startsNewDay } from "../lib/chat";
 import type { ChatInfo, ChatMessage } from "../lib/chat";
 import Avatar from "../components/Avatar";
 
@@ -16,28 +16,78 @@ const NEAR_BOTTOM_PX = 120;
 
 const errorText = (err: unknown, fallback: string) => (isAxiosError(err) && err.response?.data?.error) || fallback;
 
+// Report someone's message: a reason, and (ticked by default) blocking them too
+function ReportForm({ onSend, onCancel }: { onSend: (reason: string, block: boolean) => Promise<void>; onCancel: () => void }) {
+  const [reason, setReason] = useState("");
+  const [alsoBlock, setAlsoBlock] = useState(true);
+  const [sending, setSending] = useState(false);
+  return (
+    <div className="mt-1 w-full max-w-sm rounded-xl border border-line bg-surface p-3 text-sm space-y-2">
+      <p className="font-medium text-ink-900">Why are you reporting this?</p>
+      <div className="flex flex-wrap gap-1.5">
+        {MESSAGE_REPORT_REASONS.map((r) => (
+          <button
+            key={r.key}
+            type="button"
+            onClick={() => setReason(r.key)}
+            aria-pressed={reason === r.key}
+            className={`px-3 py-1.5 rounded-full border text-xs transition ${reason === r.key ? "border-brand-600 bg-brand-50 text-brand-700" : "border-line text-ink-700 hover:bg-ink-100"}`}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+      <label className="flex items-center gap-2 text-ink-700">
+        <input type="checkbox" checked={alsoBlock} onChange={(e) => setAlsoBlock(e.target.checked)} className="accent-brand-600" />
+        Block them too
+      </label>
+      <p className="text-xs text-ink-500">Only this message is sent to the Money Mitra team. They aren't told who reported it.</p>
+      <div className="flex gap-3">
+        <button
+          type="button"
+          disabled={!reason || sending}
+          onClick={async () => {
+            setSending(true);
+            await onSend(reason, alsoBlock);
+            setSending(false);
+          }}
+          className="font-medium text-loss hover:underline disabled:opacity-40 disabled:no-underline"
+        >
+          {sending ? "Sending…" : "Send report"}
+        </button>
+        <button type="button" onClick={onCancel} className="text-ink-500 hover:underline">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Bubble({
   message,
   seen,
   options,
   onToggle,
   onUnsend,
+  onReport,
 }: {
   message: ChatMessage;
   seen: boolean;
   options: boolean;
   onToggle: () => void;
   onUnsend: () => void;
+  onReport: (reason: string, block: boolean) => Promise<void>;
 }) {
   const [confirming, setConfirming] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const mine = message.mine;
   return (
     <div className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
       <button
         type="button"
-        onClick={mine && !message.deleted ? onToggle : undefined}
-        disabled={!mine || message.deleted}
-        aria-expanded={mine && !message.deleted ? options : undefined}
+        onClick={!message.deleted ? onToggle : undefined}
+        disabled={message.deleted}
+        aria-expanded={!message.deleted ? options : undefined}
         className={`max-w-[85%] sm:max-w-[70%] text-left rounded-2xl px-3.5 py-2 text-[15px] leading-snug whitespace-pre-wrap break-words disabled:cursor-default ${
           message.deleted
             ? "border border-line text-ink-400 italic"
@@ -52,7 +102,16 @@ function Bubble({
         {messageTime(message.createdAt)}
         {seen && " · Seen"}
       </span>
-      {options && (
+      {options && !mine && (
+        reporting ? (
+          <ReportForm onSend={onReport} onCancel={() => setReporting(false)} />
+        ) : (
+          <button onClick={() => setReporting(true)} className="mt-1 text-xs font-medium text-loss hover:underline">
+            Report
+          </button>
+        )
+      )}
+      {options && mine && (
         <div className="mt-1 flex items-center gap-2 text-xs">
           {confirming ? (
             <>
@@ -90,6 +149,7 @@ function Chat() {
   const [sending, setSending] = useState(false);
   const [optionsFor, setOptionsFor] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmBlock, setConfirmBlock] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   // Where to scroll after the next render: the bottom, or back to where reading was before older messages loaded
@@ -208,6 +268,34 @@ function Chat() {
     }
   };
 
+  const report = async (messageId: string, reason: string, alsoBlock: boolean) => {
+    if (!id) return;
+    try {
+      const res = await api.post(`/chats/${id}/messages/${messageId}/report`, { reason, block: alsoBlock });
+      setOptionsFor(null);
+      if (res.data.blocked) announceChatsChange();
+      toast({ message: res.data.blocked ? "Reported and blocked. Thank you." : "Reported. Thank you, we'll take a look." });
+      refresh(false);
+    } catch (err) {
+      toast({ message: errorText(err, "We couldn't send the report. Please try again.") });
+    }
+  };
+
+  const setBlocked = async (blocked: boolean) => {
+    if (!info?.person) return;
+    try {
+      if (blocked) await api.post(`/blocks/${info.person.username}`);
+      else await api.delete(`/blocks/${info.person.username}`);
+      setConfirmBlock(false);
+      // Blocking clears their message request, so the badge and inbox should refresh
+      announceChatsChange();
+      toast({ message: blocked ? `${personName(info.person)} is blocked` : `${personName(info.person)} is unblocked` });
+      refresh(false);
+    } catch (err) {
+      toast({ message: errorText(err, "That didn't work. Please try again.") });
+    }
+  };
+
   const removeChat = async () => {
     if (!id) return;
     try {
@@ -250,7 +338,7 @@ function Chat() {
   const seenId = seenMessageId(messages, info.seenUpTo);
   // A request with nothing showing (e.g. deleted, then reopened from their profile) needs no banner;
   // writing to them accepts it, like replying does
-  const isRequest = info.myStatus === "request" && messages.some((m) => !m.mine);
+  const isRequest = info.myStatus === "request" && !info.blockedByMe && messages.some((m) => !m.mine);
 
   return (
     <section className={shell} aria-label={`Chat with ${name}`}>
@@ -272,8 +360,18 @@ function Chat() {
             <span className="font-medium text-ink-500">Deleted user</span>
           </span>
         )}
-        <div className="ml-auto flex items-center gap-2 text-sm shrink-0">
-          {confirmDelete ? (
+        <div className="ml-auto flex items-center gap-3 text-sm shrink-0">
+          {confirmBlock ? (
+            <>
+              <span className="hidden sm:inline text-ink-500">They won't be able to message or follow you.</span>
+              <button onClick={() => setBlocked(true)} className="font-medium text-loss hover:underline">
+                Block
+              </button>
+              <button onClick={() => setConfirmBlock(false)} className="text-ink-500 hover:underline">
+                Cancel
+              </button>
+            </>
+          ) : confirmDelete ? (
             <>
               <span className="hidden sm:inline text-ink-500">Delete for you?</span>
               <button onClick={removeChat} className="font-medium text-loss hover:underline">
@@ -284,11 +382,23 @@ function Chat() {
               </button>
             </>
           ) : (
-            !isRequest && (
-              <button onClick={() => setConfirmDelete(true)} className="text-ink-500 hover:text-ink-900">
-                Delete chat
-              </button>
-            )
+            <>
+              {info.person &&
+                (info.blockedByMe ? (
+                  <button onClick={() => setBlocked(false)} className="font-medium text-brand-600 hover:underline">
+                    Unblock
+                  </button>
+                ) : (
+                  <button onClick={() => setConfirmBlock(true)} className="text-ink-500 hover:text-ink-900">
+                    Block
+                  </button>
+                ))}
+              {!isRequest && (
+                <button onClick={() => setConfirmDelete(true)} className="text-ink-500 hover:text-ink-900">
+                  Delete chat
+                </button>
+              )}
+            </>
           )}
         </div>
       </header>
@@ -303,7 +413,11 @@ function Chat() {
         )}
         {messages.length === 0 && (
           <p className="text-center text-sm text-ink-500 py-8">
-            {info.person ? `Say hello to ${name}. Messages here are only between the two of you.` : "No messages."}
+            {info.blockedByMe
+              ? `You've blocked ${name}.`
+              : info.person
+                ? `Say hello to ${name}. Messages here are only between the two of you.`
+                : "No messages."}
           </p>
         )}
         {messages.map((m, i) => (
@@ -317,6 +431,7 @@ function Chat() {
               options={optionsFor === m.id}
               onToggle={() => setOptionsFor((current) => (current === m.id ? null : m.id))}
               onUnsend={() => unsend(m.id)}
+              onReport={(reason, alsoBlock) => report(m.id, reason, alsoBlock)}
             />
           </div>
         ))}

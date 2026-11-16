@@ -6,6 +6,8 @@ import { parseDate, parseTzOffset } from "../transactions/transaction.input";
 import { addExpense, addSettlement, deleteExpense, deleteSettlement, updateExpense } from "./expense.service";
 import type { ExpenseInput, SplitInput } from "./expense.service";
 import { toPaise } from "./split";
+import { findPerson } from "../follows/follow.service";
+import { refuseIfBlocked } from "../blocks/block.service";
 import {
   acceptInvite,
   addNameOnly,
@@ -128,7 +130,12 @@ router.post("/groups/:id/members", authMiddleware, sharedLimiter, async (req: Au
   if (!req.userId) return res.status(401).json({ error: "Unauthorized" });
   const groupId = req.params.id as string;
   const username = text(req.body.username).replace(/^@/, "");
-  if (username) return res.status(201).json({ member: await inviteUser(req.userId, groupId, username) });
+  if (username) {
+    // Nobody can invite someone they've blocked, or someone who has blocked them
+    const person = await findPerson(username);
+    await refuseIfBlocked(req.userId, person.id, "You've blocked this account. Unblock them to invite them.");
+    return res.status(201).json({ member: await inviteUser(req.userId, groupId, username) });
+  }
   const name = text(req.body.name);
   if (!name || name.length > 40) return res.status(400).json({ error: "Enter a username, or a name (up to 40 characters)" });
   res.status(201).json({ member: await addNameOnly(req.userId, groupId, name) });

@@ -1,6 +1,7 @@
 import prisma from "../../db/prisma";
-import { avatarUrl } from "../../lib/identity";
+import { avatarUrl, identity, identitySelect } from "../../lib/identity";
 import { HIDE_AFTER_REPORTS, REPORT_REASONS } from "../posts/post.service";
+import { MESSAGE_REPORT_REASONS } from "../chat/chat.service";
 
 // The admin page shows counts of people and their identity, never anything from anyone's
 // Tracker: no amounts, balances or totals, not even added up across everyone.
@@ -100,6 +101,56 @@ async function reportedItems() {
   }));
 }
 
+// Reported chat messages, one entry per message: only the reported text (copied when it was
+// reported), who sent it, why and how often. Nothing else from anyone's chats is ever shown.
+async function reportedMessages() {
+  const reports = await prisma.messageReport.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 200,
+    select: {
+      id: true,
+      messageId: true,
+      body: true,
+      reason: true,
+      createdAt: true,
+      sender: { select: identitySelect },
+      message: { select: { deletedAt: true } },
+    },
+  });
+  type Item = {
+    id: string;
+    text: string;
+    sender: ReturnType<typeof identity> | null;
+    reports: number;
+    reasons: { reason: string; count: number }[];
+    unsent: boolean;
+    lastReportedAt: Date;
+  };
+  const items = new Map<string, Item>();
+  for (const r of reports) {
+    const key = r.messageId ?? r.id;
+    let item = items.get(key);
+    if (!item) {
+      item = {
+        id: key,
+        text: excerpt(r.body),
+        sender: r.sender ? identity(r.sender) : null,
+        reports: 0,
+        reasons: [],
+        unsent: !r.message || r.message.deletedAt !== null,
+        lastReportedAt: r.createdAt,
+      };
+      items.set(key, item);
+    }
+    item.reports += 1;
+    const label = MESSAGE_REPORT_REASONS[r.reason] ?? "Other";
+    const reason = item.reasons.find((x) => x.reason === label);
+    if (reason) reason.count += 1;
+    else item.reasons.push({ reason: label, count: 1 });
+  }
+  return [...items.values()].map((item) => ({ ...item, reasons: item.reasons.sort((a, b) => b.count - a.count) }));
+}
+
 export async function adminOverview(now = new Date()) {
   const since = (days: number) => new Date(now.getTime() - days * DAY);
   const usersWith = (where: object) => prisma.user.count({ where });
@@ -129,6 +180,7 @@ export async function adminOverview(now = new Date()) {
     questionsThisWeek,
     repliesThisWeek,
     reports,
+    messageReports,
     people,
   ] = await Promise.all([
     prisma.user.count(),
@@ -155,6 +207,7 @@ export async function adminOverview(now = new Date()) {
     prisma.post.count({ where: { createdAt: { gte: since(7) } } }),
     prisma.reply.count({ where: { createdAt: { gte: since(7) } } }),
     reportedItems(),
+    reportedMessages(),
     prisma.user.findMany({
       orderBy: { createdAt: "desc" },
       take: USER_LIST_LIMIT,
@@ -181,6 +234,7 @@ export async function adminOverview(now = new Date()) {
     ],
     discuss: { questions, replies, questionsThisWeek, repliesThisWeek },
     reports,
+    messageReports,
     people: {
       total,
       shown: people.map((p) => ({

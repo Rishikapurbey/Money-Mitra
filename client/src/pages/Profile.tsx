@@ -26,6 +26,7 @@ import { useWideLayout } from "../lib/useMediaQuery";
 import Avatar from "../components/Avatar";
 import FollowButton from "../components/FollowButton";
 import MessageButton from "../components/MessageButton";
+import BlockButton from "../components/BlockButton";
 import { CoverBand } from "../components/ProfileCover";
 
 type Result = ProfileData | "not-found" | "error";
@@ -141,8 +142,9 @@ function Profile() {
     </div>
   ) : (
     <div className="flex flex-wrap items-center gap-2">
-      {profile.followStatus && <FollowButton username={profile.username} status={profile.followStatus} onChange={reload} />}
-      <MessageButton username={profile.username} />
+      {!profile.blockedByMe && profile.followStatus && <FollowButton username={profile.username} status={profile.followStatus} onChange={reload} />}
+      {!profile.blockedByMe && <MessageButton username={profile.username} />}
+      <BlockButton username={profile.username} name={name} blocked={profile.blockedByMe} onChange={reload} />
     </div>
   );
 
@@ -229,7 +231,9 @@ function Profile() {
     );
   };
 
-  const list = !activity
+  const list = profile.blockedByMe
+    ? emptyState(Lock, "You've blocked this account", `${name} can't message, follow or find you. Unblock them to see their questions and replies.`)
+    : !activity
     ? emptyState(
         Lock,
         "This profile is private",

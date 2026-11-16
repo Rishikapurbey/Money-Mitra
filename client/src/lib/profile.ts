@@ -47,6 +47,8 @@ export interface Profile {
   followsYou: boolean;
   // Requests waiting for your answer; only on your own profile
   pendingRequests: number;
+  // You blocked them: only who they are is shown, with Unblock
+  blockedByMe: boolean;
   // null when the profile is private and you're not an accepted follower
   activity: {
     questionCount: number;

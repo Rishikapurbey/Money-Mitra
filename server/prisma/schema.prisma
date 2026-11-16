@@ -84,6 +84,10 @@ model User {
   transfers           Transfer[]
   chats               ConversationMember[]
   messagesSent        Message[]
+  blocksMade          Block[]                @relation("blocker")
+  blockedBy           Block[]                @relation("blocked")
+  messageReportsMade  MessageReport[]        @relation("messageReporter")
+  messageReportsAbout MessageReport[]        @relation("messageSender")
 }
 
 // A profile photo, kept apart from User so the image bytes are only read when the photo is requested.
@@ -628,6 +632,39 @@ model Message {
   createdAt      DateTime     @default(now())
   // Unsent by its sender: the text is erased and both people see "This message was deleted"
   deletedAt      DateTime?
+  reports        MessageReport[]
 
   @@index([conversationId, createdAt])
+}
+
+// Blocking cuts all contact both ways: no messages or follows, no profile, and neither finds the
+// other in search. The blocked person isn't told.
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blocker   User     @relation("blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+// A message reported to the admin. The text is copied at the time, so unsending it later
+// doesn't hide what was reported. Only reported messages are ever shown to the admin.
+model MessageReport {
+  id         String   @id @default(cuid())
+  messageId  String?
+  message    Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  reporterId String
+  reporter   User     @relation("messageReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  // Null once the sender deletes their account
+  senderId   String?
+  sender     User?    @relation("messageSender", fields: [senderId], references: [id], onDelete: SetNull)
+  body       String
+  reason     String
+  createdAt  DateTime @default(now())
+
+  @@unique([messageId, reporterId])
 }
