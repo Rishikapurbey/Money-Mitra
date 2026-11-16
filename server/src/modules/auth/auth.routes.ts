@@ -6,6 +6,7 @@ import { avatarUrl, coverUrl } from "../../lib/identity";
 import { forgotPasswordLimiter, loginLimiter, resetPasswordLimiter, signupLimiter, verifyEmailLimiter, resendVerificationLimiter } from "../../middleware/rateLimit";
 import { requestPasswordReset, resetPassword } from "./passwordReset.service";
 import { pendingEmail, sendVerificationEmail, verifyEmail } from "./emailVerification.service";
+import { isAdmin } from "../admin/admin.service";
 import { text, emailProblem, usernameProblem, passwordProblem } from "../../lib/validation";
 
 const router = Router();
@@ -111,6 +112,8 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
       pendingEmail: await pendingEmail(user.id),
       avatarUrl: avatarUrl({ username: user.username, avatarUpdatedAt }),
       coverUrl: coverUrl({ username: user.username, coverUpdatedAt }),
+      // Shows the Admin link in the menus; the admin API checks again on every request
+      isAdmin: await isAdmin(user.id),
     },
   });
 });

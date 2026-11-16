@@ -24,6 +24,13 @@ describe("who can open the admin page", () => {
     await overview(admin.auth).expect(200);
   });
 
+  it("tells only the admin's app to show the Admin link", async () => {
+    const someone = await createUser("plain");
+    const me = async (auth: string) => (await api().get("/api/auth/me").set("Authorization", auth).expect(200)).body.user.isAdmin;
+    expect(await me(admin.auth)).toBe(true);
+    expect(await me(someone.auth)).toBe(false);
+  });
+
   it("needs the admin email to be confirmed", async () => {
     await prisma.user.update({ where: { email: admin.email }, data: { emailVerifiedAt: null } });
     await overview(admin.auth).expect(404);

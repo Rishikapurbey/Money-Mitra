@@ -74,7 +74,8 @@ the way.
 - Light and dark themes, a phone layout with a bottom tab bar, and installable as an app (PWA)
 - A private admin page at `/admin` for the `ADMIN_EMAIL` account: signups per week, active users,
   how many people use each feature, reported questions and replies, and the list of people.
-  Everyone else gets "Page not found"
+  It's linked from that account's menu and from Settings; everyone else sees no link and gets
+  "Page not found"
 
 ## Privacy
 

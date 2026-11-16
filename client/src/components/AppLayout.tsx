@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { House, PieChart, MessagesSquare, BookOpen, LogOut, ChevronDown, Calculator, Settings, Download, UserRound, UsersRound } from "lucide-react";
+import { House, PieChart, MessagesSquare, BookOpen, LogOut, ChevronDown, Calculator, Settings, Download, UserRound, UsersRound, ChartColumn } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import api from "../lib/api";
 import { Logo } from "./Logo";
@@ -160,6 +160,16 @@ function AppLayout() {
                   >
                     <Settings size={16} /> Settings
                   </Link>
+                  {me?.isAdmin && (
+                    <Link
+                      to="/admin"
+                      role="menuitem"
+                      onClick={() => setMenuOpen(false)}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-100 transition"
+                    >
+                      <ChartColumn size={16} /> Admin
+                    </Link>
+                  )}
                   {install && (
                     <button
                       role="menuitem"

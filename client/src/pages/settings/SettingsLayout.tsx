@@ -1,7 +1,8 @@
 import type { ComponentType } from "react";
-import { Navigate, NavLink, Outlet, useNavigate, useOutletContext, useParams } from "react-router-dom";
+import { Link, Navigate, NavLink, Outlet, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import {
   Bell,
+  ChartColumn,
   ChevronRight,
   CircleHelp,
   Download,
@@ -74,7 +75,7 @@ const GROUPS: { title: string; sections: Section[] }[] = [
 const SECTIONS = GROUPS.flatMap((g) => g.sections);
 const DEFAULT_SECTION = SECTIONS[0].slug;
 
-function Menu({ wide, onLogout }: { wide: boolean; onLogout: () => void }) {
+function Menu({ wide, onLogout, isAdmin }: { wide: boolean; onLogout: () => void; isAdmin: boolean }) {
   const item = (s: Section) => (
     <NavLink
       key={s.slug}
@@ -121,6 +122,27 @@ function Menu({ wide, onLogout }: { wide: boolean; onLogout: () => void }) {
     </button>
   );
 
+  // Only for the ADMIN_EMAIL account: opens the admin page rather than a settings section
+  const admin = isAdmin && (
+    <div>
+      <p className={`text-xs font-semibold uppercase tracking-wider text-ink-500 ${wide ? "px-3 pb-2" : "px-1 pb-2"}`}>Admin</p>
+      {wide ? (
+        <Link to="/admin" className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-ink-700 border border-transparent hover:bg-surface transition">
+          <ChartColumn size={16} className="text-ink-400" /> Admin page
+        </Link>
+      ) : (
+        <Link to="/admin" className="flex items-center gap-3 px-4 py-3.5 bg-surface border border-line rounded-2xl hover:bg-canvas transition">
+          <ChartColumn size={20} className="text-ink-400" />
+          <span className="flex-1 min-w-0">
+            <span className="block font-medium text-ink-900">Admin page</span>
+            <span className="block text-sm text-ink-500">Users, activity and reports</span>
+          </span>
+          <ChevronRight size={18} className="text-ink-300" />
+        </Link>
+      )}
+    </div>
+  );
+
   return (
     <nav aria-label="Settings" className={wide ? "sticky top-20 space-y-5" : "space-y-6"}>
       {GROUPS.map((g) => (
@@ -133,6 +155,7 @@ function Menu({ wide, onLogout }: { wide: boolean; onLogout: () => void }) {
           )}
         </div>
       ))}
+      {admin}
       {wide ? <div className="border-t border-line pt-3">{logout}</div> : logout}
     </nav>
   );
@@ -162,7 +185,7 @@ function SettingsLayout() {
         <div className="grid grid-cols-[240px_minmax(0,1fr)] gap-10 items-start">
           <div>
             <h1 className="px-3 pb-5 text-2xl font-semibold tracking-tight text-ink-900">Settings</h1>
-            <Menu wide onLogout={logout} />
+            <Menu wide onLogout={logout} isAdmin={Boolean(me?.isAdmin)} />
           </div>
           <div className="max-w-3xl space-y-6 pt-1">
             <Outlet context={context} />
@@ -184,7 +207,7 @@ function SettingsLayout() {
             <h1 className="text-2xl font-semibold tracking-tight text-ink-900">Settings</h1>
             {me && <p className="mt-1 text-sm text-ink-500">Signed in as {me.email}</p>}
           </div>
-          <Menu wide={false} onLogout={logout} />
+          <Menu wide={false} onLogout={logout} isAdmin={Boolean(me?.isAdmin)} />
         </div>
       )}
     </main>

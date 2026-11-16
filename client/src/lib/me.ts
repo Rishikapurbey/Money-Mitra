@@ -22,6 +22,8 @@ export interface Me {
   // The profile banner: an uploaded image, else a built-in design (null for the default)
   coverUrl: string | null;
   coverPreset: string | null;
+  // Only true for the ADMIN_EMAIL account; shows the Admin link in the menus
+  isAdmin: boolean;
 }
 
 // How a person is named in the app: their chosen name, or else their username
