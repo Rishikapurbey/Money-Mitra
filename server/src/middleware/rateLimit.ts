@@ -43,6 +43,12 @@ export const photoLimiter = limiter(60, 20, "You've changed your photo a lot rec
 
 export const followLimiter = limiter(10, 60, "You're following and unfollowing very quickly. Please wait a few minutes.");
 
+// Plenty for a real conversation, but stops anyone flooding a chat
+export const messageLimiter = limiter(10, 100, "You're sending messages very quickly. Please wait a few minutes.");
+
+// Opening chats with new people: stops anyone messaging everyone on the app
+export const chatStartLimiter = limiter(60, 40, "You've started a lot of chats recently. Please try again later.");
+
 // Each import can add thousands of rows, so a handful an hour is plenty
 export const importLimiter = limiter(60, 20, "You've imported a lot of files recently. Please try again in an hour.");
 

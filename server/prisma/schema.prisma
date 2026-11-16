@@ -82,6 +82,8 @@ model User {
   avatar              Avatar?
   cover               CoverPhoto?
   transfers           Transfer[]
+  chats               ConversationMember[]
+  messagesSent        Message[]
 }
 
 // A profile photo, kept apart from User so the image bytes are only read when the photo is requested.
@@ -581,4 +583,51 @@ model GroupActivity {
   actor     User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([groupId, createdAt])
+}
+
+// A one-to-one chat. pairKey ("<smaller user id>:<larger user id>") keeps it to one per pair of
+// people; it's cleared when either of them deletes their account.
+model Conversation {
+  id            String               @id @default(cuid())
+  pairKey       String?              @unique
+  createdAt     DateTime             @default(now())
+  // Sorts the inbox; null until the first message
+  lastMessageAt DateTime?
+  members       ConversationMember[]
+  messages      Message[]
+
+  @@index([lastMessageAt])
+}
+
+// One of the two people in a conversation, with their own view of it
+model ConversationMember {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // "accepted" shows in the inbox; "request" waits under Requests until accepted or answered
+  status         String       @default("accepted")
+  // Read up to here: the other person's later messages are unread, earlier ones show them "Seen"
+  lastReadAt     DateTime?
+  // "Delete conversation" for this person only: messages before it are hidden from them
+  clearedAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  body           String
+  createdAt      DateTime     @default(now())
+  // Unsent by its sender: the text is erased and both people see "This message was deleted"
+  deletedAt      DateTime?
+
+  @@index([conversationId, createdAt])
 }

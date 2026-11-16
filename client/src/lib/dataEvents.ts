@@ -18,3 +18,13 @@ export function onNotificationsChange(listener: () => void) {
   window.addEventListener(NOTIFICATIONS_EVENT, listener);
   return () => window.removeEventListener(NOTIFICATIONS_EVENT, listener);
 }
+
+// A chat was read, sent to, accepted or deleted, so the messages badge should refresh
+const CHATS_EVENT = "money-mitra:chats-changed";
+
+export const announceChatsChange = () => window.dispatchEvent(new Event(CHATS_EVENT));
+
+export function onChatsChange(listener: () => void) {
+  window.addEventListener(CHATS_EVENT, listener);
+  return () => window.removeEventListener(CHATS_EVENT, listener);
+}

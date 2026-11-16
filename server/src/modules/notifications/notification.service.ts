@@ -148,6 +148,8 @@ function message(kind: string, count: number, actor: string, title: string) {
       return `${actor} started following you`;
     case "follow_accepted":
       return `${actor} accepted your follow request`;
+    case "message_request":
+      return `${actor} sent you a message request`;
     case "followed_post":
       return `${actor} asked a question`;
     case "reply_to_question":

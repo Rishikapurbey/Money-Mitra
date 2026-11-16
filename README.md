@@ -67,6 +67,7 @@ the way.
 - Reports hide a post after three reports, and the team is emailed
 - Profiles with a photo, cover, name and bio; private profiles and Instagram-style follow requests
 - Search for people by name or @username from the top bar; people you know come first, and each result says whether you follow each other
+- One-to-one messages: a Message button on profiles, an inbox with an unread count in the top bar, "Seen", deleting your own messages for both people at any time, and deleting a chat for yourself. People you follow or share a group with reach your chats directly; anyone else sends one message as a request until you accept
 - A notification bell for replies, follows, budgets, bills, recaps and shared groups; reply emails you can turn off
 
 ### Account and app
@@ -85,6 +86,7 @@ the way.
 - A UPI ID is shown only to a group member who owes its owner, only while both are in the group, and never on profiles.
 - Anonymous posts store the real author internally for moderation, but the API never sends it to other users.
 - Profile photos and covers are cropped and resized on the device before upload, which also removes hidden details such as location.
+- Messages are only between the two people in a chat and never include anything from the Tracker. They're stored privately but aren't end-to-end encrypted. When someone deletes their account, their messages stay in the other person's chat as "Deleted user".
 - The admin page shows counts of people and their public identity (name, username, join date, last active, whether their email is confirmed). It never shows email addresses, amounts, balances or any total of money, not even added up across everyone.
 
 ## Tech stack
@@ -112,7 +114,7 @@ money-mitra/
 ├── ops/backups/            # Nightly database backup job and a restore script
 └── server/                 # Node + Express backend
     ├── prisma/             # Schema and migrations
-    ├── src/modules/        # account, admin, auth, budgets, categories, feedback, follows, goals,
+    ├── src/modules/        # account, admin, auth, budgets, categories, chat, feedback, follows, goals,
     │                       # imports, networth, notifications, posts, profiles, recaps,
     │                       # recurring, search, shared, transactions
     └── test/               # API tests
@@ -202,6 +204,7 @@ reset, email confirmation, and profile photos and covers (which load in `<img>` 
 | People | `/api/users`, `/api/follows`, `/api/search` | Profiles, photos, covers, followers, follow requests and people search |
 | Notifications | `/api/notifications` | The bell |
 | Feedback | `/api/feedback` | Feedback from Settings |
+| Messages | `/api/chats` | Inbox, message requests, chats, sending, unsending, unread count |
 | Admin | `/api/admin` | Counts, reports and people for the admin page; Not found for everyone else |
 
 ## Deployment

@@ -7,6 +7,7 @@ import { signToken } from "../../lib/tokens";
 import { avatarUrl } from "../../lib/identity";
 import { requestEmailChange } from "../auth/emailVerification.service";
 import { releaseMemberships } from "../shared/shared.service";
+import { exportMessages, releaseChats } from "../chat/chat.service";
 
 async function verifyPassword(userId: string, password: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -126,7 +127,7 @@ export async function exportData(userId: string) {
     },
   });
   if (!user) throw new HttpError(404, "Account not found");
-  return { exportedAt: new Date().toISOString(), ...user };
+  return { exportedAt: new Date().toISOString(), ...user, messages: await exportMessages(userId) };
 }
 
 // The placeholder account that keeps Discuss posts readable after their author leaves.
@@ -146,8 +147,10 @@ export async function deleteAccount(userId: string, password: string) {
   await verifyPassword(userId, password);
   const placeholderId = await deletedUserId();
   const groupChanges = await releaseMemberships(userId);
+  const chatChanges = await releaseChats(userId, placeholderId);
   await prisma.$transaction([
     ...groupChanges,
+    ...chatChanges,
     prisma.post.updateMany({ where: { authorId: userId }, data: { authorId: placeholderId } }),
     prisma.reply.updateMany({ where: { authorId: userId }, data: { authorId: placeholderId } }),
     prisma.transaction.deleteMany({ where: { userId } }),

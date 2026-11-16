@@ -11,6 +11,7 @@ export interface AppNotification {
     | "follow_request"
     | "new_follower"
     | "follow_accepted"
+    | "message_request"
     | "followed_post"
     | "budget_near"
     | "budget_over"
@@ -42,6 +43,7 @@ export interface AppNotification {
 // Where a notification leads when opened
 export function notificationLink(n: AppNotification) {
   if (n.kind === "follow_request") return "/follow-requests";
+  if (n.kind === "message_request") return "/messages?tab=requests";
   if (n.kind === "budget_near" || n.kind === "budget_over") return "/tracker";
   if (n.kind === "recap_ready" && n.month) return `/tracker/recap/${n.month}`;
   if (n.kind === "year_ready" && n.year) return `/tracker/year/${n.year}`;

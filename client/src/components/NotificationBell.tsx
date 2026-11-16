@@ -18,6 +18,7 @@ const ICONS = {
   post_hidden: EyeOff,
   reply_hidden: EyeOff,
   follow_request: UserPlus,
+  message_request: MessageCircle,
   new_follower: UserPlus,
   follow_accepted: UserCheck,
   followed_post: MessageCircle,

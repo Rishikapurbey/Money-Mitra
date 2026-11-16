@@ -25,6 +25,7 @@ import { useTitle } from "../lib/useTitle";
 import { useWideLayout } from "../lib/useMediaQuery";
 import Avatar from "../components/Avatar";
 import FollowButton from "../components/FollowButton";
+import MessageButton from "../components/MessageButton";
 import { CoverBand } from "../components/ProfileCover";
 
 type Result = ProfileData | "not-found" | "error";
@@ -139,7 +140,10 @@ function Profile() {
       </Link>
     </div>
   ) : (
-    profile.followStatus && <FollowButton username={profile.username} status={profile.followStatus} onChange={reload} />
+    <div className="flex flex-wrap items-center gap-2">
+      {profile.followStatus && <FollowButton username={profile.username} status={profile.followStatus} onChange={reload} />}
+      <MessageButton username={profile.username} />
+    </div>
   );
 
   const header = (

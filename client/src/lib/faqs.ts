@@ -25,6 +25,14 @@ export const faqs = [
 // Only useful once someone is using the app
 export const appFaqs = [
   {
+    q: "How do messages work?",
+    a: "Find someone with search (the magnifier at the top) and tap Message on their profile. If they follow you or you share a group, your message goes straight to their chats. Otherwise it arrives as a message request: you can send one message until they accept, and they won't see a Seen from you unless they accept. You can delete any of your own messages for both of you at any time, and Delete chat removes a chat only from your side.",
+  },
+  {
+    q: "Who can read my messages?",
+    a: "Only you and the person you're talking to. Nothing from your Tracker is ever shared in a chat. Messages are kept privately on our server but aren't end-to-end encrypted, so please don't send passwords, OTPs or card details to anyone. If you delete your account, your messages stay in the other person's chat under Deleted user.",
+  },
+  {
     q: "How do accounts work?",
     a: "Add your bank accounts, cash and credit cards in Tracker > Net worth, and type in what each holds today. From then on, every income or expense you add says which account it was paid from or received in, and that account's balance moves by itself. The one marked Default is filled in for you; you can pick another each time. Your net worth goes up and down with them, so there's nothing to update twice. Anything you add after typing a balance counts, even if you date it earlier; imported statements and recurring entries count by their date, since your bank already had them. An entry set to No account doesn't change any balance.",
   },

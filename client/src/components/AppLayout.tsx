@@ -7,6 +7,7 @@ import { Logo } from "./Logo";
 import { pageWidth } from "../lib/ui";
 import BackToTop from "./BackToTop";
 import NotificationBell from "./NotificationBell";
+import MessagesButton from "./MessagesButton";
 import ThemeToggle from "./ThemeToggle";
 import { useInstallPrompt } from "../lib/installPrompt";
 import { useToast } from "../lib/toast";
@@ -133,7 +134,11 @@ function AppLayout() {
             >
               <Search size={20} />
             </NavLink>
-            <ThemeToggle />
+            <MessagesButton />
+            {/* On phones the theme lives in Settings > Appearance, to leave room in the top bar */}
+            <div className="hidden sm:block">
+              <ThemeToggle />
+            </div>
             <NotificationBell />
             <div ref={menuRef} className="relative">
               <button
