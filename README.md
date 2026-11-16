@@ -103,6 +103,7 @@ money-mitra/
 │       ├── components/     # Layouts, cards, forms and shared pieces
 │       ├── lib/            # API client, Learn content, calculators, helpers
 │       └── pages/          # Home, Tracker, Shared, Discuss, Learn, Settings, ...
+├── ops/backups/            # Nightly database backup job and a restore script
 └── server/                 # Node + Express backend
     ├── prisma/             # Schema and migrations
     ├── src/modules/        # account, auth, budgets, categories, feedback, follows, goals,
@@ -208,6 +209,31 @@ reset, email confirmation, and profile photos and covers (which load in `<img>` 
 - Pages are loaded on demand, which keeps the first download small.
 - Render's free tier sleeps when idle, so the first request after a quiet period can take up
   to a minute. The app tells the user it is waking up rather than appearing frozen.
+
+### Backups
+
+A GitHub Action in a separate private repo backs up the production database every night at
+03:00 India time. It lives there, not here, so this public repo never holds the database
+password. The job's source is `ops/backups/backup.yml`.
+
+- Each run takes a `pg_dump`, checks that the main tables are in it, encrypts it with a
+  passphrase and saves it as `YYYY-MM-DD.dump.gpg` on that repo's `backups` branch.
+- The branch is rewritten each night to hold only the last 30 days, so older backups, and the
+  data of deleted accounts in them, are really gone after a month.
+- GitHub emails the repo owner if a run fails.
+- The private repo needs two Actions secrets: `DATABASE_URL` (the Neon connection string
+  without `-pooler`) and `BACKUP_PASSPHRASE`. Without the passphrase the backups can't be
+  opened, so keep it in a password manager.
+
+To check a backup, or to get data back, restore it into a new local database:
+
+```bash
+ops/backups/restore.sh ~/Downloads/2026-11-16.dump.gpg
+```
+
+It asks for the passphrase, restores into `money_mitra_restore_<date>` on the local Postgres
+(never into `money_mitra` or production) and prints user, entry and account counts with the
+latest migration. Try this every few months so a restore is routine, not guesswork.
 
 ## Design notes
 

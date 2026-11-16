@@ -1,0 +1,105 @@
+# Nightly backup of the production database.
+#
+# This file is not run from the Money-Mitra repo. Copy it to
+# .github/workflows/backup.yml in the private backups repo, which needs two
+# Actions secrets:
+#   DATABASE_URL       Neon connection string WITHOUT "-pooler" in the host
+#   BACKUP_PASSPHRASE  passphrase used to encrypt each backup (keep it in a
+#                      password manager; without it the backups can't be opened)
+#
+# Each run dumps the database, checks the dump is readable, encrypts it and
+# stores it as YYYY-MM-DD.dump.gpg on the repo's "backups" branch. That branch is
+# rewritten as a single commit holding only the last KEEP_DAYS days, so older
+# backups (and the data of deleted accounts in them) really go away.
+# GitHub emails the repo owner when a scheduled run fails.
+
+name: Nightly database backup
+
+on:
+  schedule:
+    - cron: "30 21 * * *" # 03:00 India time
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      KEEP_DAYS: 30
+      PG_MAJOR: 18
+    steps:
+      - name: Install the PostgreSQL client
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq "postgresql-client-${PG_MAJOR}"
+
+      - name: Dump, check and encrypt
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          : "${DATABASE_URL:?The DATABASE_URL secret is not set}"
+          : "${BACKUP_PASSPHRASE:?The BACKUP_PASSPHRASE secret is not set}"
+          bin="/usr/lib/postgresql/${PG_MAJOR}/bin"
+          stamp=$(date -u +%F)
+          mkdir -p "$RUNNER_TEMP/out"
+          dump="$RUNNER_TEMP/out/db.dump"
+
+          "$bin/pg_dump" --dbname="$DATABASE_URL" --format=custom --no-owner --no-acl --file="$dump"
+
+          # A dump that can't be listed, or is missing the main tables, is not a backup.
+          toc=$("$bin/pg_restore" --list "$dump")
+          for table in User Transaction NetWorthItem _prisma_migrations; do
+            grep -q "TABLE DATA public \"\?${table}\"\? " <<<"$toc" \
+              || { echo "The dump has no data for table ${table}"; exit 1; }
+          done
+          echo "Tables in the dump: $(grep -c ' TABLE DATA ' <<<"$toc")"
+
+          gpg --batch --yes --pinentry-mode loopback --passphrase-fd 3 \
+            --symmetric --cipher-algo AES256 \
+            --output "$RUNNER_TEMP/out/${stamp}.dump.gpg" "$dump" 3<<<"$BACKUP_PASSPHRASE"
+          rm "$dump"
+          ls -l "$RUNNER_TEMP/out"
+
+      - name: Save it to the backups branch, dropping old ones
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          remote="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          store="$RUNNER_TEMP/store"
+          rm -rf "$store"
+          git init -q -b backups "$store"
+          cd "$store"
+
+          # Bring back the backups kept so far (none on the very first run).
+          if git fetch -q --depth=1 "$remote" backups; then
+            git checkout -q FETCH_HEAD -- .
+          fi
+
+          mv "$RUNNER_TEMP"/out/*.dump.gpg .
+          cutoff=$(date -u -d "-${KEEP_DAYS} days" +%F)
+          for f in *.dump.gpg; do
+            if [[ "${f%.dump.gpg}" < "$cutoff" ]]; then rm "$f"; fi
+          done
+
+          git add -A
+          git -c user.name="backup-bot" -c user.email="backup-bot@users.noreply.github.com" \
+            commit -q -m "Backups up to $(date -u +%F)"
+          git push -q -f "$remote" backups
+          echo "Kept backups:"
+          ls -1 *.dump.gpg
