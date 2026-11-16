@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigationType, useSearchParams } from "react-router-dom";
 import { ArrowLeftRight, ArrowRight, Pencil, Receipt, Repeat, Search, SlidersHorizontal, Trash2, UsersRound, X } from "lucide-react";
+import ActionMenu from "./ActionMenu";
+import type { MenuAction } from "./ActionMenu";
 import api from "../lib/api";
 import { formatINR, inputClass } from "../lib/ui";
 import {
@@ -73,7 +75,8 @@ const dayLabel = (iso: string) => {
   yesterday.setDate(today.getDate() - 1);
   if (d.toDateString() === today.toDateString()) return "Today";
   if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  // The year only when it isn't this one
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", ...(d.getFullYear() !== today.getFullYear() && { year: "numeric" }) });
 };
 
 const RANGE_LABELS: Record<Exclude<RangeKey, "month">, string> = {
@@ -287,17 +290,25 @@ function TransactionsCard({
     </span>
   );
   const transferAmount = (t: Transfer, extra = "") => (
-    <span className={`px-2.5 py-1 rounded-lg font-semibold tabular-nums text-ink-700 bg-ink-100 ${extra}`}>{formatINR(t.amount)}</span>
+    <span className={`font-semibold tabular-nums text-ink-500 ${extra}`}>{formatINR(t.amount)}</span>
   );
-  const transferActions = (t: Transfer, gap: string) => (
-    <span className={`flex items-center justify-end ${gap}`}>
-      <button onClick={() => onEditTransfer(t)} aria-label="Edit transfer" className="text-ink-300 hover:text-brand-600 transition">
-        <Pencil size={16} />
-      </button>
-      <button onClick={() => onDeleteTransfer(t)} aria-label="Delete transfer" className="text-ink-300 hover:text-loss transition">
-        <Trash2 size={16} />
-      </button>
-    </span>
+
+  // Edit and Delete live in a ⋯ menu; deleting shows an Undo, so it needs no extra question.
+  // A shared expense is removed from its group, which takes the share out of here too.
+  const entryMenu = (t: Transaction) => {
+    const actions: MenuAction[] = [{ label: "Edit", icon: Pencil, onSelect: () => onEdit(t) }];
+    if (!t.shareId) actions.push({ label: "Delete", icon: Trash2, danger: true, onSelect: () => onDelete(t) });
+    return <ActionMenu label={`Options for ${t.category}`} actions={actions} className="shrink-0" />;
+  };
+  const transferMenu = (t: Transfer) => (
+    <ActionMenu
+      label="Options for transfer"
+      className="shrink-0"
+      actions={[
+        { label: "Edit", icon: Pencil, onSelect: () => onEditTransfer(t) },
+        { label: "Delete", icon: Trash2, danger: true, onSelect: () => onDeleteTransfer(t) },
+      ]}
+    />
   );
 
   const avatar = (t: Transaction, size: string) => (
@@ -309,12 +320,9 @@ function TransactionsCard({
     </span>
   );
 
-  const amountBadge = (t: Transaction, extra = "") => (
-    <span
-      className={`px-2.5 py-1 rounded-lg font-semibold tabular-nums ${extra} ${
-        t.type === "income" ? "text-gain bg-gain-soft" : "text-loss bg-loss-soft"
-      }`}
-    >
+  // Plain figures: income in green with a plus, spending in the normal text colour
+  const amountText = (t: Transaction, extra = "") => (
+    <span className={`font-semibold tabular-nums whitespace-nowrap ${extra} ${t.type === "income" ? "text-gain" : "text-ink-900"}`}>
       {t.type === "income" ? "+" : "−"}
       {formatINR(t.amount)}
     </span>
@@ -327,58 +335,69 @@ function TransactionsCard({
       t.shareId && <UsersRound size={13} className="shrink-0 text-ink-400" aria-label="Your share of a shared expense" />
     );
 
-  const filterBar = (
-    <div className="p-5 border-b border-line space-y-3">
-      <div className="flex flex-wrap items-center gap-3 justify-between">
-        <h2 className="font-semibold text-ink-900">Transactions</h2>
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          <label className="relative flex-1 sm:flex-none sm:w-64">
-            <span className="sr-only">Search notes and categories</span>
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none" />
-            <input
-              type="search"
-              value={filters.q}
-              onChange={(e) => update({ q: e.target.value })}
-              placeholder="Search notes and categories"
-              maxLength={100}
-              className={`${inputClass} w-full py-1.5 pl-9 text-sm`}
-            />
-          </label>
-          <select
-            value={filters.range}
-            onChange={(e) => update({ range: e.target.value as RangeKey })}
-            aria-label="Date range"
-            className={`${inputClass} py-1.5 text-sm`}
-          >
-            <option value="month">{monthName(month)}</option>
-            <option value="3m">{RANGE_LABELS["3m"]}</option>
-            <option value="year">{RANGE_LABELS.year}</option>
-            <option value="all">{RANGE_LABELS.all}</option>
-            <option value="custom">{RANGE_LABELS.custom}</option>
-          </select>
-          <select
-            value={filters.type}
-            onChange={(e) => update({ type: e.target.value as TransactionFilters["type"] })}
-            aria-label="Type"
-            className={`${inputClass} py-1.5 text-sm`}
-          >
-            <option value="all">All types</option>
-            <option value="income">Income</option>
-            <option value="expense">Expenses</option>
-          </select>
-          <select
-            value={filters.category}
-            onChange={(e) => update({ category: e.target.value })}
-            aria-label="Category"
-            className={`${inputClass} py-1.5 text-sm max-w-48`}
-          >
-            <option value="all">All categories</option>
-            {categoryOptions.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+  // Type, category, account and amount filters that are on, for the count on the phone's Filters button
+  const panelCount = [filters.type !== "all", filters.category !== "all", filters.account !== "all", Boolean(filters.min), Boolean(filters.max)].filter(Boolean).length;
+  const searchInput = (
+    <label className="relative flex-1 sm:flex-none sm:w-64">
+      <span className="sr-only">Search notes and categories</span>
+      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none" />
+      <input
+        type="search"
+        value={filters.q}
+        onChange={(e) => update({ q: e.target.value })}
+        placeholder={wide ? "Search notes and categories" : "Search notes"}
+        maxLength={100}
+        className={`${inputClass} w-full py-1.5 pl-9 text-sm`}
+      />
+    </label>
+  );
+
+  const rangeSelect = (
+    <select
+      value={filters.range}
+      onChange={(e) => update({ range: e.target.value as RangeKey })}
+      aria-label="Date range"
+      className={`${inputClass} py-1.5 text-sm`}
+    >
+      <option value="month">{monthName(month)}</option>
+      <option value="3m">{RANGE_LABELS["3m"]}</option>
+      <option value="year">{RANGE_LABELS.year}</option>
+      <option value="all">{RANGE_LABELS.all}</option>
+      <option value="custom">{RANGE_LABELS.custom}</option>
+    </select>
+  );
+
+  const typeSelect = (
+    <select
+      value={filters.type}
+      onChange={(e) => update({ type: e.target.value as TransactionFilters["type"] })}
+      aria-label="Type"
+      className={`${inputClass} py-1.5 text-sm`}
+    >
+      <option value="all">All types</option>
+      <option value="income">Income</option>
+      <option value="expense">Expenses</option>
+    </select>
+  );
+
+  const categorySelect = (
+    <select
+      value={filters.category}
+      onChange={(e) => update({ category: e.target.value })}
+      aria-label="Category"
+      className={`${inputClass} py-1.5 text-sm max-w-48`}
+    >
+      <option value="all">All categories</option>
+      {categoryOptions.map((c) => (
+        <option key={c} value={c}>
+          {c}
+        </option>
+      ))}
+    </select>
+  );
+
+  const accountSelect = (
+    <>
           {showAccounts && (
             <select
               value={filters.account}
@@ -395,21 +414,27 @@ function TransactionsCard({
               <option value="none">No account</option>
             </select>
           )}
-          <button
-            type="button"
-            onClick={() => setMoreOpen(!moreOpen)}
-            aria-expanded={moreOpen}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-sm font-medium transition ${
-              moreOpen ? "border-brand-500 text-brand-700 bg-brand-50" : "border-line text-ink-700 hover:border-ink-300"
-            }`}
-          >
-            <SlidersHorizontal size={15} /> More filters
-          </button>
-        </div>
-      </div>
+    </>
+  );
 
-      {(moreOpen || filters.range === "custom") && (
-        <div className="flex flex-wrap items-end gap-3 justify-end">
+  const filtersButton = (label: string, count = 0) => (
+    <button
+      type="button"
+      onClick={() => setMoreOpen(!moreOpen)}
+      aria-expanded={moreOpen}
+      className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border text-sm font-medium transition ${
+        moreOpen ? "border-brand-500 text-brand-700 bg-brand-50" : "border-line text-ink-700 hover:border-ink-300"
+      }`}
+    >
+      <SlidersHorizontal size={15} /> {label}
+      {count > 0 && (
+        <span className="min-w-5 h-5 px-1.5 rounded-full bg-brand-600 text-white text-xs leading-5 tabular-nums">{count}</span>
+      )}
+    </button>
+  );
+
+  const customDates = (
+    <>
           {filters.range === "custom" && (
             <>
               <label className="text-xs font-medium text-ink-500">
@@ -434,8 +459,12 @@ function TransactionsCard({
               </label>
             </>
           )}
-          {moreOpen && (
-            <>
+    </>
+  );
+
+  const amountInputs = (
+    <>
+
               <label className="text-xs font-medium text-ink-500">
                 Min amount (₹)
                 <input
@@ -460,11 +489,70 @@ function TransactionsCard({
                   className={`${inputClass} block mt-1 py-1.5 text-sm w-36`}
                 />
               </label>
-            </>
-          )}
+    </>
+  );
+
+  // Wide screens show every filter in one row; phones show search, the date range and a Filters
+  // button that opens the rest, so the list isn't pushed down by four rows of controls
+  const filterBar = wide ? (
+    <div className="p-5 border-b border-line space-y-3">
+      <div className="flex flex-wrap items-center gap-3 justify-between">
+        <h2 className="font-semibold text-ink-900">Transactions</h2>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          {searchInput}
+          {rangeSelect}
+          {typeSelect}
+          {categorySelect}
+          {accountSelect}
+          {filtersButton("More filters")}
+        </div>
+      </div>
+      {(moreOpen || filters.range === "custom") && (
+        <div className="flex flex-wrap items-end gap-3 justify-end">
+          {customDates}
+          {moreOpen && amountInputs}
         </div>
       )}
-
+      {filtering && (
+        <div className="flex flex-wrap items-center gap-2">
+          {chips.map((chip) => (
+            <button
+              key={chip.label}
+              type="button"
+              onClick={() => update(chip.clear)}
+              aria-label={`Remove filter ${chip.label}`}
+              className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-lg bg-brand-50 text-brand-700 text-xs font-medium hover:bg-brand-100 transition"
+            >
+              {chip.label} <X size={13} />
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={clearAll}
+            className="text-xs font-medium text-ink-500 hover:text-ink-900 underline underline-offset-2 transition"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
+    </div>
+  ) : (
+    <div className="p-5 border-b border-line space-y-3">
+      <h2 className="font-semibold text-ink-900">Transactions</h2>
+      <div className="flex [&>label]:w-full">{searchInput}</div>
+      <div className="flex gap-2 [&>select]:flex-1 [&>select]:min-w-0">
+        {rangeSelect}
+        {filtersButton("Filters", panelCount)}
+      </div>
+      {filters.range === "custom" && <div className="grid grid-cols-2 gap-3 [&_input]:w-full">{customDates}</div>}
+      {moreOpen && (
+        <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-canvas border border-line [&>select]:w-full [&>select]:max-w-none [&_input]:w-full">
+          {typeSelect}
+          {categorySelect}
+          {showAccounts && <div className="col-span-2 [&>select]:w-full [&>select]:max-w-none">{accountSelect}</div>}
+          {amountInputs}
+        </div>
+      )}
       {filtering && (
         <div className="flex flex-wrap items-center gap-2">
           {chips.map((chip) => (
@@ -568,7 +656,7 @@ function TransactionsCard({
                 <th scope="col" className="text-right font-medium px-5 py-2.5">
                   Amount
                 </th>
-                <th scope="col" className="px-5 py-2.5 w-24">
+                <th scope="col" className="px-3 py-2.5 w-16">
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
@@ -588,7 +676,9 @@ function TransactionsCard({
                       <td className="px-5 py-3 text-ink-500 max-w-xs truncate">{row.item.note || "—"}</td>
                       {showAccounts && <td className="px-5 py-3 text-ink-500 max-w-56">{transferRoute(row.item)}</td>}
                       <td className="px-5 py-3 text-right">{transferAmount(row.item)}</td>
-                      <td className="px-5 py-3">{transferActions(row.item, "gap-3")}</td>
+                      <td className="px-3 py-1.5">
+                        <span className="flex justify-end">{transferMenu(row.item)}</span>
+                      </td>
                     </tr>
                   );
                 }
@@ -607,27 +697,9 @@ function TransactionsCard({
                     {showAccounts && (
                       <td className="px-5 py-3 text-ink-500 max-w-40 truncate">{t.accountId ? nameOfAccount(t.accountId) : "—"}</td>
                     )}
-                    <td className="px-5 py-3 text-right">{amountBadge(t)}</td>
-                    <td className="px-5 py-3">
-                      <span className="flex items-center justify-end gap-3">
-                        <button
-                          onClick={() => onEdit(t)}
-                          aria-label={`Edit ${t.category}`}
-                          className="text-ink-300 hover:text-brand-600 transition"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        {/* A shared expense is removed from its group, which takes the share out of here too */}
-                        {!t.shareId && (
-                          <button
-                            onClick={() => onDelete(t)}
-                            aria-label={`Delete ${t.category}`}
-                            className="text-ink-300 hover:text-loss transition"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </span>
+                    <td className="px-5 py-3 text-right">{amountText(t)}</td>
+                    <td className="px-3 py-1.5">
+                      <span className="flex justify-end">{entryMenu(t)}</span>
                     </td>
                   </tr>
                 );
@@ -643,59 +715,55 @@ function TransactionsCard({
               {group.items.map((row) => {
                 if (row.kind === "transfer") {
                   return (
-                    <div
-                      key={`transfer-${row.item.id}`}
-                      className="flex justify-between items-center gap-4 px-5 py-4 border-b border-line last:border-0 hover:bg-canvas transition"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {transferIcon("w-9 h-9")}
-                        <div className="min-w-0">
-                          <p className="font-medium text-ink-900">Transfer</p>
-                          {/* Wraps onto a second line rather than cutting the account names short */}
-                          <p className="text-sm text-ink-500 line-clamp-2 break-words">
-                            {nameOfAccount(row.item.fromId)} → {nameOfAccount(row.item.toId)}
-                            {row.item.note && ` · ${row.item.note}`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        {transferAmount(row.item, "text-sm")}
-                        {transferActions(row.item, "gap-3")}
-                      </div>
+                    <div key={`transfer-${row.item.id}`} className="flex items-center gap-1 pr-2 border-b border-line last:border-0">
+                      <button
+                        type="button"
+                        onClick={() => onEditTransfer(row.item)}
+                        className="flex-1 min-w-0 flex justify-between items-center gap-3 pl-5 pr-1 py-4 text-left hover:bg-canvas transition"
+                      >
+                        <span className="flex items-center gap-3 min-w-0">
+                          {transferIcon("w-9 h-9")}
+                          <span className="min-w-0">
+                            <span className="block font-medium text-ink-900">Transfer</span>
+                            {/* Wraps onto a second line rather than cutting the account names short */}
+                            <span className="block text-sm text-ink-500 line-clamp-2 break-words">
+                              {nameOfAccount(row.item.fromId)} → {nameOfAccount(row.item.toId)}
+                              {row.item.note && ` · ${row.item.note}`}
+                            </span>
+                          </span>
+                        </span>
+                        {transferAmount(row.item, "text-sm shrink-0")}
+                      </button>
+                      {transferMenu(row.item)}
                     </div>
                   );
                 }
                 const t = row.item;
                 return (
-                  <div
-                    key={t.id}
-                    className="flex justify-between items-center gap-4 px-5 py-4 border-b border-line last:border-0 hover:bg-canvas transition"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {avatar(t, "w-9 h-9 text-sm")}
-                      <div className="min-w-0">
-                        <p className="font-medium text-ink-900 truncate flex items-center gap-1.5">
-                          {t.category}
-                          {repeatIcon(t)}
-                        </p>
-                        {(t.note || (showAccounts && t.accountId)) && (
-                          <p className="text-sm text-ink-500 line-clamp-2 break-words">
-                            {[showAccounts && t.accountId ? nameOfAccount(t.accountId) : "", t.note].filter(Boolean).join(" · ")}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      {amountBadge(t, "text-sm")}
-                      <button onClick={() => onEdit(t)} aria-label="Edit" className="text-ink-300 hover:text-brand-600 transition">
-                        <Pencil size={16} />
-                      </button>
-                      {!t.shareId && (
-                        <button onClick={() => onDelete(t)} aria-label="Delete" className="text-ink-300 hover:text-loss transition">
-                          <Trash2 size={16} />
-                        </button>
-                      )}
-                    </div>
+                  <div key={t.id} className="flex items-center gap-1 pr-2 border-b border-line last:border-0">
+                    {/* Tapping an entry opens it for editing; Delete is in the ⋯ menu */}
+                    <button
+                      type="button"
+                      onClick={() => onEdit(t)}
+                      className="flex-1 min-w-0 flex justify-between items-center gap-3 pl-5 pr-1 py-4 text-left hover:bg-canvas transition"
+                    >
+                      <span className="flex items-center gap-3 min-w-0">
+                        {avatar(t, "w-9 h-9 text-sm")}
+                        <span className="min-w-0">
+                          <span className="font-medium text-ink-900 truncate flex items-center gap-1.5">
+                            {t.category}
+                            {repeatIcon(t)}
+                          </span>
+                          {(t.note || (showAccounts && t.accountId)) && (
+                            <span className="block text-sm text-ink-500 line-clamp-2 break-words">
+                              {[showAccounts && t.accountId ? nameOfAccount(t.accountId) : "", t.note].filter(Boolean).join(" · ")}
+                            </span>
+                          )}
+                        </span>
+                      </span>
+                      {amountText(t, "text-sm shrink-0")}
+                    </button>
+                    {entryMenu(t)}
                   </div>
                 );
               })}

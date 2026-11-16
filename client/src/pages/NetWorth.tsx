@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { isAxiosError } from "axios";
-import { AlertTriangle, ArrowLeft, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, History, Lock, MoreHorizontal, Pencil, Plus, Star, Trash2, X } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import api from "../lib/api";
 import { useTitle } from "../lib/useTitle";
@@ -13,6 +13,8 @@ import { ITEM_TYPES, signedINR, typeLabel } from "../lib/networth";
 import { accountName, isAccount, withAccountAlert } from "../lib/accounts";
 import type { ItemKind, NetWorthItem, NetWorthOverview } from "../lib/networth";
 import type { AccountAlert } from "../lib/accounts";
+import ActionMenu from "../components/ActionMenu";
+import type { MenuAction } from "../components/ActionMenu";
 
 const shortDate = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 const monthLabel = (key: string) => {
@@ -68,7 +70,7 @@ function LimitBar({ owed, limit }: { owed: number; limit: number }) {
 // other accounts, for moving money into this one.
 function ItemRow({ item, accounts, onChanged }: { item: NetWorthItem; accounts: NetWorthItem[]; onChanged: () => void }) {
   const toast = useToast();
-  const [mode, setMode] = useState<"view" | "value" | "edit" | "remove" | "move">("view");
+  const [mode, setMode] = useState<"view" | "value" | "edit" | "move">("view");
   const [creditLimit, setCreditLimit] = useState("");
   const sources = accounts.filter((a) => a.id !== item.id && a.kind === "asset").sort((a, b) => b.value - a.value);
   const [moveFrom, setMoveFrom] = useState("");
@@ -124,7 +126,8 @@ function ItemRow({ item, accounts, onChanged }: { item: NetWorthItem; accounts: 
             <>
               <p className="text-xs text-ink-500">{typeLabel(item.kind, item.type)}</p>
               <p className="text-xs text-ink-500">
-                {formatINR(item.tracked.recorded)} on {shortDate(item.updatedAt)}, {signedINR(item.tracked.change)} from Tracker since
+                Started at <span className="whitespace-nowrap">{formatINR(item.tracked.recorded)}</span> on {shortDate(item.updatedAt)} ·{" "}
+                <span className="whitespace-nowrap">{signedINR(item.tracked.change)} from Tracker</span>
               </p>
             </>
           ) : (
@@ -275,24 +278,8 @@ function ItemRow({ item, accounts, onChanged }: { item: NetWorthItem; accounts: 
         </form>
       )}
 
-      {mode === "remove" && (
-        <div className="mt-3 rounded-xl bg-canvas border border-line p-3 text-sm">
-          <p className="text-ink-700">
-            Remove {item.name}? It counts as {formatINR(0)} from today. Your net worth on earlier dates stays the same.
-          </p>
-          <div className="mt-2 flex gap-3">
-            <button onClick={() => run(() => api.delete(`/networth/items/${item.id}`), `${item.name} removed`)} className="font-medium text-loss hover:underline">
-              Remove
-            </button>
-            <button onClick={() => setMode("view")} className="text-ink-500 hover:text-ink-900">
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
       {mode === "view" && (
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+        <div className="mt-2 flex items-center gap-x-4 text-xs">
           <button
             onClick={() => {
               setValue("");
@@ -302,37 +289,54 @@ function ItemRow({ item, accounts, onChanged }: { item: NetWorthItem; accounts: 
           >
             Update value
           </button>
-          <button onClick={toggleHistory} aria-expanded={history !== null} className="text-ink-500 hover:text-ink-900">
-            {history ? "Hide history" : "History"}
-          </button>
           {item.type === "credit_card" && item.value > 0 && sources.length > 0 && (
-            <button onClick={() => startMove(item.value)} className="text-ink-500 hover:text-ink-900">
+            <button onClick={() => startMove(item.value)} className="font-medium text-ink-700 hover:text-ink-900">
               Pay bill
             </button>
           )}
-          {item.isAccount && !item.isDefault && (
-            <button
-              onClick={() => run(() => api.put(`/networth/items/${item.id}/default`, { isDefault: true }), `New entries will start with ${item.name}`)}
-              className="text-ink-500 hover:text-ink-900"
-            >
-              Make default
-            </button>
-          )}
-          <button
-            onClick={() => {
-              setName(item.name);
-              setType(item.type);
-              setCreditLimit(item.creditLimit ? String(item.creditLimit) : "");
-              setMode("edit");
-            }}
-            aria-label={`Edit ${item.name}`}
-            className="text-ink-300 hover:text-brand-600 transition"
-          >
-            <Pencil size={13} />
-          </button>
-          <button onClick={() => setMode("remove")} aria-label={`Remove ${item.name}`} className="text-ink-300 hover:text-loss transition">
-            <Trash2 size={13} />
-          </button>
+          {/* Everything else is in a ⋯ menu, so each item shows one clear action */}
+          <ActionMenu
+            label={`More options for ${item.name}`}
+            className="ml-auto -my-1.5"
+            trigger={({ open }) => (
+              <span className={`flex p-1.5 rounded-lg transition ${open ? "bg-ink-100 text-ink-900" : "text-ink-400 hover:text-ink-900 hover:bg-ink-100"}`}>
+                <MoreHorizontal size={16} />
+              </span>
+            )}
+            actions={[
+              { label: history ? "Hide history" : "Past values", icon: History, onSelect: toggleHistory },
+              ...(item.isAccount && !item.isDefault
+                ? [
+                    {
+                      label: "Make default",
+                      icon: Star,
+                      onSelect: () => run(() => api.put(`/networth/items/${item.id}/default`, { isDefault: true }), `New entries will start with ${item.name}`),
+                    } satisfies MenuAction,
+                  ]
+                : []),
+              {
+                label: "Edit",
+                icon: Pencil,
+                onSelect: () => {
+                  setName(item.name);
+                  setType(item.type);
+                  setCreditLimit(item.creditLimit ? String(item.creditLimit) : "");
+                  setMode("edit");
+                },
+              },
+              {
+                label: "Remove",
+                icon: Trash2,
+                danger: true,
+                onSelect: () => run(() => api.delete(`/networth/items/${item.id}`), `${item.name} removed`),
+                confirm: {
+                  title: `Remove ${item.name}?`,
+                  body: `It counts as ${formatINR(0)} from today. Your net worth on earlier dates stays the same.`,
+                  action: "Remove",
+                },
+              },
+            ]}
+          />
         </div>
       )}
 
