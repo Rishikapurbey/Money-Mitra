@@ -51,6 +51,8 @@ model User {
   recapDismissed      String?
   // The year review (YYYY) the user closed on Home
   yearReviewDismissed String?
+  // When the user last used the app, refreshed at most once an hour; only the admin page reads it
+  lastActiveAt        DateTime?
   createdAt           DateTime               @default(now())
   transactions        Transaction[]
   posts               Post[]

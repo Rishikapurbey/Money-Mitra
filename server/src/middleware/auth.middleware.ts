@@ -32,9 +32,15 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
 
   // Reject sessions for deleted accounts, and sessions from before a password change or reset.
   // Tokens issued before tokenVersion existed carry no "v" and count as version 0.
-  const user = await prisma.user.findUnique({ where: { id: decoded.userId }, select: { tokenVersion: true } });
+  const user = await prisma.user.findUnique({ where: { id: decoded.userId }, select: { tokenVersion: true, lastActiveAt: true } });
   if (!user || (decoded.v ?? 0) !== user.tokenVersion) {
     return res.status(401).json({ error: "Your session has ended. Please log in again." });
+  }
+
+  // For the admin page's active-user counts. Refreshed at most once an hour, so most requests skip the write.
+  const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  if (!user.lastActiveAt || user.lastActiveAt < hourAgo) {
+    await prisma.user.update({ where: { id: decoded.userId }, data: { lastActiveAt: new Date() } });
   }
 
   req.userId = decoded.userId;

@@ -84,6 +84,7 @@ export async function exportData(userId: string) {
       anonymousByDefault: true,
       upiId: true,
       createdAt: true,
+      lastActiveAt: true,
       transactions: { orderBy: { date: "desc" }, select: { amount: true, type: true, category: true, note: true, date: true, account: { select: { name: true } } } },
       categories: { orderBy: { name: "asc" }, select: { name: true, type: true } },
       budgets: { select: { category: true, amount: true, createdAt: true } },

@@ -22,6 +22,7 @@ import recapRoutes from "./modules/recaps/recap.routes";
 import netWorthRoutes from "./modules/networth/networth.routes";
 import sharedRoutes from "./modules/shared/shared.routes";
 import transferRoutes from "./modules/transfers/transfer.routes";
+import adminRoutes from "./modules/admin/admin.routes";
 
 dotenv.config();
 
@@ -67,6 +68,7 @@ app.use("/api/recaps", recapRoutes);
 app.use("/api/networth", netWorthRoutes);
 app.use("/api/shared", sharedRoutes);
 app.use("/api/transfers", transferRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "Money Mitra API is running" });

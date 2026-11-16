@@ -36,6 +36,7 @@ const SettingsSection = lazyPage(() => import("./pages/settings/SettingsLayout")
 const ForgotPassword = lazyPage(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazyPage(() => import("./pages/ResetPassword"));
 const VerifyEmail = lazyPage(() => import("./pages/VerifyEmail"));
+const Admin = lazyPage(() => import("./pages/Admin"));
 
 const isSignedIn = () => Boolean(localStorage.getItem("token"));
 
@@ -94,6 +95,8 @@ function App() {
                 <Route path="/u/:username/followers" element={<FollowList which="followers" />} />
                 <Route path="/u/:username/following" element={<FollowList which="following" />} />
                 <Route path="/follow-requests" element={<FollowRequests />} />
+                {/* Not linked anywhere; the API answers Not found to everyone but the admin */}
+                <Route path="/admin" element={<Admin />} />
                 <Route path="/settings" element={<SettingsLayout />}>
                   <Route path=":section" element={<SettingsSection />} />
                 </Route>

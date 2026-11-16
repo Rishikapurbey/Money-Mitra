@@ -62,6 +62,8 @@ describe("account settings", () => {
     const user = await createUser("export");
     const res = await api().get("/api/account/export").set("Authorization", user.auth).expect(200);
     expect(JSON.stringify(res.body)).not.toContain("passwordHash");
+    // Includes what's stored about when they last used the app (set by this very request)
+    expect(res.body.data.lastActiveAt).toBeTruthy();
   });
 
   it("deleting an account keeps its Discuss posts as Deleted user", async () => {

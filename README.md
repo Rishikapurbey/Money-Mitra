@@ -72,6 +72,9 @@ the way.
 - Email confirmation, password reset, changing email, username and password, logging out everywhere
 - Download all your data, or delete your account
 - Light and dark themes, a phone layout with a bottom tab bar, and installable as an app (PWA)
+- A private admin page at `/admin` for the `ADMIN_EMAIL` account: signups per week, active users,
+  how many people use each feature, reported questions and replies, and the list of people.
+  Everyone else gets "Page not found"
 
 ## Privacy
 
@@ -80,6 +83,7 @@ the way.
 - A UPI ID is shown only to a group member who owes its owner, only while both are in the group, and never on profiles.
 - Anonymous posts store the real author internally for moderation, but the API never sends it to other users.
 - Profile photos and covers are cropped and resized on the device before upload, which also removes hidden details such as location.
+- The admin page shows counts of people and their public identity (name, username, join date, last active, whether their email is confirmed). It never shows email addresses, amounts, balances or any total of money, not even added up across everyone.
 
 ## Tech stack
 
@@ -106,7 +110,7 @@ money-mitra/
 ├── ops/backups/            # Nightly database backup job and a restore script
 └── server/                 # Node + Express backend
     ├── prisma/             # Schema and migrations
-    ├── src/modules/        # account, auth, budgets, categories, feedback, follows, goals,
+    ├── src/modules/        # account, admin, auth, budgets, categories, feedback, follows, goals,
     │                       # imports, networth, notifications, posts, profiles, recaps,
     │                       # recurring, shared, transactions
     └── test/               # API tests
@@ -168,7 +172,7 @@ Server (`server/.env` locally, Render in production):
 | `PORT` | No | Defaults to 5000 |
 | `APP_URL` | In production | The website's address, used in email links |
 | `BREVO_API_KEY`, `EMAIL_FROM` | In production | Sending emails; without them emails are printed to the console |
-| `ADMIN_EMAIL` | No | Receives Discuss report alerts, and replies to account emails |
+| `ADMIN_EMAIL` | No | Receives Discuss report alerts and replies to account emails; the account with this (confirmed) email can open `/admin` |
 | `FEEDBACK_EMAIL` | No | Receives feedback from Settings (defaults to `EMAIL_FROM`) |
 | `ALLOWED_ORIGINS` | No | Extra website addresses allowed to call the API, comma-separated |
 
@@ -196,6 +200,7 @@ reset, email confirmation, and profile photos and covers (which load in `<img>` 
 | People | `/api/users`, `/api/follows` | Profiles, photos, covers, followers and follow requests |
 | Notifications | `/api/notifications` | The bell |
 | Feedback | `/api/feedback` | Feedback from Settings |
+| Admin | `/api/admin` | Counts, reports and people for the admin page; Not found for everyone else |
 
 ## Deployment
 
