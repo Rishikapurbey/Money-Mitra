@@ -50,6 +50,7 @@ function AccountSelect({
         {!known && <option value={value}>A removed account</option>}
         <option value="">No account</option>
       </select>
+      {value === "" && <span className="block mt-1 text-xs font-normal text-ink-500">Won't change any balance or your net worth</span>}
     </label>
   );
 }

@@ -46,7 +46,7 @@ the way.
 - Import past months from a bank statement CSV, with undo
 - Accounts, like in a UPI app: each entry is paid from or received in a bank account, cash or credit card (a default one is pre-filled), and each balance moves with its own entries; balances show on Home, and the monthly recap and yearly review show money in and out of each account
 - Transfers between your own accounts (ATM withdrawals, paying a card bill) that never count as spending; a warning with one-tap Move money when an account goes below zero, and credit card limits with an 80% warning
-- Net worth: what you own minus what you owe, with history; account balances update themselves from the Tracker
+- Net worth: what you own minus what you owe, with history; account balances update themselves from the Tracker, so only items valued by hand (gold, funds, property, loans) ever ask to be updated
 - A monthly recap and a yearly review, plus plain observations about your month ("What we noticed this month")
 
 ### Shared expenses
@@ -249,7 +249,10 @@ latest migration. Try this every few months so a restore is routine, not guesswo
   to the total.
 - **Computed balances.** Each account's balance and net worth are calculated from the
   last value entered plus that account's Tracker entries since then, rather than stored, so edits and
-  deletions are always reflected.
+  deletions are always reflected. "Since then" means dated after the value, or added by hand after
+  it even if dated earlier (a balance typed before an entry was added can't include it); either way an
+  entry counts on its own date. CSV imports and recurring entries are saved as added on their date,
+  since the bank already had them.
 - **Content as code.** Learn terms live in the client as a typed data file, so they can be
   added or corrected without a database change.
 - **Education, not advice.** Learn is for education only and is not financial advice. Tax

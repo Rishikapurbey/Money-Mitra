@@ -102,12 +102,16 @@ describe("net worth items", () => {
     const userId = (await prisma.user.findUniqueOrThrow({ where: { email: user.email } })).id;
     expect((await netWorthSummary(userId, IST)).summary).toBeNull();
 
+    // Accounts keep themselves up to date from the Tracker, so they never need a reminder
     await add(user, { name: "Savings", kind: "asset", type: "bank", value: 10000 });
-    const fresh = await netWorthSummary(userId, IST);
-    expect(fresh).toMatchObject({ summary: { netWorth: 10000, stale: false }, notified: false });
-
     const later = new Date(Date.now() + 40 * 24 * 60 * 60 * 1000);
-    expect((await netWorthSummary(userId, IST, later)).notified).toBe(true);
+    expect(await netWorthSummary(userId, IST, later)).toMatchObject({ summary: { netWorth: 10000, stale: false, lastUpdated: null }, notified: false });
+
+    await add(user, { name: "Gold", kind: "asset", type: "gold", value: 50000 });
+    const fresh = await netWorthSummary(userId, IST);
+    expect(fresh).toMatchObject({ summary: { netWorth: 60000, stale: false }, notified: false });
+
+    expect(await netWorthSummary(userId, IST, later)).toMatchObject({ summary: { stale: true }, notified: true });
     expect((await netWorthSummary(userId, IST, later)).notified).toBe(false);
     const bell = (await api().get("/api/notifications").set("Authorization", user.auth).expect(200)).body.notifications;
     expect(bell[0]).toMatchObject({ kind: "networth_reminder", message: "Time to update your net worth" });
@@ -115,7 +119,7 @@ describe("net worth items", () => {
     const quiet = await createUser("nwquiet");
     const quietId = (await prisma.user.findUniqueOrThrow({ where: { email: quiet.email } })).id;
     await api().put("/api/account/email-preferences").set("Authorization", quiet.auth).send({ netWorthReminder: false }).expect(200);
-    await add(quiet, { name: "Cash", kind: "asset", type: "cash", value: 500 });
+    await add(quiet, { name: "Gold", kind: "asset", type: "gold", value: 500 });
     expect((await netWorthSummary(quietId, IST, later)).notified).toBe(false);
   });
 

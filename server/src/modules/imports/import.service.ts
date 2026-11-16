@@ -30,6 +30,8 @@ export async function importTransactions(userId: string, fileName: string, rows:
         category: spellings.get(keyOf(row)) ?? row.category,
         note: row.note,
         date: row.date,
+        // A bank statement's entries happened on their dates, so a balance typed later already has them
+        createdAt: row.date,
         accountId,
       })),
     });

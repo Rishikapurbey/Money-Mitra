@@ -49,22 +49,25 @@ async function accountFlows(userId: string) {
   const [transactions, transfers] = await Promise.all([
     prisma.transaction.findMany({
       where: { userId, accountId: { in: ids } },
-      select: { accountId: true, date: true, amount: true, type: true },
+      select: { accountId: true, date: true, createdAt: true, amount: true, type: true },
     }),
-    prisma.transfer.findMany({ where: { userId }, select: { fromId: true, toId: true, date: true, amount: true } }),
+    prisma.transfer.findMany({ where: { userId }, select: { fromId: true, toId: true, date: true, createdAt: true, amount: true } }),
   ]);
-  const push = (accountId: string, date: Date, type: string, amount: number) => {
+  // When it was added matters too: something added by hand after a balance was typed counts even if
+  // it's dated earlier. (Imported and recurring entries are saved as added on their own date.)
+  const push = (accountId: string, entry: { date: Date; createdAt: Date }, type: string, amount: number) => {
     const account = byId.get(accountId);
+    const { date, createdAt } = entry;
     if (!account || (account.archivedAt && date > account.archivedAt)) return;
     const list = flows.get(account.id) ?? [];
-    list.push({ date, amount: flowAmount(account.kind, type, amount) });
+    list.push({ date, amount: flowAmount(account.kind, type, amount), ...(createdAt > date && { addedAt: createdAt }) });
     flows.set(account.id, list);
   };
-  for (const t of transactions) push(t.accountId as string, t.date, t.type, t.amount);
+  for (const t of transactions) push(t.accountId as string, t, t.type, t.amount);
   // A transfer leaves one account like spending and arrives in the other like income
   for (const t of transfers) {
-    push(t.fromId, t.date, "expense", t.amount);
-    push(t.toId, t.date, "income", t.amount);
+    push(t.fromId, t, "expense", t.amount);
+    push(t.toId, t, "income", t.amount);
   }
   return flows;
 }
@@ -102,7 +105,13 @@ export async function getNetWorth(userId: string, tzOffset: number, now = new Da
   for (const v of values) lastValue.set(v.itemId, v.recordedAt);
   const totals = netWorthAt(values, now, flows) ?? { assets: 0, liabilities: 0, netWorth: 0 };
   const monthAgo = netWorthChange(values, new Date(now.getTime() - STALE_DAYS * DAY), now, flows);
-  const lastUpdated = values.length > 0 ? values[values.length - 1]!.recordedAt : null;
+  // Accounts keep themselves up to date from the Tracker, so only items valued by hand (gold, funds,
+  // property, loans) can go out of date. Null when there are none.
+  const valuedByHand = items.filter((i) => !isAccount(i.kind, i.type));
+  const lastUpdated = valuedByHand.reduce<Date | null>((latest, i) => {
+    const at = lastValue.get(i.id) ?? i.createdAt;
+    return !latest || at > latest ? at : latest;
+  }, null);
   return {
     items: items.map((i) => {
       // An account shows its typed-in value moved by its Tracker entries since then
@@ -251,13 +260,14 @@ export async function netWorthSummary(userId: string, tzOffset: number, now = ne
   const itemCount = await prisma.netWorthItem.count({ where: { userId, archivedAt: null } });
   if (itemCount === 0) return { summary: null, notified: false };
   const { totals, changeThisMonth, lastUpdated } = await getNetWorth(userId, tzOffset, now);
-  const stale = !lastUpdated || now.getTime() - lastUpdated.getTime() > STALE_DAYS * DAY;
+  // Never out of date when everything is an account, since the Tracker keeps those current
+  const stale = lastUpdated !== null && now.getTime() - lastUpdated.getTime() > STALE_DAYS * DAY;
 
   let notified = false;
   if (stale) {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { netWorthReminder: true } });
     // One reminder since the last update, and at most one a month
-    const since = Math.max(lastUpdated?.getTime() ?? 0, now.getTime() - STALE_DAYS * DAY);
+    const since = Math.max(lastUpdated.getTime(), now.getTime() - STALE_DAYS * DAY);
     const recent = await prisma.notification.findFirst({
       where: { userId, kind: "networth_reminder", createdAt: { gt: new Date(since) } },
     });

@@ -108,6 +108,10 @@ model Transaction {
   category    String
   note        String?
   date        DateTime              @default(now())
+  // When it was added. An entry added by hand after an account's balance was typed moves that
+  // balance even if it's dated earlier (it still counts on its own date). Entries the app fills in
+  // from a CSV import or a recurring rule, and entries from before this column existed, use their date.
+  createdAt   DateTime              @default(now())
   userId      String
   user        User                  @relation(fields: [userId], references: [id])
   // Set when a recurring rule added this entry; cleared (not deleted) if the rule is stopped

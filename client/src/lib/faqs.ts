@@ -26,7 +26,7 @@ export const faqs = [
 export const appFaqs = [
   {
     q: "How do accounts work?",
-    a: "Add your bank accounts, cash and credit cards in Tracker > Net worth, and type in what each holds today. From then on, every income or expense you add says which account it was paid from or received in, and that account's balance moves by itself. The one marked Default is filled in for you; you can pick another each time.",
+    a: "Add your bank accounts, cash and credit cards in Tracker > Net worth, and type in what each holds today. From then on, every income or expense you add says which account it was paid from or received in, and that account's balance moves by itself. The one marked Default is filled in for you; you can pick another each time. Your net worth goes up and down with them, so there's nothing to update twice. Anything you add after typing a balance counts, even if you date it earlier; imported statements and recurring entries count by their date, since your bank already had them. An entry set to No account doesn't change any balance.",
   },
   {
     q: "What's a transfer, and why doesn't it count as spending?",

@@ -121,6 +121,8 @@ export async function catchUp(userId: string, now = new Date()) {
           category: rule.category,
           note: rule.note,
           date,
+          // Filled in on its due date, so a balance typed after that date already has it
+          createdAt: date,
           recurringId: rule.id,
           accountId: rule.accountId,
         })),

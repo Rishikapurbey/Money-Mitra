@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Landmark } from "lucide-react";
 import api from "../lib/api";
 import { formatINR } from "../lib/ui";
-import { announceNotificationsChange } from "../lib/dataEvents";
+import { announceNotificationsChange, onDataChange } from "../lib/dataEvents";
 import { signedINR } from "../lib/networth";
 import type { NetWorthSummary } from "../lib/networth";
 
@@ -13,17 +13,22 @@ function NetWorthCard() {
 
   useEffect(() => {
     let current = true;
-    api
-      .get("/networth/summary", { params: { tzOffset: new Date().getTimezoneOffset() } })
-      .then((res) => {
-        if (!current) return;
-        setSummary(res.data.summary);
-        // A "time to update" reminder may have just gone to the bell
-        if (res.data.notified) announceNotificationsChange();
-      })
-      .catch(() => current && setSummary(undefined));
+    const load = () =>
+      api
+        .get("/networth/summary", { params: { tzOffset: new Date().getTimezoneOffset() } })
+        .then((res) => {
+          if (!current) return;
+          setSummary(res.data.summary);
+          // A "time to update" reminder may have just gone to the bell
+          if (res.data.notified) announceNotificationsChange();
+        })
+        .catch(() => current && setSummary(undefined));
+    load();
+    // An entry added, edited or deleted moves account balances, and so net worth
+    const stop = onDataChange(load);
     return () => {
       current = false;
+      stop();
     };
   }, []);
 

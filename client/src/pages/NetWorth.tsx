@@ -124,12 +124,12 @@ function ItemRow({ item, accounts, onChanged }: { item: NetWorthItem; accounts: 
             <>
               <p className="text-xs text-ink-500">{typeLabel(item.kind, item.type)}</p>
               <p className="text-xs text-ink-500">
-                {formatINR(item.tracked.recorded)} on {shortDate(item.updatedAt)}, {signedINR(item.tracked.change)} since
+                {formatINR(item.tracked.recorded)} on {shortDate(item.updatedAt)}, {signedINR(item.tracked.change)} from Tracker since
               </p>
             </>
           ) : (
             <p className="text-xs text-ink-500">
-              {typeLabel(item.kind, item.type)} · updated {shortDate(item.updatedAt)}
+              {typeLabel(item.kind, item.type)} · {item.isAccount ? "updates from Tracker" : `updated ${shortDate(item.updatedAt)}`}
             </p>
           )}
         </div>
@@ -553,7 +553,11 @@ export default function NetWorth() {
           {data.changeThisMonth !== null && data.changeThisMonth !== 0 && (
             <span className={data.changeThisMonth > 0 ? "text-brand-300" : ""}>{signedINR(data.changeThisMonth)} in the last 30 days · </span>
           )}
-          {data.lastUpdated ? `Last updated ${shortDate(data.lastUpdated)}` : "Nothing added yet"}
+          {data.lastUpdated
+            ? `Last updated ${shortDate(data.lastUpdated)}`
+            : data.items.length > 0
+              ? "Accounts update from your Tracker"
+              : "Nothing added yet"}
         </p>
       </div>
       <div className="mt-6 grid grid-cols-2 gap-6 border-t border-ink-800 pt-5 lg:mt-0 lg:shrink-0 lg:gap-10 lg:border-t-0 lg:pt-0 lg:border-l lg:pl-10">

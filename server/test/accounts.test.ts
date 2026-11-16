@@ -37,6 +37,16 @@ describe("account balances", () => {
     expect(accountAt(values, "bank", flows, new Date("2026-09-25T00:00:00Z"))).toBeNull();
   });
 
+  it("counts an entry added after the typed-in value on its own date, even if dated before it", () => {
+    const typed = [v("bank", "asset", 50000, "2026-09-15T00:00:00Z")];
+    // Spent on 10 Sept, but only added on 20 Sept, after the balance was typed on the 15th
+    const late = new Map([["bank", [{ date: new Date("2026-09-10T12:00:00Z"), amount: -2000, addedAt: new Date("2026-09-20T00:00:00Z") }]]]);
+    expect(accountAt(typed, "bank", late, new Date("2026-09-30T00:00:00Z"))?.value).toBe(48000);
+    // Added on the 12th, before the balance was typed: the typed balance already had it
+    const early = new Map([["bank", [{ date: new Date("2026-09-10T12:00:00Z"), amount: -2000, addedAt: new Date("2026-09-12T00:00:00Z") }]]]);
+    expect(accountAt(typed, "bank", early, new Date("2026-09-30T00:00:00Z"))?.value).toBe(50000);
+  });
+
   it("moves bank and cash up with income, and a credit card up with spending", () => {
     expect([flowAmount("asset", "income", 10), flowAmount("asset", "expense", 10)]).toEqual([10, -10]);
     expect([flowAmount("liability", "expense", 10), flowAmount("liability", "income", 10)]).toEqual([10, -10]);
@@ -190,5 +200,45 @@ describe("accounts in the app", () => {
     const created = (await api().post("/api/imports").set("Authorization", user.auth).send({ fileName: "s.csv", rows, accountId: salary.id }).expect(201)).body.import;
     expect((await prisma.transaction.findFirstOrThrow({ where: { importId: created.id } })).accountId).toBe(salary.id);
     expect((await itemIn(user, salary.id)).value).toBe(4880);
+  });
+
+  it("counts an entry added by hand after the balance was typed, even when it's dated earlier", async () => {
+    const user = await createUser("acc_late");
+    const bank = await add(user, { kind: "asset", type: "bank", name: "HDFC", value: 10000 });
+    const card = await add(user, { kind: "liability", type: "credit_card", name: "Card", value: 0 });
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString();
+
+    // Forgot yesterday's chai: added after typing today's balance, so the balance can't have had it
+    await transact(user, { type: "expense", amount: 200, date: yesterday, accountId: bank.id }).expect(201);
+    expect((await itemIn(user, bank.id)).value).toBe(9800);
+    // The same goes for a transfer added late, e.g. a card bill paid yesterday
+    await api().post("/api/transfers").set("Authorization", user.auth).send({ fromId: bank.id, toId: card.id, amount: 300, date: yesterday }).expect(201);
+    expect((await itemIn(user, bank.id)).value).toBe(9500);
+
+    // A bank statement's entries from yesterday were already in the balance typed today
+    const rows = [{ amount: 999, type: "expense", category: "Food", date: yesterday }];
+    await api().post("/api/imports").set("Authorization", user.auth).send({ fileName: "s.csv", rows, accountId: bank.id }).expect(201);
+    expect((await itemIn(user, bank.id)).value).toBe(9500);
+
+    // Typing a new balance starts again from it
+    await api().post(`/api/networth/items/${bank.id}/values`).set("Authorization", user.auth).send({ value: 12000 }).expect(200);
+    expect((await itemIn(user, bank.id)).value).toBe(12000);
+  });
+
+  it("leaves catch-up recurring entries dated before the balance alone", async () => {
+    const user = await createUser("acc_rlate");
+    const bank = await add(user, { kind: "asset", type: "bank", name: "Salary", value: 50000 });
+    const rule = (
+      await api()
+        .post("/api/recurring")
+        .set("Authorization", user.auth)
+        .send({ amount: 5000, type: "income", category: "Salary", dayOfMonth: 1, tzOffset: -330, accountId: bank.id })
+        .expect(201)
+    ).body.recurring;
+    // The salary was due yesterday and is filled in today, after the balance was typed: the bank already had it
+    await prisma.recurringTransaction.update({ where: { id: rule.id }, data: { nextDue: new Date(Date.now() - 86_400_000) } });
+    await api().post("/api/recurring/run").set("Authorization", user.auth).expect(200);
+    expect(await prisma.transaction.count({ where: { recurringId: rule.id } })).toBe(1);
+    expect((await itemIn(user, bank.id)).value).toBe(50000);
   });
 });

@@ -46,6 +46,8 @@ export const isAccount = (kind: string, type: string) => ACCOUNT_TYPES[kind as I
 export interface AccountFlow {
   date: Date;
   amount: number;
+  // When it was added, if later than its date (see changeAfter)
+  addedAt?: Date;
 }
 
 // Money in raises a bank or cash balance; on a credit card, spending raises what's owed and refunds lower it
@@ -64,11 +66,16 @@ function latestValues(values: RecordedValue[], at: Date) {
   return latest;
 }
 
+// An entry moves a balance typed at `after` if it's dated after it, or if it was added after it: a
+// balance typed before an entry was added can't have included it, whatever the entry's date. Either
+// way it counts on its own date, so month-end balances in recaps stay right.
 const changeAfter = (flows: AccountFlow[] | undefined, after: Date, at: Date) =>
-  round2((flows ?? []).reduce((sum, f) => (f.date > after && f.date <= at ? sum + f.amount : sum), 0));
+  round2(
+    (flows ?? []).reduce((sum, f) => (f.date <= at && (f.date > after || (f.addedAt ?? f.date) > after) ? sum + f.amount : sum), 0)
+  );
 
-// An account on `at`: its last typed-in value, plus its Tracker entries dated after that value and up
-// to `at`. Anything dated earlier was already part of the typed-in value.
+// An account on `at`: its last typed-in value, plus its Tracker entries up to `at` that the typed-in
+// value didn't include (see changeAfter).
 export function accountAt(values: RecordedValue[], itemId: string, flows: Map<string, AccountFlow[]>, at: Date) {
   const recorded = latestValues(values, at).get(itemId);
   if (!recorded) return null;

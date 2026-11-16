@@ -6,7 +6,8 @@ import { useTitle } from "../lib/useTitle";
 import { formatINR, pageWidth } from "../lib/ui";
 import { useWideLayout } from "../lib/useMediaQuery";
 import { addMonths, startOfMonth } from "../lib/dates";
-import { onDataChange } from "../lib/dataEvents";
+// Home reloads itself on this, and so do the Accounts and Net worth cards
+import { announceDataChange, onDataChange } from "../lib/dataEvents";
 import { timeAgo } from "../lib/discuss";
 import { greeting } from "../lib/greeting";
 import type { Post } from "../lib/discuss";
@@ -439,7 +440,7 @@ function Home() {
       )}
 
       {quickAdd && (
-        <QuickAddSheet type={quickAdd} recentCategories={categories} onClose={() => setQuickAdd(null)} onSaved={reload} />
+        <QuickAddSheet type={quickAdd} recentCategories={categories} onClose={() => setQuickAdd(null)} onSaved={announceDataChange} />
       )}
     </main>
   );
