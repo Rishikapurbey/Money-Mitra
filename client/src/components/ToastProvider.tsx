@@ -23,7 +23,7 @@ function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={show}>
       {children}
-      <div aria-live="polite" className="fixed inset-x-0 bottom-24 md:bottom-6 z-40 flex justify-center px-4 pointer-events-none">
+      <div aria-live="polite" className="fixed inset-x-0 bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-6 z-40 flex justify-center px-4 pointer-events-none">
         {toast && (
           <div
             key={toast.id}

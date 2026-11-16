@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { isAxiosError } from "axios";
-import { Archive, ArchiveRestore, ArrowLeft, ArrowRight, HandCoins, IndianRupee, LogOut, Pencil, Plus, Receipt, Trash2, X } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, ArrowRight, HandCoins, IndianRupee, LogOut, MoreHorizontal, Pencil, Plus, Receipt, Trash2, X } from "lucide-react";
+import ActionMenu from "../components/ActionMenu";
 import api from "../lib/api";
 import { useTitle } from "../lib/useTitle";
 import { useToast } from "../lib/toast";
@@ -340,16 +341,6 @@ export default function SharedGroup() {
             <div className="min-w-0">
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-semibold tracking-tight text-ink-900 truncate">{group.name}</h1>
-                <button
-                  onClick={() => {
-                    setName(group.name);
-                    setRenaming(true);
-                  }}
-                  aria-label="Rename group"
-                  className="text-ink-300 hover:text-brand-600 transition"
-                >
-                  <Pencil size={15} />
-                </button>
                 {group.archived && <span className="text-xs font-medium text-ink-500 bg-ink-100 px-2 py-0.5 rounded">Archived</span>}
               </div>
               <p className="mt-1 text-sm text-ink-500">
@@ -361,7 +352,7 @@ export default function SharedGroup() {
           <div className="flex flex-wrap items-center gap-2">
             {!group.archived && (
               <>
-                <button onClick={() => openPanel({ kind: "expense" })} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 transition">
+                <button onClick={() => openPanel({ kind: "expense" })} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-brand-600 bg-brand-600 text-white hover:bg-brand-700 transition">
                   <Plus size={16} /> Add expense
                 </button>
                 <button onClick={() => openPanel({ kind: "settle", suggestion: null })} className={outlineButton}>
@@ -369,12 +360,33 @@ export default function SharedGroup() {
                 </button>
               </>
             )}
-            <button onClick={() => setArchived(!group.archived)} className={outlineButton}>
-              {group.archived ? <ArchiveRestore size={15} /> : <Archive size={15} />} {group.archived ? "Unarchive" : "Archive"}
-            </button>
-            <button onClick={() => setLeaving(true)} className={outlineButton}>
-              <LogOut size={15} /> Leave
-            </button>
+            {/* Renaming, archiving and leaving are occasional, so they wait in a ⋯ menu */}
+            <ActionMenu
+              label="Group options"
+              trigger={({ open }) => (
+                <span
+                  className={`inline-flex items-center justify-center w-[38px] h-[38px] rounded-xl border border-line transition ${open ? "bg-ink-100 text-ink-900" : "text-ink-700 hover:bg-ink-100"}`}
+                >
+                  <MoreHorizontal size={18} />
+                </span>
+              )}
+              actions={[
+                {
+                  label: "Rename group",
+                  icon: Pencil,
+                  onSelect: () => {
+                    setName(group.name);
+                    setRenaming(true);
+                  },
+                },
+                {
+                  label: group.archived ? "Unarchive" : "Archive",
+                  icon: group.archived ? ArchiveRestore : Archive,
+                  onSelect: () => setArchived(!group.archived),
+                },
+                { label: "Leave group", icon: LogOut, danger: true, onSelect: () => setLeaving(true) },
+              ]}
+            />
           </div>
         </div>
         {leaving && (

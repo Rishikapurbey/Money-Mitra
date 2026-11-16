@@ -11,6 +11,7 @@ import { announceDataChange, onDataChange } from "../lib/dataEvents";
 import { timeAgo } from "../lib/discuss";
 import { greeting } from "../lib/greeting";
 import type { Post } from "../lib/discuss";
+import { notificationLink } from "../lib/notifications";
 import type { AppNotification } from "../lib/notifications";
 import { shortDate } from "../lib/recurring";
 import type { RecurringRule } from "../lib/recurring";
@@ -165,13 +166,15 @@ function Home() {
     .filter((g) => g.savedAmount < g.targetAmount)
     .sort((a, b) => b.savedAmount / b.targetAmount - a.savedAmount / a.targetAmount)
     .slice(0, 2);
-  // Unanswered questions first, so people see where they can help
-  const community = [...data.posts]
+  // Budget alerts and recaps live in the bell; this card is for people: Discuss, follows and shared groups
+  const unreadNotifications = data.notifications.filter((n) => !n.read && !NOT_DISCUSS.has(n.kind)).slice(0, 3);
+  // Unanswered questions first, so people see where they can help, leaving out any already in Recent activity
+  const shownAbove = new Set(unreadNotifications.map((n) => n.postId).filter(Boolean));
+  const community = data.posts
+    .filter((p) => !shownAbove.has(p.id))
     .sort((a, b) => Number((a.replyCount ?? 0) > 0) - Number((b.replyCount ?? 0) > 0))
     .slice(0, 3);
   const categories = Object.values(data.expenseByCategory).map((c) => c.name);
-  // Budget alerts and recaps live in the bell; this card is only for Discuss and follow activity
-  const unreadNotifications = data.notifications.filter((n) => !n.read && !NOT_DISCUSS.has(n.kind)).slice(0, 3);
   const comingUp = data.comingUp;
   const hasTransactions = data.income > 0 || data.expense > 0 || data.totalBalance !== 0;
 
@@ -183,34 +186,37 @@ function Home() {
     { label: "Split a bill", icon: UsersRound, to: "/shared" },
   ];
 
+  // Big figures stay on one line: long ones (crores) step down a size instead of crowding their neighbours
+  const figure = (text: string) => `mt-1 font-semibold tabular-nums whitespace-nowrap ${text.length > 10 ? "text-lg sm:text-xl" : "text-xl sm:text-2xl"}`;
+  const savedText = savingsRate === null ? "–" : savingsRate < 0 ? `−${-savingsRate}%` : `${savingsRate}%`;
+
   const glanceCard = (
     <section className="dark-panel bg-ink-900 rounded-2xl p-6 sm:p-7 text-white" aria-labelledby="glance-title">
       <div className="flex items-center justify-between gap-4">
-        <h2 id="glance-title" className="text-xs font-medium uppercase tracking-wider text-ink-300">
+        <h2 id="glance-title" className="min-w-0 text-xs font-medium uppercase tracking-wider text-ink-300">
           {monthLabel} at a glance
         </h2>
-        <Link to="/tracker" className="inline-flex items-center gap-1 text-sm font-medium text-brand-300 hover:text-white transition">
+        <Link to="/tracker" className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 text-sm font-medium text-brand-300 hover:text-white transition">
           Open tracker <ArrowRight size={14} />
         </Link>
       </div>
-      <dl className="mt-4 grid grid-cols-3 sm:grid-cols-4 gap-4">
+      {/* Two to a row on phones, so lakh and crore figures have room; four in a row on wider screens */}
+      <dl className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 [&>div]:min-w-0">
         <div className="hidden sm:block">
           <dt className="text-xs text-ink-300">Balance</dt>
-          <dd className="mt-1 text-xl sm:text-2xl font-semibold tabular-nums">{formatINR(data.totalBalance)}</dd>
+          <dd className={figure(formatINR(data.totalBalance))}>{formatINR(data.totalBalance)}</dd>
         </div>
         <div>
           <dt className="text-xs text-ink-300">Spent</dt>
-          <dd className="mt-1 text-xl sm:text-2xl font-semibold tabular-nums">{formatINR(data.expense)}</dd>
+          <dd className={figure(formatINR(data.expense))}>{formatINR(data.expense)}</dd>
         </div>
         <div>
           <dt className="text-xs text-ink-300">Earned</dt>
-          <dd className="mt-1 text-xl sm:text-2xl font-semibold tabular-nums">{formatINR(data.income)}</dd>
+          <dd className={figure(formatINR(data.income))}>{formatINR(data.income)}</dd>
         </div>
         <div>
           <dt className="text-xs text-ink-300">Saved</dt>
-          <dd className={`mt-1 text-xl sm:text-2xl font-semibold tabular-nums ${savingsRate !== null && savingsRate < 0 ? "text-[#f3a3a8]" : ""}`}>
-            {savingsRate === null ? "–" : `${savingsRate}%`}
-          </dd>
+          <dd className={`${figure(savedText)} ${savingsRate !== null && savingsRate < 0 ? "text-[#f3a3a8]" : ""}`}>{savedText}</dd>
         </div>
       </dl>
       <div className="mt-5 border-t border-ink-800 pt-4">
@@ -290,15 +296,15 @@ function Home() {
   const newInDiscussCard = unreadNotifications.length > 0 && (
     <section className="bg-surface border border-brand-100 rounded-2xl p-6" aria-labelledby="home-new">
       <h2 id="home-new" className="flex items-center gap-2 font-semibold text-ink-900">
-        <Bell size={18} className="text-brand-600" /> New in Discuss
+        <Bell size={18} className="text-brand-600" /> Recent activity
       </h2>
       <ul className="mt-3 divide-y divide-line">
         {unreadNotifications.map((n) => (
           <li key={n.id}>
-            <Link to={`/discuss/${n.postId}`} className="flex items-center justify-between gap-3 py-3 group">
+            <Link to={notificationLink(n)} className="flex items-center justify-between gap-3 py-3 group">
               <span className="min-w-0">
                 <span className="block text-sm font-medium text-ink-900 group-hover:text-brand-700 transition">{n.message}</span>
-                <span className="block text-xs text-ink-500 truncate">{n.title}</span>
+                {n.title && <span className="block text-xs text-ink-500 truncate">{n.title}</span>}
               </span>
               <ArrowRight size={16} className="shrink-0 text-ink-300 group-hover:text-brand-600 transition" />
             </Link>
@@ -350,10 +356,14 @@ function Home() {
         <Link to="/discuss" className="text-sm font-medium text-brand-600 hover:text-brand-700">Discuss</Link>
       </div>
       {community.length === 0 ? (
-        <p className="mt-4 text-sm text-ink-500">
-          No questions yet.{" "}
-          <Link to="/discuss?ask=1" className="font-medium text-brand-600 hover:text-brand-700">Be the first to ask</Link>.
-        </p>
+        data.posts.length === 0 ? (
+          <p className="mt-4 text-sm text-ink-500">
+            No questions yet.{" "}
+            <Link to="/discuss?ask=1" className="font-medium text-brand-600 hover:text-brand-700">Be the first to ask</Link>.
+          </p>
+        ) : (
+          <p className="mt-4 text-sm text-ink-500">The latest questions are in Recent activity above.</p>
+        )
       ) : (
         <ul className="mt-3 divide-y divide-line">
           {community.map((post) => (

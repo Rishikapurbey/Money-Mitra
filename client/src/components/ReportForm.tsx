@@ -1,19 +1,18 @@
 import { useState } from "react";
 import { isAxiosError } from "axios";
-import { Flag } from "lucide-react";
 import api from "../lib/api";
 import { REPORT_REASONS } from "../lib/discuss";
 
-interface ReportButtonProps {
+interface ReportFormProps {
   // API path of the question or reply, e.g. /posts/123 or /posts/123/replies/456
   path: string;
   // Called when this report pushed the item over the hiding threshold
   onHidden: () => void;
+  onClose: () => void;
 }
 
-// A small flag button that opens an inline list of reasons (no pop-up dialogs)
-function ReportButton({ path, onHidden }: ReportButtonProps) {
-  const [open, setOpen] = useState(false);
+// The reasons for reporting a question or reply, shown under it after choosing Report in its ⋯ menu
+function ReportForm({ path, onHidden, onClose }: ReportFormProps) {
   const [reason, setReason] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -37,21 +36,10 @@ function ReportButton({ path, onHidden }: ReportButtonProps) {
     }
   };
 
-  if (state === "done") return <p className="text-xs text-ink-500">{message}</p>;
-
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1 text-xs text-ink-400 hover:text-loss transition"
-      >
-        <Flag size={13} /> Report
-      </button>
-    );
-  }
+  if (state === "done") return <p className="mt-3 text-xs text-ink-500">{message}</p>;
 
   return (
-    <div className="mt-2 w-full bg-canvas border border-line rounded-xl p-4 space-y-3">
+    <div className="mt-3 w-full bg-canvas border border-line rounded-xl p-4 space-y-3">
       <p className="text-sm font-medium text-ink-900">Why are you reporting this?</p>
       <div className="space-y-2">
         {REPORT_REASONS.map((r) => (
@@ -77,7 +65,7 @@ function ReportButton({ path, onHidden }: ReportButtonProps) {
         >
           {state === "sending" ? "Sending…" : "Send report"}
         </button>
-        <button onClick={() => setOpen(false)} className="px-4 py-1.5 rounded-lg text-sm text-ink-700 hover:bg-ink-100 transition">
+        <button onClick={onClose} className="px-4 py-1.5 rounded-lg text-sm text-ink-700 hover:bg-ink-100 transition">
           Cancel
         </button>
       </div>
@@ -85,4 +73,4 @@ function ReportButton({ path, onHidden }: ReportButtonProps) {
   );
 }
 
-export default ReportButton;
+export default ReportForm;

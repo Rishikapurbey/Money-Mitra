@@ -14,7 +14,8 @@ const REFRESH_MS = 10_000;
 
 // The chat screen's height: the window minus the top bar (and its 1px border), and on phones the tab bar's space too,
 // so the messages scroll inside it and the box to type in stays in view
-export const chatHeight = "h-[calc(100dvh-9rem-1px)] md:h-[calc(100dvh-7rem-1px)]";
+export const chatHeight =
+  "h-[calc(100dvh-9rem-1px-env(safe-area-inset-top)-env(safe-area-inset-bottom))] md:h-[calc(100dvh-7rem-1px-env(safe-area-inset-top))]";
 
 function Row({ chat, tab }: { chat: ChatSummary; tab: string }) {
   const name = personName(chat.person);

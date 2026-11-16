@@ -79,7 +79,7 @@ function PublicLayout() {
 
   return (
     <div className="min-h-screen bg-canvas flex flex-col">
-      <header className="bg-surface/90 backdrop-blur border-b border-line sticky top-0 z-30">
+      <header className="bg-surface/90 backdrop-blur border-b border-line sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
         <div className={`${pageWidth} h-16 flex items-center gap-3 md:gap-8`}>
           <Link to="/" onClick={(e) => handleNav(e, "/")} aria-label="Money Mitra home" className="shrink-0">
             <Logo />

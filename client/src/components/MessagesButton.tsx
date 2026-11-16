@@ -38,7 +38,7 @@ function MessagesButton() {
       to="/messages"
       aria-label={count > 0 ? `Messages, ${count} unread` : "Messages"}
       className={({ isActive }) =>
-        `relative p-2 rounded-xl transition ${isActive ? "text-ink-900 bg-ink-100" : "text-ink-500 hover:text-ink-900 hover:bg-ink-100"}`
+        `relative p-1.5 sm:p-2 rounded-xl transition ${isActive ? "text-ink-900 bg-ink-100" : "text-ink-500 hover:text-ink-900 hover:bg-ink-100"}`
       }
     >
       <MessageCircle size={20} />

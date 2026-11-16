@@ -123,7 +123,7 @@ function NotificationBell() {
         onClick={toggle}
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
         aria-expanded={open}
-        className="relative p-2 rounded-xl text-ink-500 hover:text-ink-900 hover:bg-ink-100 transition"
+        className="relative p-1.5 sm:p-2 rounded-xl text-ink-500 hover:text-ink-900 hover:bg-ink-100 transition"
       >
         <Bell size={20} />
         {unread > 0 && (

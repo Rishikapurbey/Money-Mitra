@@ -75,7 +75,7 @@ function QuickAddSheet({ type: initialType, recentCategories, onClose, onSaved }
         role="dialog"
         aria-modal="true"
         aria-labelledby="quick-add-title"
-        className="relative w-full sm:max-w-md bg-surface rounded-t-3xl sm:rounded-2xl p-6 pb-8 sm:pb-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto"
+        className="relative w-full sm:max-w-md bg-surface rounded-t-3xl sm:rounded-2xl p-6 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:pb-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between">
           <h2 id="quick-add-title" className="font-semibold text-ink-900">Quick add</h2>

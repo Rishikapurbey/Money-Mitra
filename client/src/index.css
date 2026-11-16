@@ -51,6 +51,18 @@ body {
   background: var(--color-canvas);
   color: var(--color-ink-900);
   -webkit-font-smoothing: antialiased;
+  /* Nothing may make the page wider than the screen: a phone would zoom out to fit it, and the
+     bars pinned to the top and bottom would drift. "clip" (not "hidden") keeps sticky headers working. */
+  overflow-x: clip;
+}
+
+/* A grid that doesn't set its own columns gets one column that can shrink to the screen. Without
+   this, its single column grows to fit its widest content (a crore-sized figure beside a long name)
+   and pushes the page wider than a phone. Any grid-cols-* class still takes precedence. */
+@layer components {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* ---------- Dark mode ----------

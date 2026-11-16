@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import ConfirmEmailNotice from "../components/ConfirmEmailNotice";
 import { isAxiosError } from "axios";
-import { ArrowLeft, ArrowRight, BookOpen, Trash2, AlertCircle, ThumbsUp, Award, EyeOff, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Trash2, AlertCircle, ThumbsUp, Award, EyeOff, CheckCircle2, Flag } from "lucide-react";
 import api from "../lib/api";
 import { timeAgo, discussInputClass } from "../lib/discuss";
 import type { Post } from "../lib/discuss";
-import ReportButton from "../components/ReportButton";
+import ReportForm from "../components/ReportForm";
+import ActionMenu from "../components/ActionMenu";
 import { pageWidth } from "../lib/ui";
 import { useWideLayout } from "../lib/useMediaQuery";
 import { TERMS } from "../lib/learn";
@@ -41,7 +42,8 @@ function DiscussPost() {
   const isAnonymous = anonymousChoice ?? me?.anonymousByDefault ?? false;
   const [replying, setReplying] = useState(false);
   // Which item is waiting for delete confirmation: "post", a reply id, or null
-  const [confirming, setConfirming] = useState<string | null>(null);
+  // The question ("post") or reply whose report form is open
+  const [reporting, setReporting] = useState<string | null>(null);
   const wide = useWideLayout();
   const [moreInTopic, setMoreInTopic] = useState<Post[]>([]);
   const toast = useToast();
@@ -154,7 +156,6 @@ function DiscussPost() {
     try {
       await api.delete(`/posts/${id}/replies/${replyId}`);
       setPost((current) => current && { ...current, replies: current.replies?.filter((r) => r.id !== replyId) });
-      setConfirming(null);
       toast({ message: "Reply deleted" });
     } catch {
       setError("We couldn't delete that reply. Please try again.");
@@ -286,31 +287,30 @@ function DiscussPost() {
                   </span>
                 )}
               </span>
-              {post.isMine &&
-                (confirming === "post" ? (
-                  <span className="flex items-center gap-2 text-sm">
-                    <span className="text-ink-700">Delete this question and its replies?</span>
-                    <button onClick={handleDeletePost} className="font-medium text-loss hover:underline">Delete</button>
-                    <button onClick={() => setConfirming(null)} className="text-ink-500 hover:text-ink-900">Cancel</button>
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => setConfirming("post")}
-                    className="flex items-center gap-1.5 text-sm text-ink-400 hover:text-loss transition"
-                  >
-                    <Trash2 size={15} /> Delete
-                  </button>
-                ))}
+              {/* Delete your own question, or report someone else's, from its ⋯ menu */}
+              <ActionMenu
+                label="Question options"
+                className="-mt-1.5 -mr-2"
+                actions={[
+                  post.isMine
+                    ? {
+                        label: "Delete question",
+                        icon: Trash2,
+                        danger: true,
+                        onSelect: handleDeletePost,
+                        confirm: { title: "Delete this question?", body: "Its replies are deleted too.", action: "Delete" },
+                      }
+                    : { label: "Report", icon: Flag, danger: true, onSelect: () => setReporting("post") },
+                ]}
+              />
             </div>
             <h1 className="mt-3 text-xl font-semibold tracking-tight text-ink-900">{post.title}</h1>
             <p className="mt-1.5 text-xs text-ink-500">
               <Byline item={post} /> · {timeAgo(post.createdAt)}
             </p>
             {post.body && <p className="mt-4 text-ink-700 leading-relaxed whitespace-pre-line">{post.body}</p>}
-            {!post.isMine && (
-              <div className="mt-4 flex flex-wrap">
-                <ReportButton path={`/posts/${post.id}`} onHidden={() => setPost({ ...post, hidden: true })} />
-              </div>
+            {reporting === "post" && (
+              <ReportForm path={`/posts/${post.id}`} onHidden={() => setPost({ ...post, hidden: true })} onClose={() => setReporting(null)} />
             )}
           </article>
 
@@ -344,26 +344,21 @@ function DiscussPost() {
                         <p className="text-xs text-ink-500">
                           <Byline item={r} /> · {timeAgo(r.createdAt)}
                         </p>
-                        {r.isMine &&
-                          (confirming === r.id ? (
-                            <span className="flex items-center gap-2 text-xs">
-                              <span className="text-ink-700">Delete reply?</span>
-                              <button onClick={() => handleDeleteReply(r.id)} className="font-medium text-loss hover:underline">
-                                Delete
-                              </button>
-                              <button onClick={() => setConfirming(null)} className="text-ink-500 hover:text-ink-900">
-                                Cancel
-                              </button>
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => setConfirming(r.id)}
-                              aria-label="Delete reply"
-                              className="text-ink-300 hover:text-loss transition"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          ))}
+                        <ActionMenu
+                          label="Reply options"
+                          className="-my-2 -mr-2"
+                          actions={[
+                            r.isMine
+                              ? {
+                                  label: "Delete reply",
+                                  icon: Trash2,
+                                  danger: true,
+                                  onSelect: () => handleDeleteReply(r.id),
+                                  confirm: { title: "Delete this reply?", action: "Delete" },
+                                }
+                              : { label: "Report", icon: Flag, danger: true, onSelect: () => setReporting(r.id) },
+                          ]}
+                        />
                       </div>
                       <p className="mt-2 text-ink-700 leading-relaxed whitespace-pre-line">{r.body}</p>
                       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -386,7 +381,6 @@ function DiscussPost() {
                             >
                               <ThumbsUp size={13} /> Helpful{r.helpfulCount > 0 && ` · ${r.helpfulCount}`}
                             </button>
-                            <ReportButton path={`/posts/${post.id}/replies/${r.id}`} onHidden={() => hideReply(r.id)} />
                           </>
                         )}
                         {post.isMine &&
@@ -403,6 +397,9 @@ function DiscussPost() {
                             </button>
                           ))}
                       </div>
+                      {reporting === r.id && (
+                        <ReportForm path={`/posts/${post.id}/replies/${r.id}`} onHidden={() => hideReply(r.id)} onClose={() => setReporting(null)} />
+                      )}
                     </li>
                   )
                 )}

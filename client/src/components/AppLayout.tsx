@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
-import { House, PieChart, MessagesSquare, BookOpen, LogOut, ChevronDown, Calculator, Settings, Download, UserRound, UsersRound, ChartColumn, Search } from "lucide-react";
+import { Link, NavLink, Outlet } from "react-router-dom";
+import { House, PieChart, MessagesSquare, BookOpen, ChevronDown, Calculator, Settings, Download, UserRound, UsersRound, ChartColumn, Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import api from "../lib/api";
 import { Logo } from "./Logo";
@@ -48,7 +48,6 @@ function AppLayout() {
   const [me, setMe] = useState<Me | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
 
   const toast = useToast();
 
@@ -89,15 +88,12 @@ function AppLayout() {
 
   const install = useInstallPrompt();
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
-  };
-
   return (
-    <div className="min-h-screen bg-canvas pb-20 md:pb-0">
-      <header className="bg-surface border-b border-line sticky top-0 z-20">
-        <div className={`${pageWidth} h-16 flex items-center gap-8`}>
+    // The app fills the whole screen (viewport-fit=cover), so the bars keep clear of the phone's
+    // status bar and gesture bar with the safe-area insets
+    <div className="min-h-screen bg-canvas pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
+      <header className="bg-surface border-b border-line sticky top-0 z-20 pt-[env(safe-area-inset-top)]">
+        <div className={`${pageWidth} h-16 flex items-center gap-3 md:gap-8`}>
           <NavLink to="/home" aria-label="Money Mitra home" className="shrink-0">
             <Logo />
           </NavLink>
@@ -124,12 +120,12 @@ function AppLayout() {
             )}
           </nav>
 
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center sm:gap-1">
             <NavLink
               to="/search"
               aria-label="Search people"
               className={({ isActive }) =>
-                `p-2 rounded-xl transition ${isActive ? "text-ink-900 bg-ink-100" : "text-ink-500 hover:text-ink-900 hover:bg-ink-100"}`
+                `p-1.5 sm:p-2 rounded-xl transition ${isActive ? "text-ink-900 bg-ink-100" : "text-ink-500 hover:text-ink-900 hover:bg-ink-100"}`
               }
             >
               <Search size={20} />
@@ -145,11 +141,12 @@ function AppLayout() {
                 onClick={() => setMenuOpen((open) => !open)}
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
-                className="flex items-center gap-2 rounded-xl p-1 pr-2 hover:bg-ink-100 transition"
+                className="flex items-center gap-2 rounded-xl p-1 sm:pr-2 hover:bg-ink-100 transition"
               >
                 {me ? <Avatar name={nameOf(me)} avatarUrl={me.avatarUrl} /> : <span className="w-8 h-8 rounded-full bg-ink-100" />}
                 <span className="hidden sm:block text-sm font-medium text-ink-700">{me && nameOf(me)}</span>
-                <ChevronDown size={16} className="text-ink-400" />
+                {/* The photo alone opens the menu on phones, leaving room in the top bar */}
+                <ChevronDown size={16} className="hidden sm:block text-ink-400" />
               </button>
               {menuOpen && (
                 <div role="menu" className="absolute right-0 mt-2 w-52 bg-surface border border-line rounded-xl shadow-lg py-1">
@@ -196,13 +193,6 @@ function AppLayout() {
                       <Download size={16} /> Install app
                     </button>
                   )}
-                  <button
-                    role="menuitem"
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-100 transition"
-                  >
-                    <LogOut size={16} /> Log out
-                  </button>
                 </div>
               )}
             </div>
@@ -216,7 +206,7 @@ function AppLayout() {
         <Outlet context={{ me, updateMe } satisfies AppContext} />
       </PageBoundary>
 
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-surface border-t border-line grid grid-cols-5">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-surface border-t border-line grid grid-cols-5 pb-[env(safe-area-inset-bottom)]">
         {navItems.filter((item) => !item.wideOnly).map(({ to, label, icon: Icon, soon }) =>
           soon ? (
             <span key={to} className="flex flex-col items-center gap-1 py-2.5 text-ink-300">
@@ -239,7 +229,7 @@ function AppLayout() {
       </nav>
 
       {/* Sits above the phone tab bar */}
-      <BackToTop className="bottom-24 md:bottom-6" />
+      <BackToTop className="bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-6" />
     </div>
   );
 }
