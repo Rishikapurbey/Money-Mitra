@@ -5,7 +5,6 @@ import {
   CalendarCheck,
   Landmark,
   Receipt,
-  Upload,
   UsersRound,
   Check,
   EyeOff,
@@ -137,13 +136,12 @@ interface Feature {
   visual: ReactNode;
 }
 
-// Smaller features, listed after the four main ones
+// Smaller features, listed after the four main ones: four cards, so they sit in one even row
 const extras = [
-  { icon: UsersRound, title: "Shared expenses", body: "Split trips and flat costs with friends, see who owes whom, and settle up." },
-  { icon: Landmark, title: "Net worth", body: "Everything you own minus what you owe, with your bank balance kept up to date by your Tracker." },
+  { icon: UsersRound, title: "Shared expenses", body: "Split trips and flat costs, see who owes whom, and settle up with UPI in one tap." },
+  { icon: Landmark, title: "Accounts and net worth", body: "Bank, cash and cards that update as you spend, adding up to what you're worth." },
+  { icon: CalendarCheck, title: "Monthly recap and year review", body: "A short look back at each month and each year: where it went and what changed." },
   { icon: Receipt, title: "Bill reminders", body: "A nudge two days before rent, EMIs and bills are due, and on the day." },
-  { icon: CalendarCheck, title: "Monthly recap", body: "A short look back at each month: where it went and what changed." },
-  { icon: Upload, title: "Bank statement import", body: "Bring in past months from a CSV file instead of typing them in." },
 ];
 
 const features: Feature[] = [
@@ -181,7 +179,7 @@ const features: Feature[] = [
     eyebrow: "Discuss",
     title: "Ask anything. There are no dumb questions.",
     body: "Everyone starts somewhere. Ask the community about loans, tax, saving or investing, and post anonymously whenever you prefer.",
-    points: ["Post or reply anonymously", "Topics from budgeting to tax", "A friendly place to learn from others"],
+    points: ["Post or reply anonymously", "Topics from budgeting to tax", "Follow people and message them privately"],
     visual: <MiniQuestion />,
   },
 ];
@@ -304,7 +302,7 @@ function Landing() {
 
         <div className="mt-20 sm:mt-28">
           <h3 className="text-xl font-semibold tracking-tight text-ink-900">Also in Money Mitra</h3>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {extras.map((x) => (
               <div key={x.title} className="flex items-start gap-3 rounded-2xl border border-line bg-surface p-5">
                 <span className="w-9 h-9 shrink-0 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center">

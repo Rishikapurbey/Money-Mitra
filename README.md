@@ -6,10 +6,10 @@ Money Mitra is for people who manage their day-to-day money responsibly but were
 taught how investing works: SIPs, mutual funds, FDs, LIC, and where to start. It brings
 together what most finance apps keep separate:
 
-- **Track**: log income and expenses, set budgets and goals, and see each month clearly
+- **Track**: log income and expenses across your bank accounts, cash and cards, set budgets and goals, and see each month and your net worth clearly
 - **Learn**: plain-language explanations of money terms, with worked examples in rupees
-- **Discuss**: ask questions about money without judgment, under your name or anonymously
-- **Share**: split trips and flat costs with friends and settle up
+- **Discuss**: ask questions about money without judgment, under your name or anonymously, and follow and message the people you meet
+- **Share**: split trips and flat costs with friends and settle up over UPI
 
 **Live app:** [money-mitra-three.vercel.app](https://money-mitra-three.vercel.app)
 
@@ -61,7 +61,7 @@ the way.
 - 30 money terms from basics to advanced, each with a rupee example and links into Discuss
 - SIP, EMI, FD, inflation and emergency fund calculators, usable without an account
 
-### Discuss and profiles
+### Discuss, people and messages
 - Questions and replies by topic, with search, helpful votes and an accepted answer
 - Post under your name or anonymously, per question and per reply
 - Reports hide a post after three reports, and the team is emailed
@@ -76,7 +76,7 @@ the way.
 - Download all your data, or delete your account
 - Light and dark themes, a phone layout with a bottom tab bar, and installable as an app (PWA)
 - A private admin page at `/admin` for the `ADMIN_EMAIL` account: signups per week, active users,
-  how many people use each feature, reported questions and replies, and the list of people.
+  how many people use each feature, reported questions, replies and messages, and the list of people.
   It's linked from that account's menu and from Settings; everyone else sees no link and gets
   "Page not found"
 
