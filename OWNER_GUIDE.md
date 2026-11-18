@@ -242,6 +242,8 @@ accounts, net worth, "What we noticed this month", a Learn tip, goals and commun
 - **Insights ("What we noticed this month"):** plain observations about budgets, spending more than
   earned, savings rate, category changes, where the month is heading and big single expenses. They
   are careful during a running month, so early-month numbers do not give false good news.
+- **Undo:** deleting an entry, transfer, budget or goal shows a short Undo option, so a slip is easy
+  to reverse.
 
 ### Accounts and transfers
 
@@ -326,6 +328,9 @@ SIP, EMI, FD, Inflation and Emergency fund. They work without an account, and th
   hidden details such as location. A cover can be a photo or one of 6 built-in designs.
 - **Follow** works like Instagram: public profiles at once, private profiles by request. Making a
   profile public accepts everyone waiting.
+- **Private profiles** still appear in search with their identity, but their Discuss activity and
+  follower lists are only for the owner and accepted followers.
+- **Removing a follower** is possible, and that person is not told.
 - **People search** is in the top bar: starts at 2 characters, shows up to 20, people you know first.
 
 ### Messages
@@ -381,7 +386,8 @@ reported.
 
 - Light and dark themes, following the device unless you choose.
 - Phone layout with a bottom tab bar: Home, Tracker, Discuss, Learn, Calculators.
-- Installable on phones. It does not store the app or data for offline use, only a friendly offline
+- Installable on phones. Chrome and Edge can use the app's own Install button, and iPhone users use
+  Share > Add to Home Screen. It does not store the app or data for offline use, only a friendly offline
   page. Users get a new version after fully closing and reopening it.
 
 ---
@@ -867,15 +873,15 @@ Counted per network address. They reset if the server restarts.
 | Resending confirmation | 3 per 15 minutes |
 | Changing email | 5 per 15 minutes |
 | Discuss posts and replies | 30 per 10 minutes |
-| Reports | 20 per hour |
+| Reports, in Discuss and messages | 20 per hour |
 | Feedback | 5 per hour |
-| Photo changes | 20 per hour |
-| Follow actions | 60 per 10 minutes |
+| Profile photo and cover uploads | 20 per hour |
+| Follow and block actions | 60 per 10 minutes |
 | Messages sent | 100 per 10 minutes |
 | Starting new chats | 40 per hour |
 | CSV imports | 20 per hour |
-| Shared group changes | 60 per 10 minutes |
-| People search | 150 per 10 minutes |
+| Creating groups and adding people to them | 60 per 10 minutes |
+| People search, including group invite suggestions | 150 per 10 minutes |
 
 ### Other numbers
 
@@ -1141,7 +1147,8 @@ flowchart TD
 
 ### The app is very slow the first time
 
-This is usually normal. Render's free server sleeps and can take up to a minute to wake.
+This is usually normal. Render's free server sleeps and can take up to a minute to wake. If login,
+sign-up or a password screen takes more than 4 seconds, the app tells the person it is waking up.
 
 ### The website is down or a bad version went live
 
