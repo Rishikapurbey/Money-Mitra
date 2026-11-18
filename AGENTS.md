@@ -7,7 +7,8 @@ together, and what is still open.
 
 `README.md` is the public description of the app: features, tech stack, setup, environment
 variables, API overview, deployment and backups. Read it too. This file adds what the README
-doesn't say, and doesn't repeat it.
+doesn't say, and doesn't repeat it. `OWNER_GUIDE.md` is the owner's plain-English record of the whole
+app, with architecture, flowcharts, every feature and repair steps.
 
 The repo is **public**. Never commit secrets, passwords, connection strings, personal email
 addresses or anything from the production database.
@@ -23,7 +24,7 @@ sensibly but were never taught investing. Live at https://money-mitra-three.verc
   cards, budgets, goals, recurring entries and bill reminders, CSV import, net worth, monthly
   recap and yearly review.
 - **Shared expenses**: groups for trips and flats, splits in exact paise, settle up over UPI.
-- **Learn** (30 money terms with rupee examples) and **calculators** (SIP, EMI, FD, inflation,
+- **Learn** (28 money terms with rupee examples) and **calculators** (SIP, EMI, FD, inflation,
   emergency fund), both usable without an account.
 - **Discuss**: questions and replies, anonymous or named, helpful votes, accepted answers.
 - **People**: profiles, Instagram-style follow, people search, one-to-one messages, block and
@@ -64,13 +65,15 @@ These are firm preferences, learned over many sessions.
 - **Explain in plain English.** The owner is not a full-time developer. Say what changed for the
   user, what was checked, and anything they must do, without jargon.
 - Keep the README up to date with every user-visible change (it has no roadmap section; don't add one).
+  Update `OWNER_GUIDE.md` too when features, architecture, operations or decisions change.
 
 **Checking work**
 - Run the relevant tests, type checks, lint and build before proposing a commit.
 - Look at UI changes in a real browser at phone width (360px and 320px) and desktop, in light and
   dark mode. The owner mainly uses the installed app on an Android phone.
 - For browser testing, use the Chrome DevTools MCP if available, not a browser extension that is
-  signed in on the owner's other devices.
+  signed in on the owner's other devices. In Claude Code it is added with
+  `claude mcp add chrome-devtools -- npx chrome-devtools-mcp@latest`, followed by a restart.
 
 ---
 
@@ -176,6 +179,10 @@ and `server/` (Express 5 + TypeScript + Prisma 5 + PostgreSQL). Root `npm run de
 - Server: Vitest + Supertest against a real Postgres test database (`server/test`). Helpers:
   `createUser()` (returns `auth` header), `resetDatabase()` (add new tables to its TRUNCATE list).
   Mock email with `vi.mock("../src/lib/email", ...)` when a test sends mail.
+- The owner's local Postgres is a personal instance on port 5433 (`money_mitra` for development),
+  with its files in `~/.local/share/money-mitra-pg`. It stops after a reboot; if Prisma reports P1001,
+  start it with the command in `OWNER_GUIDE.md` section 14. Demo accounts (`demo_*`) and the "Demo
+  flat" group in that database are kept on purpose; their passwords were not saved.
 - The test database name must contain "test". `TEST_DATABASE_URL` overrides the default
   (`money_mitra_test` on the local server). **If two AI sessions work in the repo at once, give
   each its own test database**: each run truncates it, so parallel runs fail randomly.
@@ -190,7 +197,9 @@ and `server/` (Express 5 + TypeScript + Prisma 5 + PostgreSQL). Root `npm run de
 - **Website:** Vercel, project root `client`, auto-deploys from `main`.
   Env: `VITE_API_URL`. "Expose system environment variables" must stay on (Settings > About shows
   the commit).
-- **API:** Render web service, auto-deploys from `main`. Build runs
+- **GitHub on the owner's computer:** pushes use the `github-personal` SSH alias. The `gh` CLI is
+  logged in to a different account, so the owner creates repos and secrets in the browser.
+- **API:** Render web service at https://money-mitra-qg6b.onrender.com, auto-deploys from `main`. Build runs
   `prisma generate && tsc && prisma migrate deploy`, so **migrations apply on every deploy**; a
   failed migration blocks deploys (Prisma P3009) until resolved. Free tier sleeps; the first
   request can take up to a minute.
@@ -244,3 +253,4 @@ and `server/` (Express 5 + TypeScript + Prisma 5 + PostgreSQL). Root `npm run de
 - Shared expenses later: one-off splits without a group, percentage splits, recurring shared
   bills, group CSV export.
 - Not wanted: summary/digest emails, a sidebar, emojis, Excel import (CSV only for now).
+- Already declined, don't suggest again: Brevo cleanup (click tracking, rotating its API key).

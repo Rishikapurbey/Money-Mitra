@@ -13,6 +13,9 @@ together what most finance apps keep separate:
 
 **Live app:** [money-mitra-three.vercel.app](https://money-mitra-three.vercel.app)
 
+For the complete picture, including architecture, flowcharts, every feature and how to run and repair
+the app, see [OWNER_GUIDE.md](OWNER_GUIDE.md).
+
 ## Contents
 
 - [Why Money Mitra](#why-money-mitra)
@@ -58,7 +61,7 @@ the way.
 - Any member can edit an expense; every change is kept in the group's activity history
 
 ### Learn and calculators
-- 30 money terms from basics to advanced, each with a rupee example and links into Discuss
+- 28 money terms from basics to advanced, each with a rupee example and links into Discuss
 - SIP, EMI, FD, inflation and emergency fund calculators, usable without an account
 
 ### Discuss, people and messages
@@ -118,7 +121,7 @@ money-mitra/
     ├── prisma/             # Schema and migrations
     ├── src/modules/        # account, admin, auth, blocks, budgets, categories, chat, feedback, follows, goals,
     │                       # imports, networth, notifications, posts, profiles, recaps,
-    │                       # recurring, search, shared, transactions
+    │                       # recurring, search, shared, transactions, transfers
     └── test/               # API tests
 ```
 
@@ -146,7 +149,9 @@ PORT=5000
 Apply the database migrations, then start the API and the website together:
 
 ```bash
-npm --prefix server exec prisma migrate dev
+cd server
+npx prisma migrate dev
+cd ..
 npm run dev
 ```
 
